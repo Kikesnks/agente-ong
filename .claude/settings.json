@@ -11,7 +11,8 @@
       "Bash(./.venv/Scripts/python.exe -m pip install --upgrade pip)",
       "Bash(./.venv/Scripts/python.exe -m pip install -r requirements.txt)",
       "Bash(./.venv/Scripts/python.exe -m pip install -r requirements-dev.txt)",
-      "Bash(./.venv/Scripts/python.exe -m pytest tests/ -q)"
+      "Bash(./.venv/Scripts/python.exe -m pytest tests/ -q)",
+      "Bash(./.venv/Scripts/python.exe -m pytest tests/research/test_memory_store.py -v)"
     ]
   }
 }

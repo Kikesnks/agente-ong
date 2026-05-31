@@ -90,7 +90,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/store/base.py, src/agente_ong/research/models.py_
   - _Requirements: 5.3, 7.1_
 
-- [ ] 10. Escribir test de InMemoryStore en tests/research/test_memory_store.py
+- [x] 10. Escribir test de InMemoryStore en tests/research/test_memory_store.py
   - File: tests/research/test_memory_store.py
   - Verifica guardar/recuperar `LedgerEntry`, recall por temática y `has_url`
   - Purpose: asegurar el contrato del store
