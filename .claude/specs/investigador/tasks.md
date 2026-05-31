@@ -123,7 +123,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/models.py_
   - _Requirements: 3.3, 3.4, 4.2, 4.4_
 
-- [ ] 14. Añadir VerificationPolicy.needs_revalidation en verification.py
+- [x] 14. Añadir VerificationPolicy.needs_revalidation en verification.py
   - File: src/agente_ong/research/verification.py (continúa de la tarea 13)
   - `needs_revalidation(claim, intent, now)`: True si dato crítico con `intent=use_in_proposal`,
     o `captured_at` supera `staleness_days`, o procede solo de pista de ledger no reconfirmada;

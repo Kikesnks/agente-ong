@@ -18,9 +18,10 @@ La política de revalidación por caducidad (flag `stale`) se añade en la tarea
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime, timedelta, timezone
 
 from agente_ong.research.config import ResearchConfig
-from agente_ong.research.models import Claim, SourceRef, VerificationStatus
+from agente_ong.research.models import Claim, Intent, SourceRef, VerificationStatus
 
 
 class VerificationPolicy:
@@ -61,3 +62,47 @@ class VerificationPolicy:
         if only.is_official:
             return VerificationStatus.OFFICIAL_UNCROSSED
         return VerificationStatus.UNCROSSED_UNVERIFIED
+
+    def needs_revalidation(
+        self,
+        claim: Claim,
+        *,
+        intent: Intent,
+        now: datetime | None = None,
+        from_ledger_only: bool = False,
+    ) -> bool:
+        """Indica si un dato debe revalidarse contra su fuente antes de darlo por bueno.
+
+        El `content_summary` persistido del ledger es solo una PISTA, nunca un dato
+        definitivo: por eso los datos críticos que se vayan a usar en una propuesta, los
+        caducados, o los que solo provengan de una pista no reconfirmada, exigen reconsulta.
+
+        Devuelve True si se cumple alguna condición (Requirements 3.4, 4.1, 4.3):
+          - el dato es crítico y el `intent` es "use_in_proposal";
+          - el dato está caducado (su fuente más reciente supera `staleness_days`);
+          - el dato es crítico y proviene únicamente de una pista de ledger no reconfirmada
+            en esta investigación (`from_ledger_only`).
+
+        Efecto colateral: si detecta caducidad, marca `claim.stale = True` para que el
+        informe lo refleje (la caducidad es ortogonal al `VerificationStatus`).
+        """
+        moment = now or datetime.now(timezone.utc)
+
+        is_stale = self._is_stale(claim, moment)
+        if is_stale:
+            claim.stale = True
+
+        if claim.is_critical and intent == "use_in_proposal":
+            return True
+        if is_stale:
+            return True
+        if claim.is_critical and from_ledger_only:
+            return True
+        return False
+
+    def _is_stale(self, claim: Claim, now: datetime) -> bool:
+        """True si incluso la fuente más reciente del claim supera el umbral de frescura."""
+        if not claim.sources:
+            return False
+        most_recent = max(source.retrieved_at for source in claim.sources)
+        return now - most_recent > timedelta(days=self._config.staleness_days)
