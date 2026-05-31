@@ -60,7 +60,7 @@ y especifica los archivos exactos.
   - Purpose: modelos de petición, persistencia y salida del informe
   - _Requirements: 2.4, 5.1, 5.3, 7.1_
 
-- [ ] 6. Crear utilidad de normalización de URLs en src/agente_ong/research/urlnorm.py
+- [x] 6. Crear utilidad de normalización de URLs en src/agente_ong/research/urlnorm.py
   - File: src/agente_ong/research/urlnorm.py
   - Función `normalize_url(url) -> str` (esquema/host en minúsculas, orden de query params,
     sin fragmento) usada como clave de deduplicación
