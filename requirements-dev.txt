@@ -1,0 +1,8 @@
+# Dependencias de DESARROLLO — herramientas que el cliente final NO necesita.
+#
+# La línea siguiente incluye también todas las dependencias de runtime, de modo que
+# en un entorno de desarrollo basta con: pip install -r requirements-dev.txt
+-r requirements.txt
+
+# --- Testing ---
+pytest>=8.0

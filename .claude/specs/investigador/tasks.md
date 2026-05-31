@@ -67,7 +67,7 @@ y especifica los archivos exactos.
   - Purpose: deduplicar URLs equivalentes en el ledger
   - _Requirements: 5.2, 6.2_
 
-- [ ] 7. Escribir test de normalización en tests/research/test_urlnorm.py
+- [x] 7. Escribir test de normalización en tests/research/test_urlnorm.py
   - File: tests/research/test_urlnorm.py
   - Casos: mayúsculas en host, fragmentos, reordenado de query params, slash final
   - Purpose: garantizar deduplicación correcta

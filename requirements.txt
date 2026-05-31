@@ -1,0 +1,17 @@
+# Dependencias de EJECUCIÓN (runtime) — lo que la app necesita para funcionar.
+# Stack definido en .claude/steering/tech.md.
+#
+# Nota: la UI (Streamlit) y los proveedores de LLM (Anthropic/OpenAI) se añadirán
+# cuando se construyan esas capas; aquí solo lo que ya usa o usará en breve el
+# módulo investigador (src/agente_ong/research/).
+
+# --- Orquestación multi-agente ---
+langgraph>=0.2
+langchain>=0.3
+
+# --- Cliente HTTP para fuentes oficiales (BDNS, TED), con reintentos ---
+httpx>=0.27
+
+# --- Fuentes de búsqueda ---
+tavily-python>=0.5
+firecrawl-py>=1.0
