@@ -30,7 +30,7 @@ y especifica los archivos exactos.
   - Purpose: establecer la estructura importable del módulo portable
   - _Requirements: 7.1_
 
-- [ ] 2. Definir ResearchConfig en src/agente_ong/research/config.py
+- [x] 2. Definir ResearchConfig en src/agente_ong/research/config.py
   - File: src/agente_ong/research/config.py
   - Dataclass `ResearchConfig` con claves de API (tavily, firecrawl, bdns, ted), ruta base de
     RECURSOS/ENTRENAMIENTO, y límites (`max_depth`, `max_pages`, `max_queries`,
@@ -38,21 +38,21 @@ y especifica los archivos exactos.
   - Purpose: configuración inyectada sin secretos hardcodeados
   - _Requirements: 7.2, NFR Security_
 
-- [ ] 3. Definir enums y modelos base en src/agente_ong/research/models.py
+- [x] 3. Definir enums y modelos base en src/agente_ong/research/models.py
   - File: src/agente_ong/research/models.py
   - Definir `VerificationStatus` (enum) y los modelos `SourceRef`, `SearchQuery`,
     `SearchHit`, `FetchedDocument` como dataclasses
   - Purpose: tipos base de procedencia y de búsqueda/lectura
   - _Requirements: 3.2, 6.1_
 
-- [ ] 4. Añadir modelos de dominio Claim y GrantOpportunity en models.py
+- [x] 4. Añadir modelos de dominio Claim y GrantOpportunity en models.py
   - File: src/agente_ong/research/models.py (continúa de la tarea 3)
   - Añadir `Claim` (con `is_critical`, `stale`, `status`, `sources`) y `GrantOpportunity`
     (campos como Claims + `overall_status`)
   - Purpose: representar datos con estado de verificación y caducidad
   - _Requirements: 1.2, 3.2, 4.4_
 
-- [ ] 5. Añadir LedgerEntry, StoredResource, ResearchRequest y ResearchReport en models.py
+- [x] 5. Añadir LedgerEntry, StoredResource, ResearchRequest y ResearchReport en models.py
   - File: src/agente_ong/research/models.py (continúa de la tarea 4)
   - Añadir `LedgerEntry` (con `content_summary`, `topics`, `captured_at`), `StoredResource`,
     `ResearchRequest` (con `intent`) y `ResearchReport` (con `reused_from_ledger`,

@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -c \"import sys; sys.path.insert\\(0,'src'\\); import agente_ong, agente_ong.research; print\\('import OK ->', agente_ong.research.__all__\\)\")"
+      "Bash(python -c \"import sys; sys.path.insert\\(0,'src'\\); import agente_ong, agente_ong.research; print\\('import OK ->', agente_ong.research.__all__\\)\")",
+      "Bash(RESEARCH_MAX_DEPTH=5 RESEARCH_STALENESS_DAYS=7 TAVILY_API_KEY=secret123 RECURSOS_ENTRENAMIENTO_PATH=/tmp/ent python -c ' *)",
+      "Bash(RESEARCH_MAX_PAGES=abc python -c ' *)"
     ]
   }
 }
