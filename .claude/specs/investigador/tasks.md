@@ -106,7 +106,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/store/base.py, src/agente_ong/research/urlnorm.py_
   - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ] 12. Escribir test de SourceLedger en tests/research/test_ledger.py
+- [x] 12. Escribir test de SourceLedger en tests/research/test_ledger.py
   - File: tests/research/test_ledger.py
   - Casos: no reprocesar URL vista, recall por temática, persistencia/rehidratación vía
     InMemoryStore, `flush`
