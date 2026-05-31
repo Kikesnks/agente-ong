@@ -82,7 +82,7 @@ y especifica los archivos exactos.
   - Purpose: contrato de persistencia desacoplado de ENGRAM
   - _Requirements: 7.1, 7.2_
 
-- [ ] 9. Implementar InMemoryStore en src/agente_ong/research/store/memory.py
+- [x] 9. Implementar InMemoryStore en src/agente_ong/research/store/memory.py
   - File: src/agente_ong/research/store/memory.py
   - Implementación en memoria de `ResearchStore`; `find_ledger_by_topic` filtra por
     coincidencia de `topics`
