@@ -74,7 +74,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/urlnorm.py_
   - _Requirements: 5.2_
 
-- [ ] 8. Definir el puerto ResearchStore en src/agente_ong/research/store/base.py
+- [x] 8. Definir el puerto ResearchStore en src/agente_ong/research/store/base.py
   - File: src/agente_ong/research/store/base.py, src/agente_ong/research/store/__init__.py
   - Clase abstracta `ResearchStore` con métodos de ledger (`save_ledger_entry`,
     `find_ledger_by_topic`, `get_ledger_entry`) y de capturas (`has_url`, `add_resource`,
