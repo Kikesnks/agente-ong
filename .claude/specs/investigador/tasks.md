@@ -114,7 +114,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/ledger.py, src/agente_ong/research/store/memory.py_
   - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ] 13. Implementar VerificationPolicy.classify en src/agente_ong/research/verification.py
+- [x] 13. Implementar VerificationPolicy.classify en src/agente_ong/research/verification.py
   - File: src/agente_ong/research/verification.py
   - Método `classify(claim, supporting)` con las reglas: ≥2 → VERIFIED; 1 oficial →
     OFFICIAL_UNCROSSED; 1 no oficial → UNCROSSED_UNVERIFIED; 0 → NOT_FOUND; contradictorias →
