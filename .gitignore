@@ -1,0 +1,21 @@
+# --- Documentos de trabajo (no versionar) ---
+Prompts.docx
+descripcion_proyecto.docx
+
+# --- Secretos / entorno ---
+.env
+
+# --- Python ---
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# --- RECURSOS: conservar la estructura de carpetas vacía, ignorar su contenido ---
+# Ignora todo el contenido de RECURSOS/ ...
+RECURSOS/**
+# ... pero conserva las propias carpetas vía sus .gitkeep
+!RECURSOS/
+!RECURSOS/**/
+!RECURSOS/**/.gitkeep
+!RECURSOS/.gitkeep
