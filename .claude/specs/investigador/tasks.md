@@ -23,7 +23,7 @@ y especifica los archivos exactos.
 
 ## Tasks
 
-- [ ] 1. Crear scaffolding del paquete research en src/agente_ong/research/__init__.py
+- [x] 1. Crear scaffolding del paquete research en src/agente_ong/research/__init__.py
   - File: src/agente_ong/research/__init__.py, src/agente_ong/__init__.py
   - Crear los paquetes Python vacíos con docstring de módulo; `research/__init__.py`
     declarará luego el export público de `Investigador` (placeholder por ahora)

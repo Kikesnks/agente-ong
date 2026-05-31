@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import sys; sys.path.insert\\(0,'src'\\); import agente_ong, agente_ong.research; print\\('import OK ->', agente_ong.research.__all__\\)\")"
+    ]
+  }
+}
