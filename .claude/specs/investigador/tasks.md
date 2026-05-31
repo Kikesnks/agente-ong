@@ -97,7 +97,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/store/memory.py_
   - _Requirements: 5.3_
 
-- [ ] 11. Implementar SourceLedger en src/agente_ong/research/ledger.py
+- [x] 11. Implementar SourceLedger en src/agente_ong/research/ledger.py
   - File: src/agente_ong/research/ledger.py
   - Clase `SourceLedger` con vista en memoria sincronizada con `ResearchStore`:
     `mark_queried`, `seen`, `record(...content_summary, source_ref)`, `find_by_topic`,
