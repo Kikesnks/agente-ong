@@ -13,7 +13,9 @@
       "Bash(./.venv/Scripts/python.exe -m pip install -r requirements-dev.txt)",
       "Bash(./.venv/Scripts/python.exe -m pytest tests/ -q)",
       "Bash(./.venv/Scripts/python.exe -m pytest tests/research/test_memory_store.py -v)",
-      "Bash(./.venv/Scripts/python.exe -m pytest tests/research/test_ledger.py -v)"
+      "Bash(./.venv/Scripts/python.exe -m pytest tests/research/test_ledger.py -v)",
+      "mcp__plugin_engram_engram__mem_session_summary",
+      "mcp__plugin_engram_engram__mem_context"
     ]
   }
 }
