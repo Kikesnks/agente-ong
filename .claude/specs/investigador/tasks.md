@@ -140,7 +140,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/verification.py_
   - _Requirements: 3.3, 3.4, 4.2, 4.4_
 
-- [ ] 16. Implementar DepthLimiter en src/agente_ong/research/depth.py
+- [x] 16. Implementar DepthLimiter en src/agente_ong/research/depth.py
   - File: src/agente_ong/research/depth.py, tests/research/test_depth.py
   - `DepthLimiter.can_expand(current_depth, pages_fetched)` con límites de config; test de
     corte por `max_depth`/`max_pages`/`max_queries`
