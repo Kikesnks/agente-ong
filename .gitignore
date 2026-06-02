@@ -2,6 +2,9 @@
 Prompts.docx
 descripcion_proyecto.docx
 
+# --- Locks temporales de LibreOffice/OpenOffice ---
+.~lock.*#
+
 # --- Secretos / entorno ---
 .env
 
