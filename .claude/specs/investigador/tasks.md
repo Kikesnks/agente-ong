@@ -156,7 +156,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/models.py_
   - _Requirements: 7.3, NFR Reliability_
 
-- [ ] 18. Implementar TavilySource en src/agente_ong/research/sources/tavily.py
+- [x] 18. Implementar TavilySource en src/agente_ong/research/sources/tavily.py
   - File: src/agente_ong/research/sources/tavily.py
   - `search()` contra la API de Tavily (cliente HTTP inyectable), `is_official=False`,
     mapeo a `SearchHit`; clave desde config
