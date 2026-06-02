@@ -148,7 +148,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/config.py_
   - _Requirements: 6.3, NFR Performance_
 
-- [ ] 17. Definir interfaz SearchSource en src/agente_ong/research/sources/base.py
+- [x] 17. Definir interfaz SearchSource en src/agente_ong/research/sources/base.py
   - File: src/agente_ong/research/sources/base.py, src/agente_ong/research/sources/__init__.py
   - Clase abstracta `SearchSource` (`name`, `is_official`, `search`, `fetch`, `supports`) y
     un helper de retry/backoff reutilizable
