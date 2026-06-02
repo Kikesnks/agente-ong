@@ -172,7 +172,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/sources/base.py, src/agente_ong/research/config.py_
   - _Requirements: 2.3, 6.1_
 
-- [ ] 20. Implementar BdnsSource en src/agente_ong/research/sources/bdns.py
+- [x] 20. Implementar BdnsSource en src/agente_ong/research/sources/bdns.py
   - File: src/agente_ong/research/sources/bdns.py
   - `search()` contra la API/portal BDNS (España), `is_official=True`, mapeo a `SearchHit`
     con URL oficial
