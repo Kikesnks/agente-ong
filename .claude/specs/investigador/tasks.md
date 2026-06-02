@@ -164,7 +164,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/sources/base.py, src/agente_ong/research/config.py_
   - _Requirements: 1.1, 7.2_
 
-- [ ] 19. Implementar FirecrawlSource en src/agente_ong/research/sources/firecrawl.py
+- [x] 19. Implementar FirecrawlSource en src/agente_ong/research/sources/firecrawl.py
   - File: src/agente_ong/research/sources/firecrawl.py
   - `fetch(url)` contra Firecrawl devolviendo `FetchedDocument` con `content_text`,
     `raw_bytes` y `outbound_links`; `is_official=False`
