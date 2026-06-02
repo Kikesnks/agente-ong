@@ -132,7 +132,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/config.py, src/agente_ong/research/models.py_
   - _Requirements: 3.4, 4.1, 4.3_
 
-- [ ] 15. Escribir test de VerificationPolicy en tests/research/test_verification.py
+- [x] 15. Escribir test de VerificationPolicy en tests/research/test_verification.py
   - File: tests/research/test_verification.py
   - Tabla de casos de `classify` (incluye OFFICIAL_UNCROSSED vs UNCROSSED_UNVERIFIED) y casos
     de `needs_revalidation` (crítico+proposal, caducidad, pista no reconfirmada)
