@@ -180,7 +180,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/sources/base.py, src/agente_ong/research/config.py_
   - _Requirements: 1.1, 4.4_
 
-- [ ] 21. Implementar TedSource en src/agente_ong/research/sources/ted.py
+- [x] 21. Implementar TedSource en src/agente_ong/research/sources/ted.py
   - File: src/agente_ong/research/sources/ted.py
   - `search()` contra la API TED (UE), `is_official=True`, mapeo a `SearchHit` con URL oficial
   - Purpose: fuente oficial europea de convocatorias
