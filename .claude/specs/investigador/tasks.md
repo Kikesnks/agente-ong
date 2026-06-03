@@ -219,7 +219,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/ledger.py, src/agente_ong/research/models.py_
   - _Requirements: 5.3, 6.2_
 
-- [ ] 26. Añadir nodos search/read_deep en graph.py
+- [x] 26. Añadir nodos search/read_deep en graph.py
   - File: src/agente_ong/research/graph.py (continúa de la tarea 25)
   - `search` (consulta fuentes, registra en ledger) y `read_deep` (sigue enlaces con
     Firecrawl respetando `DepthLimiter` y el ledger)

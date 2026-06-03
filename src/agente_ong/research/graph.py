@@ -31,11 +31,16 @@ from agente_ong.research.models import (
     ResearchRequest,
     SearchHit,
     SearchQuery,
+    SourceRef,
     StoredResource,
     Unresolved,
 )
 from agente_ong.research.sources.base import SearchSource
+from agente_ong.research.urlnorm import normalize_url
 from agente_ong.research.verification import VerificationPolicy
+
+# Longitud máxima del resumen que se guarda en el ledger por cada documento leído.
+_SUMMARY_MAX_CHARS = 280
 
 
 class ResearchState(TypedDict, total=False):
@@ -117,3 +122,130 @@ class ResearchGraph:
         request = state["request"]
         hints = self._ledger.find_by_topic(request.query_terms)
         return {"reused_from_ledger": hints}
+
+    # --- Nodo: search ---
+
+    def search(self, state: ResearchState) -> dict:
+        """Lanza las consultas contra las fuentes de búsqueda y agrega los resultados.
+
+        Registra cada consulta en el ledger para no repetirla; el fallo de una fuente se
+        anota en `failed_sources` sin abortar el resto (NFR Reliability).
+        """
+        queries = state.get("queries", [])
+        hits = list(state.get("hits", []))
+        failed = list(state.get("failed_sources", []))
+        queries_made = state.get("queries_made", 0)
+        pages = state.get("pages_fetched", 0)
+        depth = state.get("depth", 0)
+
+        search_sources = [s for s in self._sources if s.supports("search")]
+
+        for query in queries:
+            if self._ledger.seen(query.text, kind="query"):
+                continue
+            if not self._limiter.can_expand(depth, pages, queries_made):
+                break  # se alcanzó el tope de consultas/coste (Requirement 6.3)
+            self._ledger.mark_queried(query.text, kind="query")
+            queries_made += 1
+            for source in search_sources:
+                try:
+                    results = source.search(query)
+                except Exception as exc:  # noqa: BLE001 - se reporta, no se aborta
+                    failed.append(FailedSource(source_name=source.name, error=str(exc)))
+                    continue
+                hits.extend(results)
+
+        return {
+            "hits": self._dedup_hits(hits),
+            "failed_sources": failed,
+            "queries_made": queries_made,
+        }
+
+    # --- Nodo: read_deep ---
+
+    def read_deep(self, state: ResearchState) -> dict:
+        """Profundiza leyendo las URLs de los hits y siguiendo sus enlaces relevantes.
+
+        Recorrido en anchura limitado por `DepthLimiter` (profundidad/páginas) y por el
+        ledger (no re-visita URLs ya vistas, evitando ciclos; Requirements 6.1, 6.2).
+        """
+        documents = list(state.get("documents", []))
+        failed = list(state.get("failed_sources", []))
+        pages = state.get("pages_fetched", 0)
+        queries_made = state.get("queries_made", 0)
+        depth_reached = state.get("depth", 0)
+        topics = state["request"].query_terms
+
+        fetch_sources = [s for s in self._sources if s.supports("fetch")]
+        if not fetch_sources:
+            return {"documents": documents}
+        fetcher = fetch_sources[0]
+
+        # Frontera (url, profundidad). Los hits están en el nivel 1.
+        frontier: list[tuple[str, int]] = [(hit.url, 1) for hit in state.get("hits", [])]
+
+        while frontier:
+            url, level = frontier.pop(0)
+            if self._ledger.seen(url, kind="url"):
+                continue
+            # ¿Podemos descender un nivel más y leer otra página?
+            if not self._limiter.can_expand(level - 1, pages, queries_made):
+                break
+
+            self._ledger.mark_queried(url, kind="url")
+            try:
+                doc = fetcher.fetch(url)
+            except Exception as exc:  # noqa: BLE001 - se reporta, no se aborta
+                failed.append(FailedSource(source_name=fetcher.name, error=str(exc)))
+                self._ledger.record(url, kind="url", outcome="error")
+                continue
+
+            documents.append(doc)
+            pages += 1
+            depth_reached = max(depth_reached, level)
+            self._ledger.record(
+                url,
+                kind="url",
+                outcome="useful",
+                content_summary=_summarize(doc),
+                topics=topics,
+                source_ref=SourceRef(
+                    url=doc.url, source_name=fetcher.name, is_official=fetcher.is_official
+                ),
+            )
+
+            # Encolar enlaces salientes al siguiente nivel solo si aún cabe profundizar.
+            if level < self._limiter.max_depth:
+                for link in doc.outbound_links:
+                    if not self._ledger.seen(link, kind="url"):
+                        frontier.append((link, level + 1))
+
+        return {
+            "documents": documents,
+            "failed_sources": failed,
+            "pages_fetched": pages,
+            "depth": depth_reached,
+        }
+
+    # --- Helpers ---
+
+    @staticmethod
+    def _dedup_hits(hits: list[SearchHit]) -> list[SearchHit]:
+        """Deduplica hits por URL normalizada, conservando el orden de aparición."""
+        seen: set[str] = set()
+        unique: list[SearchHit] = []
+        for hit in hits:
+            key = normalize_url(hit.url)
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(hit)
+        return unique
+
+
+def _summarize(doc: FetchedDocument) -> str:
+    """Resumen breve del contenido de un documento para guardar como pista en el ledger."""
+    text = " ".join((doc.content_text or "").split())
+    if len(text) <= _SUMMARY_MAX_CHARS:
+        return text
+    return text[:_SUMMARY_MAX_CHARS].rstrip() + "…"
