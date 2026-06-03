@@ -187,7 +187,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/sources/base.py, src/agente_ong/research/config.py_
   - _Requirements: 1.1, 4.4_
 
-- [ ] 22. Escribir tests de fuentes con HTTP mockeado en tests/research/test_sources.py
+- [x] 22. Escribir tests de fuentes con HTTP mockeado en tests/research/test_sources.py
   - File: tests/research/test_sources.py
   - Mock del cliente HTTP; verifica mapeo a `SearchHit`/`FetchedDocument`, `is_official`
     correcto, y retry/backoff ante fallo

@@ -33,13 +33,15 @@ def with_retry(
     attempts: int = 3,
     base_delay: float = 0.5,
     exceptions: tuple[type[BaseException], ...] = (Exception,),
-    sleep: Callable[[float], None] = time.sleep,
+    sleep: Callable[[float], None] | None = None,
 ) -> T:
     """Ejecuta `func` reintentando ante `exceptions` con backoff exponencial.
 
     Espera base_delay * 2**i entre intentos. Si se agotan los intentos, re-lanza la última
-    excepción. `sleep` es inyectable para poder testear sin esperas reales.
+    excepción. `sleep` es inyectable para poder testear sin esperas reales; si es None se usa
+    `time.sleep` (resuelto en tiempo de llamada, lo que permite neutralizarlo con monkeypatch).
     """
+    do_sleep = sleep if sleep is not None else time.sleep
     last_exc: BaseException | None = None
     for attempt in range(attempts):
         try:
@@ -48,7 +50,7 @@ def with_retry(
             last_exc = exc
             if attempt == attempts - 1:
                 raise
-            sleep(base_delay * (2**attempt))
+            do_sleep(base_delay * (2**attempt))
     # Inalcanzable, pero satisface a los analizadores de tipos.
     assert last_exc is not None
     raise last_exc
