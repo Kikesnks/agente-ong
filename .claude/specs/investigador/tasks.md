@@ -203,7 +203,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/store/base.py, src/agente_ong/research/config.py_
   - _Requirements: 2.2, 2.3, 2.4, 2.5_
 
-- [ ] 24. Escribir test de TrainingCollector en tests/research/test_collector.py
+- [x] 24. Escribir test de TrainingCollector en tests/research/test_collector.py
   - File: tests/research/test_collector.py
   - FS temporal: descarga vs copia de texto, sidecar de metadatos, rechazo de path traversal,
     no re-descarga si URL ya capturada
