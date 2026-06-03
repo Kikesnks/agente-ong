@@ -211,7 +211,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/collector.py, src/agente_ong/research/store/memory.py_
   - _Requirements: 2.2, 2.5, NFR Security_
 
-- [ ] 25. Definir ResearchState y nodos plan/recall_ledger en src/agente_ong/research/graph.py
+- [x] 25. Definir ResearchState y nodos plan/recall_ledger en src/agente_ong/research/graph.py
   - File: src/agente_ong/research/graph.py
   - `ResearchState` (TypedDict) y nodos `plan` (deriva consultas) y `recall_ledger` (carga
     pistas vía `find_by_topic`, llena `reused_from_ledger`)
