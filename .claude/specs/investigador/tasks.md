@@ -195,7 +195,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/sources/tavily.py, src/agente_ong/research/sources/firecrawl.py_
   - _Requirements: 1.1, 6.1, NFR Reliability_
 
-- [ ] 23. Implementar TrainingCollector en src/agente_ong/research/collector.py
+- [x] 23. Implementar TrainingCollector en src/agente_ong/research/collector.py
   - File: src/agente_ong/research/collector.py
   - `collect(doc, tags)`: descarga binario o guarda texto bajo `RECURSOS/ENTRENAMIENTO/`,
     escribe sidecar de metadatos, valida ruta (anti path-traversal), salta si `store.has_url`
