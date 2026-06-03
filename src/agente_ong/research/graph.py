@@ -19,21 +19,26 @@ from __future__ import annotations
 
 from typing import TypedDict
 
+from langgraph.graph import END, START, StateGraph
+
 from agente_ong.research.collector import TrainingCollector
 from agente_ong.research.config import ResearchConfig
 from agente_ong.research.depth import DepthLimiter
 from agente_ong.research.ledger import SourceLedger
 from agente_ong.research.models import (
+    Claim,
     FailedSource,
     FetchedDocument,
     GrantOpportunity,
     LedgerEntry,
+    ResearchReport,
     ResearchRequest,
     SearchHit,
     SearchQuery,
     SourceRef,
     StoredResource,
     Unresolved,
+    VerificationStatus,
 )
 from agente_ong.research.sources.base import SearchSource
 from agente_ong.research.urlnorm import normalize_url
@@ -59,6 +64,8 @@ class ResearchState(TypedDict, total=False):
     depth: int
     pages_fetched: int
     queries_made: int
+    # Informe final compilado (compile_report).
+    report: ResearchReport
 
 
 class ResearchGraph:
@@ -155,8 +162,11 @@ class ResearchGraph:
                     continue
                 hits.extend(results)
 
+        # No se deduplican los hits aquí a propósito: `verify` los agrupa por URL para la
+        # verificación cruzada (dos fuentes con la misma URL => VERIFIED). La deduplicación
+        # de lecturas la garantiza el ledger en `read_deep`.
         return {
-            "hits": self._dedup_hits(hits),
+            "hits": hits,
             "failed_sources": failed,
             "queries_made": queries_made,
         }
@@ -229,18 +239,201 @@ class ResearchGraph:
 
     # --- Helpers ---
 
-    @staticmethod
-    def _dedup_hits(hits: list[SearchHit]) -> list[SearchHit]:
-        """Deduplica hits por URL normalizada, conservando el orden de aparición."""
-        seen: set[str] = set()
-        unique: list[SearchHit] = []
+    # --- Nodo: verify ---
+
+    def verify(self, state: ResearchState) -> dict:
+        """Procesa los resultados: construye y verifica convocatorias, o captura entrenamiento.
+
+        En modo 'calls' agrupa los hits en `GrantOpportunity` y clasifica cada dato con
+        `VerificationPolicy`, revalidando los críticos con valor (Requirements 4.1, 4.3). En
+        modo 'training' pasa los documentos por el `TrainingCollector`.
+        """
+        request = state["request"]
+        if request.mode == "training":
+            resources = list(state.get("resources", []))
+            if self._collector is not None:
+                for doc in state.get("documents", []):
+                    resources.append(self._collector.collect(doc, tags=request.query_terms))
+            return {"resources": resources}
+
+        opportunities = self._build_opportunities(state.get("hits", []))
+        for opp in opportunities:
+            for claim in (opp.amount, opp.deadline):
+                if claim.value is not None:
+                    self._policy.needs_revalidation(claim, intent=request.intent)
+        return {"opportunities": opportunities}
+
+    def _build_opportunities(self, hits: list[SearchHit]) -> list[GrantOpportunity]:
+        """Agrupa hits por URL (misma convocatoria) y construye `GrantOpportunity` verificadas.
+
+        Las fuentes que coinciden en una misma URL son el respaldo cruzado de esa convocatoria:
+        dos fuentes -> VERIFIED; una oficial -> OFFICIAL_UNCROSSED; una no oficial ->
+        UNCROSSED_UNVERIFIED. El importe y el plazo no vienen en la búsqueda (NOT_FOUND): se
+        marcan como críticos para que `ask_user` los recoja.
+        """
+        groups: dict[str, list[SearchHit]] = {}
         for hit in hits:
-            key = normalize_url(hit.url)
-            if key in seen:
-                continue
-            seen.add(key)
-            unique.append(hit)
-        return unique
+            groups.setdefault(normalize_url(hit.url), []).append(hit)
+
+        opportunities: list[GrantOpportunity] = []
+        for url_key, group in groups.items():
+            refs = [
+                SourceRef(url=h.url, source_name=h.source_name, is_official=h.is_official)
+                for h in group
+            ]
+            title_val = next((h.title for h in group if h.title), None)
+            organism_val = next((h.snippet for h in group if h.snippet), None)
+            url_val = group[0].url
+
+            title = self._classified(Claim(field="titulo", value=title_val), refs)
+            url_claim = self._classified(Claim(field="url", value=url_val), refs)
+            organism = self._classified(Claim(field="organismo", value=organism_val), refs)
+            amount = self._classified(Claim(field="importe", is_critical=True), [])
+            deadline = self._classified(Claim(field="plazo", is_critical=True), [])
+            scope = self._classified(Claim(field="ambito"), [])
+
+            opportunities.append(
+                GrantOpportunity(
+                    title=title,
+                    organism=organism,
+                    amount=amount,
+                    deadline=deadline,
+                    scope=scope,
+                    url=url_claim,
+                    overall_status=title.status,
+                )
+            )
+        return opportunities
+
+    def _classified(self, claim: Claim, refs: list[SourceRef]) -> Claim:
+        """Asigna a `claim` sus fuentes de respaldo y su `VerificationStatus`."""
+        claim.sources = refs
+        claim.status = self._policy.classify(claim, refs)
+        return claim
+
+    # --- Nodo: ask_user ---
+
+    def ask_user(self, state: ResearchState) -> dict:
+        """Declara explícitamente lo que falta y qué ayuda se necesita (Requirement 3.1)."""
+        request = state["request"]
+        unresolved = list(state.get("unresolved", []))
+
+        if request.mode == "training":
+            if not state.get("resources"):
+                unresolved.append(
+                    Unresolved(
+                        topic="entrenamiento",
+                        reason="No se capturaron proyectos de ejemplo para los términos dados.",
+                        help_needed="Aporta URLs de proyectos aprobados o material de referencia.",
+                    )
+                )
+            return {"unresolved": unresolved}
+
+        opportunities = state.get("opportunities", [])
+        if not opportunities:
+            unresolved.append(
+                Unresolved(
+                    topic="convocatorias",
+                    reason="No se encontraron convocatorias para los términos dados.",
+                    help_needed=(
+                        "Aporta palabras clave más específicas, un ámbito (país/UE) o la "
+                        "URL/portal de la convocatoria."
+                    ),
+                )
+            )
+            return {"unresolved": unresolved}
+
+        # Datos críticos no hallados en la búsqueda (importe/plazo viven en el detalle).
+        missing_amount = sum(
+            1 for o in opportunities if o.amount.status == VerificationStatus.NOT_FOUND
+        )
+        if missing_amount:
+            unresolved.append(
+                Unresolved(
+                    topic="importe",
+                    reason=f"{missing_amount} convocatoria(s) sin importe confirmado en la búsqueda.",
+                    help_needed="El importe suele estar en el detalle; confirma si procede consultarlo.",
+                )
+            )
+        missing_deadline = sum(
+            1 for o in opportunities if o.deadline.status == VerificationStatus.NOT_FOUND
+        )
+        if missing_deadline:
+            unresolved.append(
+                Unresolved(
+                    topic="plazo",
+                    reason=f"{missing_deadline} convocatoria(s) sin plazo confirmado en la búsqueda.",
+                    help_needed="El plazo suele estar en el detalle; confirma si procede consultarlo.",
+                )
+            )
+        return {"unresolved": unresolved}
+
+    # --- Nodo: compile_report ---
+
+    def compile_report(self, state: ResearchState) -> dict:
+        """Arma el `ResearchReport` final y persiste el ledger (`flush`)."""
+        request = state["request"]
+        report = ResearchReport(
+            mode=request.mode,
+            opportunities=list(state.get("opportunities", [])),
+            resources=list(state.get("resources", [])),
+            ledger=self._ledger.entries(),
+            reused_from_ledger=list(state.get("reused_from_ledger", [])),
+            unresolved=list(state.get("unresolved", [])),
+            failed_sources=list(state.get("failed_sources", [])),
+        )
+        self._ledger.flush()
+        return {"report": report}
+
+    # --- Enrutado (condición continue?) y construcción del grafo ---
+
+    @staticmethod
+    def _route_after_verify(state: ResearchState) -> str:
+        """Decide tras verify: pedir ayuda al usuario si hay lagunas, o compilar el informe."""
+        request = state["request"]
+        if request.mode == "training":
+            has_gaps = not state.get("resources")
+        else:
+            opportunities = state.get("opportunities", [])
+            has_gaps = (not opportunities) or any(
+                o.amount.status == VerificationStatus.NOT_FOUND
+                or o.deadline.status == VerificationStatus.NOT_FOUND
+                for o in opportunities
+            )
+        return "ask_user" if has_gaps else "compile_report"
+
+    def build(self):
+        """Construye y compila el grafo LangGraph de la investigación.
+
+        Nota de diseño: el `continue?` del diseño se materializa como el enrutado
+        verify -> {ask_user | compile_report}. No se cablea un bucle de vuelta a `search`
+        porque `plan` ya genera todas las consultas y `read_deep` recorre los enlaces hasta
+        `max_depth` en una pasada; un bucle ingenuo no produciría trabajo nuevo (consultas ya
+        vistas, sin hits nuevos) y podría no terminar mientras quedara presupuesto. Avanzar
+        garantiza la terminación; el `DepthLimiter` y el ledger acotan el trabajo.
+        """
+        builder = StateGraph(ResearchState)
+        builder.add_node("plan", self.plan)
+        builder.add_node("recall_ledger", self.recall_ledger)
+        builder.add_node("search", self.search)
+        builder.add_node("read_deep", self.read_deep)
+        builder.add_node("verify", self.verify)
+        builder.add_node("ask_user", self.ask_user)
+        builder.add_node("compile_report", self.compile_report)
+
+        builder.add_edge(START, "plan")
+        builder.add_edge("plan", "recall_ledger")
+        builder.add_edge("recall_ledger", "search")
+        builder.add_edge("search", "read_deep")
+        builder.add_edge("read_deep", "verify")
+        builder.add_conditional_edges(
+            "verify",
+            self._route_after_verify,
+            {"ask_user": "ask_user", "compile_report": "compile_report"},
+        )
+        builder.add_edge("ask_user", "compile_report")
+        builder.add_edge("compile_report", END)
+        return builder.compile()
 
 
 def _summarize(doc: FetchedDocument) -> str:

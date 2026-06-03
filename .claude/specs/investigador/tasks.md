@@ -227,7 +227,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/sources/base.py, src/agente_ong/research/depth.py_
   - _Requirements: 1.1, 6.1, 6.2_
 
-- [ ] 27. Añadir nodos verify/ask_user/compile_report y construcción del grafo en graph.py
+- [x] 27. Añadir nodos verify/ask_user/compile_report y construcción del grafo en graph.py
   - File: src/agente_ong/research/graph.py (continúa de la tarea 26)
   - `verify` (aplica `VerificationPolicy` + revalidación), `ask_user` (llena `unresolved`),
     `compile_report` (arma `ResearchReport` y hace `ledger.flush`); cablear aristas y
