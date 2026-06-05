@@ -36,10 +36,20 @@
 - Verificación cruzada entre fuentes antes de presentar una convocatoria como válida.
 - El material de referencia descargado se guarda en local (ver `structure.md`).
 
-## Memoria persistente
+## Persistencia / memoria del producto
 
-- **ENGRAM** como capa de memoria persistente entre sesiones (proyectos, estado,
-  aprendizaje, preferencias del usuario).
+- **SQLite** (módulo `sqlite3` de la stdlib de Python, sin dependencias externas) es la
+  **persistencia real del producto**: guarda el estado entre sesiones (registro de fuentes
+  consultadas, índice de material capturado, proyectos y su estado, aprendizaje). Viaja con
+  la app en un archivo `.db`, sin servicios externos que el cliente deba instalar.
+- La persistencia se expone tras un **puerto** (p. ej. `ResearchStore` en el módulo
+  investigador), de modo que el adaptador concreto (SQLite) sea sustituible sin acoplar el
+  núcleo.
+
+> **ENGRAM NO es parte del producto.** ENGRAM es una **herramienta de desarrollo** (memoria
+> de Claude Code entre sesiones del equipo, vía su plugin). El cliente final no instala ni
+> usa ENGRAM. Motivo: requiere su runtime propio (`engram serve` / binario) y está diseñado
+> para memorias de agente en prosa, no para almacenamiento estructurado de la app.
 
 ## Interfaz de usuario
 

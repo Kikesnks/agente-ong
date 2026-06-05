@@ -20,7 +20,7 @@ ONGs/
 │     ├─ tools/              # herramientas/tools (búsqueda, scraping, fuentes oficiales)
 │     ├─ llm/                # abstracción multi-proveedor de LLM
 │     ├─ search/             # integraciones Tavily, Firecrawl, BDNS, TED
-│     ├─ memory/             # integración con ENGRAM
+│     ├─ store/              # persistencia SQLite (puerto + adaptadores)
 │     ├─ export/             # generación de PDF/DOCX/PPTX y gráficos
 │     └─ ui/                 # interfaz Streamlit
 ├─ RECURSOS/                 # material de trabajo (ver convención abajo)
@@ -60,7 +60,8 @@ Cuando la UI recibe un recurso, debe guardarlo en `RECURSOS/[nombre_proyecto]/`.
 - Cada proyecto de subvención se identifica por `[nombre_proyecto]` y tiene su carpeta en
   `RECURSOS/`.
 - El estado de cada proyecto (borrador, en redacción, listo, presentado…) se mantiene en
-  memoria persistente (ENGRAM) para poder resumirlo a petición del usuario.
+  la persistencia del producto (**SQLite**, ver `tech.md`) para poder resumirlo a petición
+  del usuario. (ENGRAM es herramienta de desarrollo, no parte del producto.)
 
 ## Testing
 

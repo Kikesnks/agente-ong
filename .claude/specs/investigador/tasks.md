@@ -252,20 +252,28 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/investigador.py_
   - _Requirements: 7.1_
 
-- [ ] 30. Implementar EngramStore en src/agente_ong/research/store/engram.py
-  - File: src/agente_ong/research/store/engram.py
-  - Adaptador `EngramStore(ResearchStore)` que persiste `LedgerEntry` y capturas en ENGRAM
-    (cliente inyectado), con `find_ledger_by_topic` sobre la búsqueda de ENGRAM
-  - Purpose: persistencia real entre sesiones sin acoplar el núcleo
-  - _Leverage: src/agente_ong/research/store/base.py_
+- [x] 30. Implementar SqliteStore en src/agente_ong/research/store/sqlite.py
+  - File: src/agente_ong/research/store/sqlite.py
+  - Adaptador `SqliteStore(ResearchStore)` que persiste `LedgerEntry` y el índice de capturas
+    en una base SQLite (módulo `sqlite3` de la stdlib, cero dependencias externas).
+    `find_ledger_by_topic` mediante tabla `ledger_topics` (topic_lc indexado); tags de
+    recursos en JSON; WAL + foreign_keys ON; consultas siempre parametrizadas. Es la
+    persistencia REAL del producto, que viaja con la app en un archivo `.db`.
+  - Nota: EngramStore descartado — ENGRAM es herramienta de desarrollo (memoria de Claude
+    Code), no parte del producto; el cliente final no lo instala. Ver
+    `decision_sqlitestore_no_engramstore` en memoria.
+  - Purpose: persistencia real entre sesiones sin dependencias externas ni acoplar el núcleo
+  - _Leverage: src/agente_ong/research/store/base.py, src/agente_ong/research/models.py_
   - _Requirements: 5.3, 7.1_
 
-- [ ] 31. Escribir test de EngramStore con ENGRAM mockeado en tests/research/test_engram_store.py
-  - File: tests/research/test_engram_store.py
-  - Mock del cliente ENGRAM: guarda/recupera `LedgerEntry` con `content_summary`, `topics`,
-    `captured_at`; recall por temática
-  - Purpose: validar el adaptador sin ENGRAM real
-  - _Leverage: src/agente_ong/research/store/engram.py_
+- [ ] 31. Escribir test de SqliteStore en tests/research/test_sqlite_store.py
+  - File: tests/research/test_sqlite_store.py
+  - Con `tmp_path`: guarda/recupera `LedgerEntry` con `content_summary`, `topics`,
+    `captured_at` y `SourceRef`; upsert por clave; recall por temática (case-insensitive);
+    índice de capturas (`has_url`/`add_resource`/`list_resources`); persistencia entre
+    instancias (cerrar y reabrir el `.db`).
+  - Purpose: validar el adaptador con base de datos en archivo temporal
+  - _Leverage: src/agente_ong/research/store/sqlite.py_
   - _Requirements: 5.3_
 
 - [ ] 32. Crear fuentes y store fake para tests en tests/research/fakes.py
