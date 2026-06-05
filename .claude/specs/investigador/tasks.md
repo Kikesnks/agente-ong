@@ -276,6 +276,16 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/store/sqlite.py_
   - _Requirements: 5.3_
 
+- [x] 30bis. Cablear SqliteStore como persistencia por defecto del producto
+  - File: src/agente_ong/research/config.py, src/agente_ong/research/investigador.py, .gitignore
+  - `ResearchConfig.db_path` (default `.data/agente_ong.db`, env `RESEARCH_DB_PATH`, `None` =>
+    efímero). `Investigador.__init__` con store de 3 vías (inyectado > db_path None=InMemoryStore
+    > db_path ruta=SqliteStore) + `_owns_store`, `close()` y context manager. `.gitignore`:
+    `.data/`, `*.db-wal`, `*.db-shm`.
+  - Purpose: que el cliente final tenga persistencia real por defecto sin acoplar el núcleo
+  - _Leverage: src/agente_ong/research/store/sqlite.py, src/agente_ong/research/investigador.py_
+  - _Requirements: 5.3, 7.1, 7.2_
+
 - [ ] 32. Crear fuentes y store fake para tests en tests/research/fakes.py
   - File: tests/research/fakes.py
   - `FakeSource` (devuelve hits/documentos fijos, configurable como oficial o no) y reutilizar

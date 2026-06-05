@@ -16,6 +16,12 @@ __pycache__/
 venv/
 .venv/
 
+# --- Persistencia interna de la app (SQLite) ---
+.data/
+# Sidecars del WAL (defensa en profundidad por si el .db se ubica fuera de .data/)
+*.db-wal
+*.db-shm
+
 # --- RECURSOS: conservar la estructura de carpetas vacía, ignorar su contenido ---
 # Ignora todo el contenido de RECURSOS/ ...
 RECURSOS/**
