@@ -236,7 +236,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/verification.py, src/agente_ong/research/ledger.py_
   - _Requirements: 3.1, 4.1, 4.3, 6.3_
 
-- [ ] 28. Implementar fachada Investigador en src/agente_ong/research/investigador.py
+- [x] 28. Implementar fachada Investigador en src/agente_ong/research/investigador.py
   - File: src/agente_ong/research/investigador.py
   - Clase `Investigador` con `__init__(config, sources=None, store=None)` (defaults: fuentes
     reales + InMemoryStore) y `run(request) -> ResearchReport` que invoca el grafo
