@@ -266,7 +266,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/store/base.py, src/agente_ong/research/models.py_
   - _Requirements: 5.3, 7.1_
 
-- [ ] 31. Escribir test de SqliteStore en tests/research/test_sqlite_store.py
+- [x] 31. Escribir test de SqliteStore en tests/research/test_sqlite_store.py
   - File: tests/research/test_sqlite_store.py
   - Con `tmp_path`: guarda/recupera `LedgerEntry` con `content_summary`, `topics`,
     `captured_at` y `SourceRef`; upsert por clave; recall por temática (case-insensitive);
