@@ -244,7 +244,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/graph.py, src/agente_ong/research/config.py_
   - _Requirements: 7.1, 7.2, 7.3_
 
-- [ ] 29. Exportar API pública en src/agente_ong/research/__init__.py
+- [x] 29. Exportar API pública en src/agente_ong/research/__init__.py
   - File: src/agente_ong/research/__init__.py (modifica de la tarea 1)
   - Exportar `Investigador`, `ResearchConfig`, `ResearchRequest`, `ResearchReport` en
     `__all__`
