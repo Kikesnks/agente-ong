@@ -50,11 +50,16 @@ class TavilySource(SearchSource):
         self._client = client
 
     def search(self, query: SearchQuery) -> list[SearchHit]:
-        """Lanza la búsqueda y mapea los resultados de Tavily a `SearchHit`."""
+        """Lanza la búsqueda y mapea los resultados de Tavily a `SearchHit`.
+
+        Si la query trae `search_context`, lo antepone al texto para orientar la búsqueda
+        (p.ej. "convocatoria subvención ONG 2026"); si no, usa el texto tal cual.
+        """
+        text = f"{query.search_context} {query.text}" if query.search_context else query.text
 
         def call() -> dict[str, Any]:
             return self._client.search(
-                query.text,
+                text,
                 search_depth=self._search_depth,
                 max_results=self._max_results,
             )

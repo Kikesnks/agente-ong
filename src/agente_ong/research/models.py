@@ -66,6 +66,8 @@ class SearchQuery:
 
     text: str
     source_hint: str | None = None  # fuerza una fuente concreta si procede
+    # Contexto para orientar la búsqueda en fuentes de texto libre (solo Tavily lo usa).
+    search_context: str | None = None
 
 
 @dataclass
@@ -204,6 +206,9 @@ class ResearchRequest:
     intent: Intent = "explore"  # gobierna la revalidación de datos críticos
     max_depth: int | None = None  # override de los límites de config
     max_pages: int | None = None
+    # Orienta la búsqueda hacia un tipo de contenido (solo lo usa Tavily); p.ej.
+    # "convocatoria subvención ONG 2026". Se propaga a cada SearchQuery en _derive_queries.
+    search_context: str | None = None
 
 
 @dataclass

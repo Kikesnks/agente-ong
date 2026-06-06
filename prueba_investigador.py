@@ -10,6 +10,7 @@ request = ResearchRequest(
     mode="calls",
     query_terms=["cooperación internacional", "agua"],
     intent="explore",
+    search_context="convocatoria subvención ONG 2026",
 )
 
 print("Lanzando investigación real...")

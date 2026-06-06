@@ -139,6 +139,27 @@ def test_tavily_maps_results_and_discards_without_url():
     assert fake.calls[0][1] == {"search_depth": "advanced", "max_results": 7}
 
 
+def test_tavily_enriches_query_with_search_context():
+    class FakeTavily:
+        def __init__(self):
+            self.calls = []
+
+        def search(self, query, **kw):
+            self.calls.append(query)
+            return {"results": []}
+
+    fake = FakeTavily()
+    src = TavilySource(ResearchConfig(tavily_api_key="k"), client=fake)
+
+    # Con search_context: se antepone al texto.
+    src.search(SearchQuery(text="agua", search_context="convocatoria subvención ONG 2026"))
+    # Sin search_context: el texto queda igual que antes.
+    src.search(SearchQuery(text="agua"))
+
+    assert fake.calls[0] == "convocatoria subvención ONG 2026 agua"
+    assert fake.calls[1] == "agua"
+
+
 def test_tavily_retries_then_succeeds():
     class Flaky:
         def __init__(self):

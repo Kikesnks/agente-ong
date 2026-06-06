@@ -113,7 +113,8 @@ class ResearchGraph:
             key = text.lower()
             if text and key not in seen:
                 seen.add(key)
-                queries.append(SearchQuery(text=text))
+                # Propaga el contexto de búsqueda a cada query (lo aprovecha Tavily).
+                queries.append(SearchQuery(text=text, search_context=request.search_context))
 
         if terms:
             add(" ".join(terms))  # consulta combinada (la más específica)
