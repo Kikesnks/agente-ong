@@ -294,7 +294,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/sources/base.py, src/agente_ong/research/store/memory.py_
   - _Requirements: 7.3_
 
-- [ ] 33. Test de integración del flujo del grafo en tests/research/test_graph_flow.py
+- [x] 33. Test de integración del flujo del grafo en tests/research/test_graph_flow.py
   - File: tests/research/test_graph_flow.py
   - Ejecuta `plan→recall_ledger→search→read_deep→verify→loop→compile` con fakes; verifica
     estructura del `ResearchReport`, `SourceRef` en cada dato, `failed_sources` ante fuente
