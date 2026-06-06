@@ -119,7 +119,9 @@ class ResearchGraph:
             add(" ".join(terms))  # consulta combinada (la más específica)
             if len(terms) > 1:
                 for term in terms:
-                    add(term)  # consultas individuales para ampliar cobertura
+                    if len(term.split()) > 1:
+                        add(term)  # consultas individuales solo si el término es multi-palabra
+                    # los términos de una sola palabra ya van en la consulta combinada
         return queries
 
     # --- Nodo: recall_ledger ---

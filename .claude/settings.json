@@ -15,7 +15,11 @@
       "Bash(./.venv/Scripts/python.exe -m pytest tests/research/test_memory_store.py -v)",
       "Bash(./.venv/Scripts/python.exe -m pytest tests/research/test_ledger.py -v)",
       "mcp__plugin_engram_engram__mem_session_summary",
-      "mcp__plugin_engram_engram__mem_context"
+      "mcp__plugin_engram_engram__mem_context",
+      "Bash(python -c ' *)",
+      "Bash(cd ~/.engram && cp engram.db \"engram.db.bak-$\\(date +%Y%m%d-%H%M%S\\)\" && ls -la engram.db.bak-* 2>&1 | tail -3)",
+      "Bash(./.venv/Scripts/python.exe -m pytest tests/research/test_graph_flow.py -q)",
+      "Bash(./.venv/Scripts/python.exe -m pytest tests/research -q)"
     ]
   }
 }

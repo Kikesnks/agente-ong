@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from agente_ong.research.config import ResearchConfig
+from agente_ong.research.graph import ResearchGraph
 from agente_ong.research.investigador import Investigador
 from agente_ong.research.models import ResearchReport, ResearchRequest, VerificationStatus
 from fakes import FakeFetchSource, FakeSearchSource, make_document, make_hit
@@ -158,3 +159,20 @@ def test_missing_critical_fields_become_unresolved(db_path: Path) -> None:
     assert opp.deadline.status == VerificationStatus.NOT_FOUND
     topics = {u.topic for u in report.unresolved}
     assert {"importe", "plazo"} <= topics
+
+
+# --- Derivación de consultas (_derive_queries) ---
+
+
+def test_derive_queries_skips_single_word_individual_terms() -> None:
+    # Combinada + solo el término multi-palabra como consulta individual;
+    # "agua" (una palabra) ya queda cubierto por la combinada y no se lanza suelto.
+    request = ResearchRequest(mode="calls", query_terms=["agua", "salud mental"])
+    texts = [q.text for q in ResearchGraph._derive_queries(request)]
+    assert texts == ["agua salud mental", "salud mental"]
+
+
+def test_derive_queries_only_combined_when_all_terms_single_word() -> None:
+    request = ResearchRequest(mode="calls", query_terms=["agua", "cultura"])
+    texts = [q.text for q in ResearchGraph._derive_queries(request)]
+    assert texts == ["agua cultura"]
