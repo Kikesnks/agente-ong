@@ -89,10 +89,13 @@ class TedSource(SearchSource):
         client: _HttpClient | None = None,
         *,
         max_results: int = 20,
+        min_year: int | None = None,
         retry_exceptions: tuple[type[BaseException], ...] = (Exception,),
     ) -> None:
         self._config = config  # nota: TED permite acceso anónimo, no usa ted_api_key
         self._max_results = max_results
+        # Filtro de fecha mínima de publicación (PD >= min_year-01-01); None = sin filtro.
+        self._min_year = min_year
         self._retry_exceptions = retry_exceptions
         if client is None:
             # Import perezoso: solo se necesita httpx si no se inyecta un cliente (tests).
@@ -118,11 +121,14 @@ class TedSource(SearchSource):
         data = with_retry(call, exceptions=self._retry_exceptions)
         return self._to_hits(data)
 
-    @staticmethod
-    def _expert_query(text: str) -> str:
+    def _expert_query(self, text: str) -> str:
         # Envolver el texto libre como full-text del expert query; las comillas se neutralizan.
         safe = (text or "").replace('"', " ").strip()
-        return f'FT ~ "{safe}"'
+        query = f'FT ~ "{safe}"'
+        if self._min_year is not None:
+            # PD >= YYYYMMDD en el expert query language de TED (fecha de publicación).
+            query = f"{query} AND PD >= {self._min_year}0101"
+        return query
 
     def _to_hits(self, data: Any) -> list[SearchHit]:
         if not isinstance(data, dict):

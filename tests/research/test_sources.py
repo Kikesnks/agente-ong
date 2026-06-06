@@ -341,6 +341,24 @@ def test_ted_omits_value_when_absent():
     assert hits[0].snippet == "ESP | 2026-03-03"  # sin importe inventado
 
 
+def test_ted_appends_min_year_date_filter_to_query():
+    # Con min_year se añade el filtro PD >= YYYYMMDD; sin él (default), no.
+    http = _FakeHttp({"notices": []})
+    src = TedSource(ResearchConfig(), client=http, min_year=2025)
+    src.search(SearchQuery(text='cultural "library"'))
+
+    body = http.calls[0][2]["json"]
+    assert body["query"] == 'FT ~ "cultural  library" AND PD >= 20250101'
+
+
+def test_ted_without_min_year_has_no_date_filter():
+    http = _FakeHttp({"notices": []})
+    src = TedSource(ResearchConfig(), client=http)  # min_year por defecto None
+    src.search(SearchQuery(text="x"))
+
+    assert http.calls[0][2]["json"]["query"] == 'FT ~ "x"'
+
+
 def test_ted_retries_then_succeeds():
     class Flaky:
         def __init__(self):

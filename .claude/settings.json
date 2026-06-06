@@ -19,7 +19,8 @@
       "Bash(python -c ' *)",
       "Bash(cd ~/.engram && cp engram.db \"engram.db.bak-$\\(date +%Y%m%d-%H%M%S\\)\" && ls -la engram.db.bak-* 2>&1 | tail -3)",
       "Bash(./.venv/Scripts/python.exe -m pytest tests/research/test_graph_flow.py -q)",
-      "Bash(./.venv/Scripts/python.exe -m pytest tests/research -q)"
+      "Bash(./.venv/Scripts/python.exe -m pytest tests/research -q)",
+      "Bash(./.venv/Scripts/python.exe -m pytest tests/research/test_sources.py -q)"
     ]
   }
 }

@@ -104,6 +104,8 @@ class Investigador:
         oficiales públicas (sin clave) y siempre están disponibles. Import perezoso de cada
         adaptador para no acoplar la fachada a sus SDKs cuando se inyectan fuentes propias.
         """
+        from datetime import datetime
+
         from agente_ong.research.sources.bdns import BdnsSource
         from agente_ong.research.sources.firecrawl import FirecrawlSource
         from agente_ong.research.sources.tavily import TavilySource
@@ -116,5 +118,7 @@ class Investigador:
             sources.append(FirecrawlSource(config))
         # Fuentes oficiales públicas: siempre disponibles.
         sources.append(BdnsSource(config))
-        sources.append(TedSource(config))
+        # TED acumula años de licitaciones; limitamos a los últimos 2 años (año actual y anterior)
+        # para no traer convocatorias caducadas.
+        sources.append(TedSource(config, min_year=datetime.now().year - 1))
         return sources
