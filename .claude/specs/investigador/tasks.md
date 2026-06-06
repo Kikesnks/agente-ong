@@ -286,7 +286,7 @@ y especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/store/sqlite.py, src/agente_ong/research/investigador.py_
   - _Requirements: 5.3, 7.1, 7.2_
 
-- [ ] 32. Crear fuentes y store fake para tests en tests/research/fakes.py
+- [x] 32. Crear fuentes y store fake para tests en tests/research/fakes.py
   - File: tests/research/fakes.py
   - `FakeSource` (devuelve hits/documentos fijos, configurable como oficial o no) y reutilizar
     `InMemoryStore`; helpers de fixtures
