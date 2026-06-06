@@ -1,8 +1,7 @@
 # --- Documentos de trabajo (no versionar) ---
-Prompts.docx
-descripcion_proyecto.docx
-contexto_sdd_agente-ong.docx
-glosario_aprendizaje_agente-ong.docx
+# Carpeta de contexto interno del desarrollador (Kike): documentos de referencia y apoyo
+# (Prompts.docx, descripcion_proyecto.docx, glosario, etc.). Uso interno, NO es parte del producto.
+Contexto_para_mi/
 
 # --- Locks temporales de LibreOffice/OpenOffice ---
 .~lock.*#
