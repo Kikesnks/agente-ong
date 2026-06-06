@@ -311,7 +311,7 @@ y especifica los archivos exactos.
   - _Leverage: tests/research/fakes.py, src/agente_ong/research/investigador.py_
   - _Requirements: 4.1, 5.3_
 
-- [ ] 35. Test de integración de modo training en tests/research/test_training_mode.py
+- [x] 35. Test de integración de modo training en tests/research/test_training_mode.py
   - File: tests/research/test_training_mode.py
   - `run` en modo training con FS temporal: verifica archivos bajo `RECURSOS/ENTRENAMIENTO/`,
     sidecar de metadatos e índice en store; no re-descarga en segunda ejecución
