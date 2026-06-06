@@ -303,7 +303,7 @@ y especifica los archivos exactos.
   - _Leverage: tests/research/fakes.py, src/agente_ong/research/investigador.py_
   - _Requirements: 1.4, 3.1, 4.4_
 
-- [ ] 34. Test de integración de recall entre investigaciones en tests/research/test_recall.py
+- [x] 34. Test de integración de recall entre investigaciones en tests/research/test_recall.py
   - File: tests/research/test_recall.py
   - Primera `run` persiste ledger; segunda `run` reutiliza pistas (`reused_from_ledger`) y
     fuerza revalidación de datos críticos caducados (marca `stale`)
