@@ -209,6 +209,12 @@ class ResearchRequest:
     # Orienta la búsqueda hacia un tipo de contenido (solo lo usa Tavily); p.ej.
     # "convocatoria subvención ONG 2026". Se propaga a cada SearchQuery en _derive_queries.
     search_context: str | None = None
+    # Fuentes activas para esta investigación, por `source.name` (None = todas las
+    # fuentes registradas). Lo usa la UI para activar/desactivar fuentes (R9).
+    enabled_sources: set[str] | None = None
+    # URLs aportadas por el usuario para lectura directa, aunque no haya hits de
+    # búsqueda que las descubran (R9).
+    direct_urls: list[str] = field(default_factory=list)
 
 
 @dataclass
