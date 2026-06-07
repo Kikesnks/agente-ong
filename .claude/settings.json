@@ -28,7 +28,8 @@
       "Bash(cd \"c:\\\\KIKE\\\\Programacion\\\\VS_Code\\\\ONGs\" && mkdir -p .claude/specs/streamlit && echo \"creado\")",
       "Bash(code \"c:\\\\KIKE\\\\Programacion\\\\VS_Code\\\\ONGs\\\\.claude\\\\specs\\\\streamlit\\\\tasks.md\")",
       "Bash(claude-code-spec-workflow get-tasks *)",
-      "Bash(python -c \"from agente_ong.research.models import ResearchRequest; r = ResearchRequest\\(mode='calls'\\); print\\('enabled_sources:', r.enabled_sources\\); print\\('direct_urls:', r.direct_urls\\); r2 = ResearchRequest\\(mode='calls', enabled_sources={'bdns'}, direct_urls=['https://x']\\); print\\('ok:', r2.enabled_sources, r2.direct_urls\\)\")"
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ],
     "additionalDirectories": [
       "c:\\KIKE\\Programacion\\VS_Code\\ONGs\\.claude\\specs"
