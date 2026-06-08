@@ -1,0 +1,112 @@
+# agente-ong
+
+**Aplicación multi-agente de IA para ayudar a ONGs a encontrar subvenciones y redactar propuestas de proyecto.**
+
+## Qué es
+
+`agente-ong` es un sistema de agentes especializados construido en Python que automatiza dos de las tareas más costosas para una ONG: **encontrar convocatorias de financiación** y **redactar propuestas profesionales** que maximicen las posibilidades de aprobación.
+
+El sistema busca en fuentes oficiales (BDNS del Gobierno de España, TED de la UE) y en la web general (Tavily), verifica la información cruzando fuentes, y aprende entre sesiones para mejorar con el uso.
+
+## Autoría y proceso de construcción
+
+Este proyecto nace de una idea propia basada en 20 años de experiencia gestionando negocios sostenibles de ámbito turístico en la región amazónica, trabajando con ONGs de cooperación internacional y conociendo de primera mano las necesidades de la región, la dificultad de encontrar financiación y de redactar propuestas competitivas.
+
+Sobre el terreno ves muchas necesidades, muchos problemas que resolver y muchas ideas para hacerlo — pero la parte burocrática actúa como un cuello de botella que impide que muchos proyectos salgan adelante. Por ello decidí construir una aplicación práctica y rigurosa, fácil e intuitiva para el usuario, que automatice los dos puntos más tediosos de ese proceso: la búsqueda de recursos económicos y la redacción de propuestas de alto nivel.
+
+**El rol del autor en este proyecto:**
+- **Ideación y visión de producto**: definición del problema, los usuarios objetivos y el valor que debe aportar la herramienta.
+- **Especificaciones funcionales**: redacción y aprobación de todos los `requirements.md` — qué debe hacer el sistema, qué no, y por qué.
+- **Decisiones de arquitectura**: elección del stack (LangGraph, SQLite, Streamlit, patrón Ports & Adapters), decisión de separar ENGRAM del producto final, diseño del sistema de verificación cruzada con 5 estados, elección de SQLite frente a otras alternativas, decisión de investigación asíncrona, gestión de proyectos múltiples y subida de documentos en la UI.
+- **Diseño del sistema**: aprobación de todos los `design.md` — cómo se estructura el código, qué patrones usar, cómo fluyen los datos.
+- **Validación**: revisión y aprobación de cada tarea implementada, ejecución de pruebas contra APIs reales, detección y corrección de problemas en producción (filtro de fechas en TED, orientación de queries en Tavily, gestión de colisiones de archivos, etc.).
+- **Criterio de producto**: todas las decisiones sobre qué incluir, qué posponer y qué descartar son decisiones propias documentadas y justificadas.
+
+**El rol de Claude Code (IA):** implementación del código bajo especificaciones aprobadas previamente. Claude Code escribe el código; el autor decide qué se construye, cómo se estructura y si el resultado es válido.
+
+La metodología utilizada es **Spec-Driven Development (SDD)** del framework LIDR: ninguna línea de código se escribe sin un `requirements.md` y un `design.md` aprobados por el autor. **Esto garantiza que el sistema refleja decisiones deliberadas, no sugerencias automáticas de una IA.**
+
+## Stack
+
+- Python 3.14 + LangChain + LangGraph (orquestación de agentes)
+- SQLite (persistencia local, sin dependencias externas)
+- Streamlit (interfaz de usuario, en desarrollo)
+- Fuentes: Tavily · Firecrawl · BDNS · TED (Tenders Electronic Daily)
+
+**Principio rector (definido por el autor):** calidad y verificación cruzada por encima de velocidad. El sistema nunca inventa datos — todo dato es trazable a su fuente.
+
+## Estado actual
+
+### ✅ Módulo investigador — completado y validado en producción
+
+El primer módulo, `src/agente_ong/research/`, está completo:
+
+- **4 fuentes de búsqueda** integradas y verificadas contra sus APIs reales
+- **Política de verificación cruzada** con 5 estados (`VERIFIED`, `OFFICIAL_UNCROSSED`, `UNCROSSED_UNVERIFIED`, `CONFLICTING`, `NOT_FOUND`) — diseñada por el autor para reflejar distintos niveles de confianza en los datos
+- **Grafo LangGraph** de 7 nodos con arista condicional
+- **Persistencia SQLite** entre sesiones (el sistema recuerda lo aprendido)
+- **115 tests** (unitarios, integración y end-to-end)
+- **Validado con datos reales**: ~54 convocatorias relevantes encontradas, con verificación cruzada funcionando en producción
+
+```python
+from agente_ong.research import Investigador, ResearchConfig, ResearchRequest
+
+with Investigador(ResearchConfig.from_env()) as inv:
+    informe = inv.run(ResearchRequest(
+        mode="calls",
+        query_terms=["cooperación internacional", "agua"],
+        search_context="convocatoria subvención ONG 2026"
+    ))
+```
+
+### 🔄 En desarrollo — Interfaz Streamlit
+
+La interfaz de usuario está en construcción. Las decisiones de diseño ya tomadas por el autor:
+
+- Investigación **asíncrona** (el usuario no espera bloqueado)
+- Gestión de **múltiples proyectos** por sesión
+- **Subida de documentos** de la ONG para contextualizar la búsqueda
+- Resultados **ordenados por fiabilidad** con filtros (fecha, importe, estado de verificación)
+- Control de **profundidad de búsqueda** (rápida / normal / exhaustiva)
+- Activación/desactivación de **fuentes individuales** por investigación
+
+### 📋 Pendiente
+
+- Integración de LLM (Claude / OpenAI / Ollama)
+- Agente redactor de propuestas (con tono ONG auténtico, diseñado para pasar detectores de IA — decisión de producto del autor)
+
+## Arquitectura
+
+El patrón **Ports & Adapters** fue elegido deliberadamente por el autor para garantizar que el núcleo del sistema no dependa de tecnologías concretas — si mañana SQLite se queda corto o Tavily cambia su API, se cambia el adaptador sin tocar la lógica:
+
+```
+ResearchStore (puerto)
+├── InMemoryStore   (tests / modo efímero)
+└── SqliteStore     (producción — .data/agente_ong.db)
+
+SearchSource (puerto)
+├── TavilySource    (búsqueda web general)
+├── FirecrawlSource (lectura profunda de páginas)
+├── BdnsSource      (fuente oficial ES — API pública)
+└── TedSource       (fuente oficial UE — API pública)
+```
+
+## Instalación
+
+```bash
+git clone https://github.com/Kikesnks/agente-ong.git
+cd agente-ong
+python -m venv .venv
+.venv\Scripts\Activate.ps1        # Windows
+pip install -r requirements.txt
+pip install -e .
+```
+
+Configura tus claves en `.env`:
+
+```
+TAVILY_API_KEY=tvly-...
+FIRECRAWL_API_KEY=fc-...
+```
+
+BDNS y TED son APIs públicas — no necesitan clave.
