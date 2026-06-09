@@ -68,7 +68,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/config.py (from_env, _env_int)_
   - _Requirements: 10.1_
 
-- [ ] 6. Construir fuentes con min_year en _default_sources (investigador.py)
+- [x] 6. Construir fuentes con min_year en _default_sources (investigador.py)
   - File: src/agente_ong/research/investigador.py
   - `TedSource(config, min_year=config.min_year or (datetime.now().year - 1))` (preserva el
     default actual) y `BdnsSource(config, min_year=config.min_year)` (None = sin filtro)

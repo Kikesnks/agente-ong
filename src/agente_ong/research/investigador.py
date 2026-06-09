@@ -116,9 +116,9 @@ class Investigador:
             sources.append(TavilySource(config))
         if config.firecrawl_api_key:
             sources.append(FirecrawlSource(config))
-        # Fuentes oficiales públicas: siempre disponibles.
-        sources.append(BdnsSource(config))
-        # TED acumula años de licitaciones; limitamos a los últimos 2 años (año actual y anterior)
-        # para no traer convocatorias caducadas.
-        sources.append(TedSource(config, min_year=datetime.now().year - 1))
+        # Fuentes oficiales públicas: siempre disponibles. `config.min_year` (R10) gobierna
+        # el filtro temporal de ambas; sin él, BDNS no filtra y TED limita a los últimos
+        # 2 años (año actual y anterior) para no traer licitaciones caducadas.
+        sources.append(BdnsSource(config, min_year=config.min_year))
+        sources.append(TedSource(config, min_year=config.min_year or (datetime.now().year - 1)))
         return sources
