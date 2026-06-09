@@ -184,7 +184,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/models.py (VerificationStatus, GrantOpportunity)_
   - _Requirements: 11.1, 11.2, 11.3, 11.4_
 
-- [ ] 20. Test de orden y filtros en tests/ui/test_report_view.py
+- [x] 20. Test de orden y filtros en tests/ui/test_report_view.py
   - File: tests/ui/test_report_view.py
   - Orden canónico de estados; filtro por estado/año/importe; combinación AND mantiene el orden;
     convocatorias con valor None no se cuelan como cero
