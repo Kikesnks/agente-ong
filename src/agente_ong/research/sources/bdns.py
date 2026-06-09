@@ -12,6 +12,8 @@ Notas sobre la API real (verificadas con llamadas en vivo):
   - Cada convocatoria de la búsqueda trae `numeroConvocatoria`, `descripcion` (el título),
     `fechaRecepcion` y los niveles de organismo `nivel1/nivel2/nivel3`. El IMPORTE no está en
     la búsqueda: vive en el detalle (`/convocatorias?numConv=...&vpd=GE` -> `presupuestoTotal`).
+  - `fechaRecepcion` viene en ISO `YYYY-MM-DD` (reverificado en vivo el 2026-06-10); la API de
+    búsqueda no admite filtro de fecha, así que `min_year` se aplica en cliente (`_to_hits`).
   - Respuesta en UTF-8 (se usa response.json() directamente).
   - URL pública de una convocatoria: .../bdnstrans/GE/es/convocatoria/{numeroConvocatoria}
 """
@@ -53,10 +55,14 @@ class BdnsSource(SearchSource):
         client: _HttpClient | None = None,
         *,
         max_results: int = 20,
+        min_year: int | None = None,
         retry_exceptions: tuple[type[BaseException], ...] = (Exception,),
     ) -> None:
         self._config = config  # nota: la BDNS es pública, no usa bdns_api_key
         self._max_results = max_results
+        # Año mínimo de `fechaRecepcion`; None = sin filtro. Se aplica en cliente porque la
+        # API de búsqueda de la BDNS no admite filtro de fecha.
+        self._min_year = min_year
         self._retry_exceptions = retry_exceptions
         if client is None:
             # Import perezoso: solo se necesita httpx si no se inyecta un cliente (tests).
@@ -90,6 +96,8 @@ class BdnsSource(SearchSource):
             if not numero:
                 # Sin código de convocatoria no hay URL oficial: se descarta.
                 continue
+            if self._too_old(item.get("fechaRecepcion")):
+                continue
             hits.append(
                 SearchHit(
                     url=_PUBLIC_CONV_URL.format(numero),
@@ -100,6 +108,20 @@ class BdnsSource(SearchSource):
                 )
             )
         return hits
+
+    def _too_old(self, fecha: Any) -> bool:
+        """True si la convocatoria queda por debajo de `min_year` (formato ISO YYYY-MM-DD).
+
+        Sin filtro configurado, o si la fecha falta o no es parseable, NO se descarta: no se
+        inventa antigüedad (Requirement 10.3).
+        """
+        if self._min_year is None:
+            return False
+        try:
+            year = int(str(fecha)[:4])
+        except (TypeError, ValueError):
+            return False
+        return year < self._min_year
 
     @staticmethod
     def _build_snippet(item: dict[str, Any]) -> str | None:

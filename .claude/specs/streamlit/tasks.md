@@ -76,7 +76,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/sources/ted.py (min_year ya existente)_
   - _Requirements: 10.1, 10.4_
 
-- [ ] 7. Añadir min_year a BdnsSource verificando el formato de fechaRecepcion (bdns.py)
+- [x] 7. Añadir min_year a BdnsSource verificando el formato de fechaRecepcion (bdns.py)
   - File: src/agente_ong/research/sources/bdns.py
   - PRIMERO: confirmar con UNA llamada en vivo el formato real de `fechaRecepcion` (mismo método
     de verificación usado al integrar BDNS). Luego: añadir `min_year: int | None = None` al
