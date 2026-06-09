@@ -29,7 +29,8 @@
       "Bash(code \"c:\\\\KIKE\\\\Programacion\\\\VS_Code\\\\ONGs\\\\.claude\\\\specs\\\\streamlit\\\\tasks.md\")",
       "Bash(claude-code-spec-workflow get-tasks *)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(./.venv/Scripts/python.exe -m pytest -q)"
     ],
     "additionalDirectories": [
       "c:\\KIKE\\Programacion\\VS_Code\\ONGs\\.claude\\specs"
