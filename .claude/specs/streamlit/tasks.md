@@ -96,7 +96,7 @@ especifica los archivos exactos.
 
 ### Bloque B — Capa de interfaz (src/agente_ong/ui/)
 
-- [ ] 9. Crear scaffolding del paquete ui en ui/__init__.py
+- [x] 9. Crear scaffolding del paquete ui en ui/__init__.py
   - File: src/agente_ong/ui/__init__.py
   - Paquete Python con docstring de módulo (capa de UI Streamlit)
   - Purpose: establecer la estructura importable de la UI
