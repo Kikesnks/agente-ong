@@ -44,7 +44,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/sources/base.py (SearchSource.name/supports)_
   - _Requirements: 9.2, 9.3_
 
-- [ ] 3. Sembrar la frontera de read_deep con direct_urls (graph.py)
+- [x] 3. Sembrar la frontera de read_deep con direct_urls (graph.py)
   - File: src/agente_ong/research/graph.py (continúa de la tarea 2)
   - En `read_deep()`, añadir las `request.direct_urls` a la frontera en el nivel 1 (junto a los
     hits), respetando ledger y `DepthLimiter`; deben leerse con Firecrawl aunque no haya búsqueda

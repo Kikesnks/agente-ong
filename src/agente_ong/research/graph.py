@@ -194,8 +194,14 @@ class ResearchGraph:
             return {"documents": documents}
         fetcher = fetch_sources[0]
 
-        # Frontera (url, profundidad). Los hits están en el nivel 1.
-        frontier: list[tuple[str, int]] = [(hit.url, 1) for hit in state.get("hits", [])]
+        # Frontera (url, profundidad). Las URLs directas del usuario y los hits están en el
+        # nivel 1; las directas van primero para que se lean aunque se agote el presupuesto
+        # de páginas (Requirement 9.1/9.4). El ledger evita la doble lectura si una URL
+        # directa coincide con un hit.
+        frontier: list[tuple[str, int]] = [
+            (url, 1) for url in state["request"].direct_urls
+        ]
+        frontier.extend((hit.url, 1) for hit in state.get("hits", []))
 
         while frontier:
             url, level = frontier.pop(0)
