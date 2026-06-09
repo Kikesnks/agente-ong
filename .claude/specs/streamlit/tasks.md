@@ -60,7 +60,7 @@ especifica los archivos exactos.
   - _Leverage: tests/research/fakes.py (FakeSearchSource, FakeFetchSource, make_hit)_
   - _Requirements: 9.1, 9.2, 9.3, 9.4_
 
-- [ ] 5. Añadir min_year a ResearchConfig en config.py
+- [x] 5. Añadir min_year a ResearchConfig en config.py
   - File: src/agente_ong/research/config.py
   - Campo `min_year: int | None = None` y lectura de `RESEARCH_MIN_YEAR` en `from_env()` (entero
     opcional, usando el helper `_env_int` o variante que admita None)
