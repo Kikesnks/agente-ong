@@ -167,7 +167,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/models.py, src/agente_ong/research/config.py_
   - _Requirements: 8.1, 8.2, 8.3, 9.2, 10.1_
 
-- [ ] 18. Test de request_builder en tests/ui/test_request_builder.py
+- [x] 18. Test de request_builder en tests/ui/test_request_builder.py
   - File: tests/ui/test_request_builder.py
   - Presets → (max_depth, max_pages); default "normal"; propagación de min_year (a config),
     enabled_sources/direct_urls (a request)
