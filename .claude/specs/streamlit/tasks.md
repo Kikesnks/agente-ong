@@ -192,7 +192,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/ui/report_view.py_
   - _Requirements: 11.1, 11.2, 11.3, 11.4_
 
-- [ ] 21. Implementar project_dir y validación de subida en ui/uploads.py
+- [x] 21. Implementar project_dir y validación de subida en ui/uploads.py
   - File: src/agente_ong/ui/uploads.py
   - `ALLOWED_EXT = {pdf, docx, txt, jpg, png}`, `MAX_UPLOAD_BYTES = 10*1024*1024`; `project_dir(name)`
     normaliza con `resolve()` y verifica que queda dentro de `RECURSOS/`; validadores de extensión y
