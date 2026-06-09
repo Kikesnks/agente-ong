@@ -111,7 +111,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/models.py (estilo dataclass)_
   - _Requirements: 12.1_
 
-- [ ] 11. Implementar report_to_dict / report_from_dict en ui/report_serde.py
+- [x] 11. Implementar report_to_dict / report_from_dict en ui/report_serde.py
   - File: src/agente_ong/ui/report_serde.py
   - Serializar/deserializar `ResearchReport` ⇄ dict preservando `GrantOpportunity`, `Claim.status`
     (enum por value), `SourceRef`, `unresolved`, `failed_sources`, `reused_from_ledger`
