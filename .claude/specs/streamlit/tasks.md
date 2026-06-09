@@ -143,7 +143,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/store/sqlite.py (patrón de conexión y PRAGMAs)_
   - _Requirements: 12.1, 12.2, 12.3, 1.2_
 
-- [ ] 15. Añadir persistencia de runs a ProjectStore en ui/project_store.py
+- [x] 15. Añadir persistencia de runs a ProjectStore en ui/project_store.py
   - File: src/agente_ong/ui/project_store.py (continúa de la tarea 14)
   - `save_run`, `update_run_status(id, status, report?, error?)`, `list_runs(project_id)`,
     guardando `report_json` vía report_serde y `params_json`

@@ -14,11 +14,11 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from types import TracebackType
 
-from agente_ong.ui.models import Project
+from agente_ong.ui.models import Project, ResearchRun, RunStatus
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS projects (
@@ -111,7 +111,90 @@ class ProjectStore:
         ).fetchone()
         return self._row_to_project(row) if row else None
 
+    # --- Investigaciones (research_runs) ---
+
+    def save_run(self, run: ResearchRun) -> int:
+        """Persiste una investigación nueva y devuelve su id (R12.5)."""
+        with self._conn:
+            cursor = self._conn.execute(
+                """
+                INSERT INTO research_runs
+                    (project_id, status, created_at, finished_at, params_json, report_json, error)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    run.project_id,
+                    run.status,
+                    run.created_at.isoformat(),
+                    run.finished_at.isoformat() if run.finished_at else None,
+                    json.dumps(run.params),
+                    json.dumps(run.report) if run.report is not None else None,
+                    run.error,
+                ),
+            )
+        run.id = cursor.lastrowid
+        return run.id
+
+    def update_run_status(
+        self,
+        run_id: int,
+        status: RunStatus,
+        *,
+        report: dict | None = None,
+        error: str | None = None,
+    ) -> None:
+        """Cierra una investigación: estado final, informe serializado o error, y fin.
+
+        `report` es el `ResearchReport` ya serializado con `report_serde.report_to_dict`
+        (status `done`); `error` lleva el mensaje cuando status es `error` (R2.3/R2.4).
+        """
+        finished_at = None if status == "running" else datetime.now(timezone.utc).isoformat()
+        with self._conn:
+            self._conn.execute(
+                """
+                UPDATE research_runs
+                SET status=?, finished_at=?, report_json=?, error=?
+                WHERE id=?
+                """,
+                (
+                    status,
+                    finished_at,
+                    json.dumps(report) if report is not None else None,
+                    error,
+                    run_id,
+                ),
+            )
+
+    def list_runs(self, project_id: int) -> list[ResearchRun]:
+        """Investigaciones de un proyecto, más recientes primero (R12.6)."""
+        rows = self._conn.execute(
+            "SELECT * FROM research_runs WHERE project_id=? ORDER BY created_at DESC, id DESC",
+            (project_id,),
+        ).fetchall()
+        return [self._row_to_run(row) for row in rows]
+
+    def get_run(self, run_id: int) -> ResearchRun | None:
+        row = self._conn.execute(
+            "SELECT * FROM research_runs WHERE id=?", (run_id,)
+        ).fetchone()
+        return self._row_to_run(row) if row else None
+
     # --- Helpers ---
+
+    @staticmethod
+    def _row_to_run(row: sqlite3.Row) -> ResearchRun:
+        return ResearchRun(
+            id=row["id"],
+            project_id=row["project_id"],
+            status=row["status"],
+            created_at=datetime.fromisoformat(row["created_at"]),
+            finished_at=(
+                datetime.fromisoformat(row["finished_at"]) if row["finished_at"] else None
+            ),
+            params=dict(json.loads(row["params_json"])),
+            report=json.loads(row["report_json"]) if row["report_json"] else None,
+            error=row["error"],
+        )
 
     @staticmethod
     def _row_to_project(row: sqlite3.Row) -> Project:
