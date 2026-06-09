@@ -151,7 +151,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/ui/report_serde.py_
   - _Requirements: 12.5, 12.6, 6.2_
 
-- [ ] 16. Test de ProjectStore en tests/ui/test_project_store.py
+- [x] 16. Test de ProjectStore en tests/ui/test_project_store.py
   - File: tests/ui/test_project_store.py
   - CRUD de proyectos, `UNIQUE(name)`, ON DELETE CASCADE de runs, round-trip de `report_json`
   - Purpose: blindar el store de proyectos/runs
