@@ -127,7 +127,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/models.py (VerificationStatus)_
   - _Requirements: 7.1, 7.2_
 
-- [ ] 13. Test de report_serde en tests/ui/test_report_serde.py
+- [x] 13. Test de report_serde en tests/ui/test_report_serde.py
   - File: tests/ui/test_report_serde.py
   - Round-trip dict (igualdad de estados/fuentes/listas) y que el Markdown incluye fuente y estado
   - Purpose: garantizar persistencia fiel y descarga correcta
