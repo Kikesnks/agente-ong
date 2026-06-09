@@ -217,7 +217,7 @@ especifica los archivos exactos.
   - _Leverage: tmp_path_
   - _Requirements: 3.2, 3.3, 3.5_
 
-- [ ] 24. Implementar JobManager (submit/status) en ui/jobs.py
+- [x] 24. Implementar JobManager (submit/status) en ui/jobs.py
   - File: src/agente_ong/ui/jobs.py
   - `ThreadPoolExecutor` + `threading.Lock`; `submit(project_id, config, request) -> job_id` que en
     un hilo de fondo abre su PROPIO `Investigador` (conexión SQLite propia) y ejecuta `run()`;
