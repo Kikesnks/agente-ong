@@ -201,7 +201,7 @@ especifica los archivos exactos.
   - _Leverage: .claude/steering/structure.md (convención RECURSOS/)_
   - _Requirements: 3.1, 3.2, 3.3_
 
-- [ ] 22. Implementar save_upload, list y delete en ui/uploads.py
+- [x] 22. Implementar save_upload, list y delete en ui/uploads.py
   - File: src/agente_ong/ui/uploads.py (continúa de la tarea 21)
   - `save_upload(name, filename, data)` con renombrado automático ante colisión (`nombre (2).ext`);
     `list_documents(name)`, `delete_document(name, filename)`

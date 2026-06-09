@@ -70,6 +70,55 @@ def validate_size(data: bytes) -> None:
         raise UploadError(f"El archivo supera el tamaño máximo de {mb} MB.")
 
 
+def save_upload(name: str, filename: str, data: bytes, *, root: Path = RECURSOS_ROOT) -> Path:
+    """Guarda un documento del proyecto y devuelve su ruta final (R3.1).
+
+    Valida proyecto, nombre y tamaño; crea la carpeta si no existe; ante colisión de nombre
+    renombra automáticamente a `nombre (2).ext`, `nombre (3).ext`, … sin sobrescribir (R3.5).
+    """
+    validate_filename(filename)
+    validate_size(data)
+    directory = project_dir(name, root=root)
+    directory.mkdir(parents=True, exist_ok=True)
+    target = _next_free_path(directory / filename.strip())
+    target.write_bytes(data)
+    return target
+
+
+def list_documents(name: str, *, root: Path = RECURSOS_ROOT) -> list[Path]:
+    """Documentos del proyecto, orden alfabético; carpeta inexistente => lista vacía (R3.4)."""
+    directory = project_dir(name, root=root)
+    if not directory.is_dir():
+        return []
+    return sorted((p for p in directory.iterdir() if p.is_file()), key=lambda p: p.name.lower())
+
+
+def delete_document(name: str, filename: str, *, root: Path = RECURSOS_ROOT) -> None:
+    """Borra un documento del proyecto; el nombre se valida igual que al guardar.
+
+    Solo borra archivos directamente bajo la carpeta del proyecto; si no existe, lanza
+    `UploadError` (mensaje claro en lugar de un FileNotFoundError críptico).
+    """
+    _validate_component(filename, what="nombre de archivo")
+    directory = project_dir(name, root=root)
+    target = (directory / filename.strip()).resolve()
+    if target.parent != directory or not target.is_file():
+        raise UploadError(f"El documento {filename!r} no existe en el proyecto {name!r}.")
+    target.unlink()
+
+
+def _next_free_path(path: Path) -> Path:
+    """Primera ruta libre: `path` tal cual o `nombre (N).ext` con N creciente desde 2."""
+    if not path.exists():
+        return path
+    n = 2
+    while True:
+        candidate = path.with_name(f"{path.stem} ({n}){path.suffix}")
+        if not candidate.exists():
+            return candidate
+        n += 1
+
+
 def _validate_component(value: str, *, what: str) -> None:
     """Un único componente de ruta: no vacío, sin separadores, sin `..`, sin reservados."""
     clean = (value or "").strip()
