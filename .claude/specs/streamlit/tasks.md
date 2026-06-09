@@ -52,7 +52,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/graph.py (read_deep, frontier)_
   - _Requirements: 9.1, 9.4_
 
-- [ ] 4. Test de enabled_sources y direct_urls en test_graph_flow.py
+- [x] 4. Test de enabled_sources y direct_urls en test_graph_flow.py
   - File: tests/research/test_graph_flow.py
   - Casos: investigación con un subconjunto de fuentes solo usa esas; URL directa se lee aun sin
     hits de búsqueda; ambas fuentes desactivadas + URL directa => se lee la URL

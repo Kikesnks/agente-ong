@@ -176,3 +176,72 @@ def test_derive_queries_only_combined_when_all_terms_single_word() -> None:
     request = ResearchRequest(mode="calls", query_terms=["agua", "cultura"])
     texts = [q.text for q in ResearchGraph._derive_queries(request)]
     assert texts == ["agua cultura"]
+
+
+# --- Selección de fuentes y URLs directas (Requirements 9.1-9.4) ---
+
+
+def test_enabled_sources_restricts_search_to_subset(db_path: Path) -> None:
+    bdns = FakeSearchSource(
+        name="bdns",
+        is_official=True,
+        hits=[make_hit("https://bo.es/c1", source_name="bdns", title="C1", is_official=True)],
+    )
+    tavily = FakeSearchSource(
+        name="tavily",
+        hits=[make_hit("https://web.example/x", source_name="tavily", title="X")],
+    )
+    fetch = FakeFetchSource()
+
+    with _investigador([bdns, tavily, fetch], db_path) as inv:
+        report = inv.run(_calls_request(enabled_sources={"bdns", "fake-fetch"}))
+
+    # Solo la fuente activa fue consultada; la desactivada ni se llamó ni aportó hits.
+    assert bdns.search_calls, "la fuente activa debe consultarse"
+    assert tavily.search_calls == [], "la fuente desactivada no debe consultarse"
+    assert [o.url.value for o in report.opportunities] == ["https://bo.es/c1"]
+
+
+def test_enabled_sources_none_uses_all_sources(db_path: Path) -> None:
+    bdns = FakeSearchSource(name="bdns", is_official=True, hits=[])
+    tavily = FakeSearchSource(name="tavily", hits=[])
+
+    with _investigador([bdns, tavily, FakeFetchSource()], db_path) as inv:
+        inv.run(_calls_request())  # enabled_sources=None (default)
+
+    assert bdns.search_calls and tavily.search_calls
+
+
+def test_direct_url_is_read_even_without_search_hits(db_path: Path) -> None:
+    vacia = FakeSearchSource(name="bdns", is_official=True, hits=[])
+    fetch = FakeFetchSource(
+        documents={
+            "https://ong.example/conv": make_document(
+                "https://ong.example/conv", text="detalle de la convocatoria"
+            )
+        }
+    )
+
+    with _investigador([vacia, fetch], db_path) as inv:
+        report = inv.run(_calls_request(direct_urls=["https://ong.example/conv"]))
+
+    assert fetch.fetch_calls == ["https://ong.example/conv"]
+    # La lectura queda registrada en el ledger del informe (trazabilidad).
+    assert any(e.key == "https://ong.example/conv" for e in report.ledger)
+
+
+def test_direct_url_is_read_with_all_search_sources_disabled(db_path: Path) -> None:
+    bdns = FakeSearchSource(name="bdns", is_official=True, hits=[])
+    tavily = FakeSearchSource(name="tavily", hits=[])
+    fetch = FakeFetchSource()
+
+    with _investigador([bdns, tavily, fetch], db_path) as inv:
+        inv.run(
+            _calls_request(
+                enabled_sources={"fake-fetch"},  # ambas fuentes de búsqueda desactivadas
+                direct_urls=["https://ong.example/directa"],
+            )
+        )
+
+    assert bdns.search_calls == [] and tavily.search_calls == []
+    assert fetch.fetch_calls == ["https://ong.example/directa"]
