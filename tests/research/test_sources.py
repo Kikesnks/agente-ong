@@ -299,6 +299,53 @@ def test_bdns_retries_then_succeeds():
     assert flaky.n == 3 and len(hits) == 1
 
 
+# --- BdnsSource: filtro temporal min_year (Requirements 10.2, 10.3) ---
+
+# fechaRecepcion en ISO YYYY-MM-DD (formato real reverificado en vivo el 2026-06-10).
+_BDNS_MIXED_YEARS = {
+    "content": [
+        {"numeroConvocatoria": "1", "descripcion": "antigua", "fechaRecepcion": "2023-11-30"},
+        {"numeroConvocatoria": "2", "descripcion": "reciente", "fechaRecepcion": "2025-03-15"},
+        {"numeroConvocatoria": "3", "descripcion": "sin fecha"},
+    ]
+}
+
+
+def test_bdns_min_year_discards_older_calls():
+    src = BdnsSource(ResearchConfig(), client=_FakeHttp(_BDNS_MIXED_YEARS), min_year=2025)
+    titles = [h.title for h in src.search(SearchQuery(text="x"))]
+    assert "antigua" not in titles
+    assert "reciente" in titles
+
+
+def test_bdns_min_year_keeps_calls_at_or_above_threshold():
+    data = {
+        "content": [
+            {"numeroConvocatoria": "1", "descripcion": "del año", "fechaRecepcion": "2025-01-01"},
+            {"numeroConvocatoria": "2", "descripcion": "posterior", "fechaRecepcion": "2026-06-09"},
+        ]
+    }
+    src = BdnsSource(ResearchConfig(), client=_FakeHttp(data), min_year=2025)
+    assert [h.title for h in src.search(SearchQuery(text="x"))] == ["del año", "posterior"]
+
+
+def test_bdns_min_year_keeps_calls_without_parseable_date():
+    # Sin fecha (o no parseable) NO se descarta: no se inventa antigüedad (Requirement 10.3).
+    data = {
+        "content": [
+            {"numeroConvocatoria": "1", "descripcion": "sin fecha"},
+            {"numeroConvocatoria": "2", "descripcion": "fecha rara", "fechaRecepcion": "??"},
+        ]
+    }
+    src = BdnsSource(ResearchConfig(), client=_FakeHttp(data), min_year=2025)
+    assert [h.title for h in src.search(SearchQuery(text="x"))] == ["sin fecha", "fecha rara"]
+
+
+def test_bdns_min_year_none_does_not_filter():
+    src = BdnsSource(ResearchConfig(), client=_FakeHttp(_BDNS_MIXED_YEARS))
+    assert len(src.search(SearchQuery(text="x"))) == 3
+
+
 # --- TedSource (oficial, search, POST) ---
 
 

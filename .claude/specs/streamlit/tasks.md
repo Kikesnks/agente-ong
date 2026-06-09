@@ -86,7 +86,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/sources/ted.py (patrón de min_year)_
   - _Requirements: 10.1, 10.2_
 
-- [ ] 8. Test de BdnsSource.min_year en test_sources.py
+- [x] 8. Test de BdnsSource.min_year en test_sources.py
   - File: tests/research/test_sources.py
   - Casos: descarta convocatoria con año < min_year; conserva la de año >= min_year; conserva la
     que no trae fecha; `min_year=None` no filtra (sin cambios)
