@@ -226,7 +226,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/investigador.py (Investigador.run, context manager)_
   - _Requirements: 2.1, 2.4, 2.5_
 
-- [ ] 25. Persistir el run al terminar en ui/jobs.py
+- [x] 25. Persistir el run al terminar en ui/jobs.py
   - File: src/agente_ong/ui/jobs.py (continúa de la tarea 24)
   - Al completar el Future: serializar el `ResearchReport` y `save_run`/`update_run_status` como
     `done`; capturar excepción → `error` (sin tumbar otros jobs); `pop_finished()`

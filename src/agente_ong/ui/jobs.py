@@ -24,7 +24,9 @@ from typing import Callable, ContextManager, Protocol
 
 from agente_ong.research.config import ResearchConfig
 from agente_ong.research.models import ResearchReport, ResearchRequest
-from agente_ong.ui.models import Job, JobStatus
+from agente_ong.ui.models import Job, JobStatus, ResearchRun
+from agente_ong.ui.project_store import ProjectStore
+from agente_ong.ui.report_serde import report_to_dict
 
 # Investigaciones simultáneas máximas (las demás esperan en cola del executor).
 _DEFAULT_MAX_WORKERS = 2
@@ -100,6 +102,18 @@ class JobManager:
         with self._lock:
             return [job for job in self._jobs.values() if job.status == "running"]
 
+    def pop_finished(self) -> list[Job]:
+        """Retira y devuelve los jobs terminados (done/error).
+
+        La UI los recoge en un rerun para notificar; su resultado ya está persistido en
+        `research_runs` (job.run_id), así que olvidarlos en memoria no pierde nada (R2.3).
+        """
+        with self._lock:
+            finished = [job for job in self._jobs.values() if job.status != "running"]
+            for job in finished:
+                del self._jobs[job.id]
+            return finished
+
     def shutdown(self, *, wait: bool = True) -> None:
         """Apaga el executor (tests/cierre de la app); no cancela lo ya en curso."""
         self._executor.shutdown(wait=wait)
@@ -108,22 +122,46 @@ class JobManager:
 
     def _run_job(self, job_id: str, config: ResearchConfig, request: ResearchRequest) -> None:
         try:
-            with self._factory(config) as investigador:
-                report = investigador.run(request)
-        except Exception as exc:  # noqa: BLE001 - aislar el fallo, no tumbar otros jobs
-            self._finish_job(job_id, "error", error=str(exc))
-            return
-        self._finish_job(job_id, "done", report=report)
+            self._run_job_inner(job_id, config, request)
+        except Exception:  # noqa: BLE001 - fallo del propio store: el job no queda colgado
+            self._finish_job(job_id, "error")
 
-    def _finish_job(
-        self,
-        job_id: str,
-        status: JobStatus,
-        *,
-        report: ResearchReport | None = None,
-        error: str | None = None,
+    def _run_job_inner(
+        self, job_id: str, config: ResearchConfig, request: ResearchRequest
     ) -> None:
-        """Cierra el job en memoria (la persistencia del run se añade en la tarea 25)."""
+        # Store PROPIO de este hilo (conexión SQLite por hilo), cerrado al salir.
+        with ProjectStore(self._db_path) as store:
+            project_id = self.get_job(job_id).project_id
+            run_id = store.save_run(
+                ResearchRun(project_id=project_id, params=_request_params(request))
+            )
+            with self._lock:
+                self._jobs[job_id].run_id = run_id
+            try:
+                with self._factory(config) as investigador:
+                    report = investigador.run(request)
+            except Exception as exc:  # noqa: BLE001 - aislar el fallo, no tumbar otros jobs
+                store.update_run_status(run_id, "error", error=str(exc))
+                self._finish_job(job_id, "error")
+                return
+            store.update_run_status(run_id, "done", report=report_to_dict(report))
+            self._finish_job(job_id, "done")
+
+    def _finish_job(self, job_id: str, status: JobStatus) -> None:
+        """Cierra el job en memoria; el resultado ya quedó persistido en research_runs."""
         with self._lock:
-            job = self._jobs[job_id]
-            job.status = status
+            self._jobs[job_id].status = status
+
+
+def _request_params(request: ResearchRequest) -> dict:
+    """Parámetros del lanzamiento que se guardan junto al run (trazabilidad, R12.5)."""
+    return {
+        "query_terms": list(request.query_terms),
+        "max_depth": request.max_depth,
+        "max_pages": request.max_pages,
+        "enabled_sources": (
+            sorted(request.enabled_sources) if request.enabled_sources is not None else None
+        ),
+        "direct_urls": list(request.direct_urls),
+        "search_context": request.search_context,
+    }
