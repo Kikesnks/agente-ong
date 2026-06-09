@@ -158,7 +158,7 @@ especifica los archivos exactos.
   - _Leverage: tmp_path, src/agente_ong/ui/report_serde.py_
   - _Requirements: 12.2, 12.5_
 
-- [ ] 17. Implementar request_builder en ui/request_builder.py
+- [x] 17. Implementar request_builder en ui/request_builder.py
   - File: src/agente_ong/ui/request_builder.py
   - `DEPTH_PRESETS = {"rápida": (..), "normal": (..), "exhaustiva": (..)}` (max_depth, max_pages);
     `build(base_config, *, terms, scope, depth_level, min_year, enabled_sources, direct_urls,
