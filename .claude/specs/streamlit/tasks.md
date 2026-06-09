@@ -234,7 +234,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/ui/project_store.py, src/agente_ong/ui/report_serde.py_
   - _Requirements: 2.3, 2.4_
 
-- [ ] 26. Test de JobManager en tests/ui/test_jobs.py
+- [x] 26. Test de JobManager en tests/ui/test_jobs.py
   - File: tests/ui/test_jobs.py
   - Con un Investigador fake inyectable: submit → estado `done` persistido; run que lanza excepción
     → `error` persistido y otros jobs intactos
