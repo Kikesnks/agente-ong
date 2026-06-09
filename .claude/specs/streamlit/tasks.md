@@ -36,7 +36,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/models.py (ResearchRequest existente)_
   - _Requirements: 9.1, 9.2_
 
-- [ ] 2. Filtrar fuentes por enabled_sources en ResearchGraph (graph.py)
+- [x] 2. Filtrar fuentes por enabled_sources en ResearchGraph (graph.py)
   - File: src/agente_ong/research/graph.py
   - En `search()` y `read_deep()`, filtrar `self._sources` por `request.enabled_sources` (match
     por `source.name`) cuando no sea None; si es None, comportamiento actual

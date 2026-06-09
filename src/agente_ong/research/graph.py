@@ -148,7 +148,7 @@ class ResearchGraph:
         pages = state.get("pages_fetched", 0)
         depth = state.get("depth", 0)
 
-        search_sources = [s for s in self._sources if s.supports("search")]
+        search_sources = self._active_sources(state["request"], "search")
 
         for query in queries:
             if self._ledger.seen(query.text, kind="query"):
@@ -189,7 +189,7 @@ class ResearchGraph:
         depth_reached = state.get("depth", 0)
         topics = state["request"].query_terms
 
-        fetch_sources = [s for s in self._sources if s.supports("fetch")]
+        fetch_sources = self._active_sources(state["request"], "fetch")
         if not fetch_sources:
             return {"documents": documents}
         fetcher = fetch_sources[0]
@@ -241,6 +241,17 @@ class ResearchGraph:
         }
 
     # --- Helpers ---
+
+    def _active_sources(self, request: ResearchRequest, capability: str) -> list[SearchSource]:
+        """Fuentes con la capacidad dada, restringidas a `request.enabled_sources`.
+
+        `enabled_sources is None` => todas las fuentes registradas (comportamiento previo a
+        la UI, Requirement 9.2/9.3).
+        """
+        sources = [s for s in self._sources if s.supports(capability)]
+        if request.enabled_sources is None:
+            return sources
+        return [s for s in sources if s.name in request.enabled_sources]
 
     # --- Nodo: verify ---
 
