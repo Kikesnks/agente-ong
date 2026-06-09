@@ -1,39 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -c \"import sys; sys.path.insert\\(0,'src'\\); import agente_ong, agente_ong.research; print\\('import OK ->', agente_ong.research.__all__\\)\")",
-      "Bash(RESEARCH_MAX_DEPTH=5 RESEARCH_STALENESS_DAYS=7 TAVILY_API_KEY=secret123 RECURSOS_ENTRENAMIENTO_PATH=/tmp/ent python -c ' *)",
-      "Bash(RESEARCH_MAX_PAGES=abc python -c ' *)",
-      "Bash(python -m pytest tests/research/test_urlnorm.py -q)",
-      "Bash(python -m pip install -q pytest)",
-      "Bash(python -m pytest --version)",
-      "Bash(python -m pytest tests/research/test_urlnorm.py -v)",
-      "Bash(./.venv/Scripts/python.exe -m pip install --upgrade pip)",
-      "Bash(./.venv/Scripts/python.exe -m pip install -r requirements.txt)",
-      "Bash(./.venv/Scripts/python.exe -m pip install -r requirements-dev.txt)",
-      "Bash(./.venv/Scripts/python.exe -m pytest tests/ -q)",
-      "Bash(./.venv/Scripts/python.exe -m pytest tests/research/test_memory_store.py -v)",
-      "Bash(./.venv/Scripts/python.exe -m pytest tests/research/test_ledger.py -v)",
+      "Bash(python -m pytest:*)",
+      "Bash(./.venv/Scripts/python.exe -m pytest:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(ls:*)",
+      "Bash(claude-code-spec-workflow get-tasks:*)",
       "mcp__plugin_engram_engram__mem_session_summary",
-      "mcp__plugin_engram_engram__mem_context",
-      "Bash(python -c ' *)",
-      "Bash(cd ~/.engram && cp engram.db \"engram.db.bak-$\\(date +%Y%m%d-%H%M%S\\)\" && ls -la engram.db.bak-* 2>&1 | tail -3)",
-      "Bash(./.venv/Scripts/python.exe -m pytest tests/research/test_graph_flow.py -q)",
-      "Bash(./.venv/Scripts/python.exe -m pytest tests/research -q)",
-      "Bash(./.venv/Scripts/python.exe -m pytest tests/research/test_sources.py -q)",
-      "Bash(ls .claude/commands/)",
-      "Bash(ls .claude/specs/)",
-      "Bash(ls specs/)",
-      "Bash(ls .claude/steering/)",
-      "Bash(cd \"c:\\\\KIKE\\\\Programacion\\\\VS_Code\\\\ONGs\" && mkdir -p .claude/specs/streamlit && echo \"creado\")",
-      "Bash(code \"c:\\\\KIKE\\\\Programacion\\\\VS_Code\\\\ONGs\\\\.claude\\\\specs\\\\streamlit\\\\tasks.md\")",
-      "Bash(claude-code-spec-workflow get-tasks *)",
-      "Bash(git add *)",
-      "Bash(git commit *)",
-      "Bash(./.venv/Scripts/python.exe -m pytest -q)"
+      "mcp__plugin_engram_engram__mem_context"
     ],
-    "additionalDirectories": [
-      "c:\\KIKE\\Programacion\\VS_Code\\ONGs\\.claude\\specs"
+    "deny": [
+      "Bash(git push:*)",
+      "Bash(rm:*)"
     ]
   }
 }
