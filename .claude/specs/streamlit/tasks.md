@@ -134,7 +134,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/models.py (construir un ResearchReport de ejemplo)_
   - _Requirements: 7.1, 6.2_
 
-- [ ] 14. Crear ProjectStore con esquema y CRUD de projects en ui/project_store.py
+- [x] 14. Crear ProjectStore con esquema y CRUD de projects en ui/project_store.py
   - File: src/agente_ong/ui/project_store.py
   - Conexión SQLite propia (WAL, foreign_keys=ON, consultas parametrizadas) al mismo `db_path`;
     `CREATE TABLE IF NOT EXISTS projects/research_runs` + índice; `create_project`, `list_projects`,
