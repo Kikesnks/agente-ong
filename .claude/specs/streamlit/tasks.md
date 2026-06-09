@@ -175,7 +175,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/ui/request_builder.py_
   - _Requirements: 8.2, 8.3, 9.2, 10.1_
 
-- [ ] 19. Implementar sort/filter de convocatorias en ui/report_view.py
+- [x] 19. Implementar sort/filter de convocatorias en ui/report_view.py
   - File: src/agente_ong/ui/report_view.py
   - Funciones puras: `sort_opportunities` (orden VERIFIED → OFFICIAL_UNCROSSED →
     UNCROSSED_UNVERIFIED → CONFLICTING → NOT_FOUND) y `filter_opportunities(*, status?, min_year?,
