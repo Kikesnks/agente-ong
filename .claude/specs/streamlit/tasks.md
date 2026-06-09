@@ -119,7 +119,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/models.py (ResearchReport, Claim, SourceRef)_
   - _Requirements: 6.2, 7.1_
 
-- [ ] 12. Implementar report_to_markdown en ui/report_serde.py
+- [x] 12. Implementar report_to_markdown en ui/report_serde.py
   - File: src/agente_ong/ui/report_serde.py (continúa de la tarea 11)
   - Generar Markdown legible del informe: por convocatoria, cada dato con su valor, estado de
     verificación y URL de fuente; secciones de `unresolved` y `failed_sources`

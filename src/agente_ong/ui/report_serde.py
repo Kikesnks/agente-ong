@@ -167,3 +167,79 @@ def _resource_from_dict(data: dict) -> StoredResource:
         captured_at=datetime.fromisoformat(data["captured_at"]),
         tags=list(data.get("tags", [])),
     )
+
+
+# --- ResearchReport -> Markdown (descarga legible, R7) ---
+
+# Etiquetas legibles de cada estado de verificación (para usuarios no técnicos).
+_STATUS_LABELS = {
+    VerificationStatus.VERIFIED: "Verificado (2+ fuentes)",
+    VerificationStatus.OFFICIAL_UNCROSSED: "Fuente oficial (sin cruzar)",
+    VerificationStatus.UNCROSSED_UNVERIFIED: "Sin verificar (1 fuente no oficial)",
+    VerificationStatus.CONFLICTING: "Fuentes contradictorias",
+    VerificationStatus.NOT_FOUND: "No encontrado",
+}
+
+# Nombre legible de cada dato de la convocatoria, en orden de presentación.
+_CLAIM_TITLES = {
+    "title": "Título",
+    "organism": "Organismo",
+    "amount": "Importe",
+    "deadline": "Plazo",
+    "scope": "Ámbito",
+    "url": "URL",
+}
+
+
+def report_to_markdown(report: ResearchReport) -> str:
+    """Genera el informe en Markdown legible: cada dato con su valor, estado y fuentes."""
+    lines: list[str] = ["# Informe de investigación", ""]
+
+    if report.opportunities:
+        lines.append(f"## Convocatorias ({len(report.opportunities)})")
+        lines.append("")
+        for i, opp in enumerate(report.opportunities, start=1):
+            heading = opp.title.value or "(sin título)"
+            lines.append(f"### {i}. {heading}")
+            lines.append(f"Estado general: {_status_label(opp.overall_status)}")
+            lines.append("")
+            for name in _OPP_CLAIM_FIELDS:
+                lines.append(_claim_line(_CLAIM_TITLES[name], getattr(opp, name)))
+            lines.append("")
+    else:
+        lines.append("## Convocatorias")
+        lines.append("")
+        lines.append("No se encontraron convocatorias.")
+        lines.append("")
+
+    if report.unresolved:
+        lines.append("## Información no resuelta")
+        lines.append("")
+        for u in report.unresolved:
+            lines.append(f"- **{u.topic}**: {u.reason} Ayuda necesaria: {u.help_needed}")
+        lines.append("")
+
+    if report.failed_sources:
+        lines.append("## Fuentes con problemas")
+        lines.append("")
+        for f in report.failed_sources:
+            lines.append(f"- **{f.source_name}**: {f.error}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def _status_label(status: VerificationStatus) -> str:
+    return _STATUS_LABELS.get(status, status.value)
+
+
+def _claim_line(title: str, claim: Claim) -> str:
+    """Línea Markdown de un dato: valor, estado de verificación y URLs de sus fuentes."""
+    value = claim.value if claim.value is not None else "—"
+    line = f"- **{title}**: {value} · {_status_label(claim.status)}"
+    if claim.stale:
+        line += " · ⚠ posiblemente desactualizado"
+    if claim.sources:
+        urls = ", ".join(ref.url for ref in claim.sources)
+        line += f" · Fuente(s): {urls}"
+    return line
