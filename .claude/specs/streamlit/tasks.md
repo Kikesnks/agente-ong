@@ -102,7 +102,7 @@ especifica los archivos exactos.
   - Purpose: establecer la estructura importable de la UI
   - _Requirements: 1.1_
 
-- [ ] 10. Definir modelos de UI en ui/models.py
+- [x] 10. Definir modelos de UI en ui/models.py
   - File: src/agente_ong/ui/models.py
   - Dataclasses `Project` (id, name, objective, search_terms, created_at), `ResearchRun` (id,
     project_id, status, created_at, finished_at, params, report, error) y `Job` (id, project_id,
