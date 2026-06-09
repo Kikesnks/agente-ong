@@ -209,7 +209,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/ui/uploads.py (project_dir/validación de la tarea 21)_
   - _Requirements: 3.1, 3.4, 3.5_
 
-- [ ] 23. Test de uploads en tests/ui/test_uploads.py
+- [x] 23. Test de uploads en tests/ui/test_uploads.py
   - File: tests/ui/test_uploads.py
   - Rechazo de path traversal (`../`, ruta absoluta), extensión no permitida, tamaño > 10 MB;
     colisión → `nombre (2).ext`; escritura dentro de `RECURSOS/[proyecto]/`
