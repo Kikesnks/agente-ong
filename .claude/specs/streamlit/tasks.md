@@ -242,7 +242,7 @@ especifica los archivos exactos.
   - _Leverage: tmp_path, src/agente_ong/ui/project_store.py_
   - _Requirements: 2.1, 2.3, 2.4_
 
-- [ ] 27. Implementar render_report en ui/report_view.py
+- [x] 27. Implementar render_report en ui/report_view.py
   - File: src/agente_ong/ui/report_view.py (continúa de la tarea 19)
   - Capa Streamlit fina: badges de estado de verificación, lista ordenada/filtrable, `unresolved`,
     `failed_sources` (R4.4) y botón de descarga (Markdown vía report_serde)
