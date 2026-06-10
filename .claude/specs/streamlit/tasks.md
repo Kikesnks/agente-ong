@@ -250,7 +250,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/ui/report_serde.py (report_to_markdown), sort/filter de la tarea 19_
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 7.1_
 
-- [ ] 28. Crear app.py con sidebar de proyectos en ui/app.py
+- [x] 28. Crear app.py con sidebar de proyectos en ui/app.py
   - File: src/agente_ong/ui/app.py
   - `main()`; sidebar con lista de proyectos (`ProjectStore`) y formulario de creación (nombre,
     objetivo, términos); al crear, valida nombre y crea `RECURSOS/[nombre]/` vía `uploads.project_dir`
