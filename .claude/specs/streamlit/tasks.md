@@ -258,7 +258,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/ui/project_store.py, src/agente_ong/ui/uploads.py_
   - _Requirements: 1.1, 1.2, 1.4, 12.3, 12.4_
 
-- [ ] 29. Añadir la vista de investigación con autorefresh en app.py
+- [x] 29. Añadir la vista de investigación con autorefresh en app.py
   - File: src/agente_ong/ui/app.py (continúa de la tarea 28)
   - Controles: términos, nivel (R8), selector de fuentes y URLs directas (R9), año mínimo (R10);
     lanzar con `request_builder` + `JobManager` (cacheado con `st.cache_resource`); `st_autorefresh`

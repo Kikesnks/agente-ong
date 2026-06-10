@@ -18,13 +18,45 @@ import sqlite3
 from pathlib import Path
 
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 
 from agente_ong.research.config import DEFAULT_DB_PATH, ResearchConfig
-from agente_ong.ui import uploads
+from agente_ong.ui import request_builder, uploads
+from agente_ong.ui.jobs import JobManager
 from agente_ong.ui.models import Project
 from agente_ong.ui.project_store import ProjectStore
+from agente_ong.ui.report_serde import report_from_dict
+from agente_ong.ui.report_view import render_report
 
 _SELECTED_KEY = "selected_project_id"
+
+# Intervalo de sondeo del estado de los jobs mientras hay investigaciones activas (R2.2).
+_POLL_MS = 2000
+
+# Fuentes que la UI ofrece activar/desactivar (R9.2). Espeja las que construye
+# Investigador._default_sources; la UI solo conoce el NOMBRE y una etiqueta legible.
+_SOURCE_LABELS = {
+    "bdns": "BDNS — subvenciones de España (oficial)",
+    "ted": "TED — licitaciones de la UE (oficial)",
+    "tavily": "Búsqueda web (Tavily)",
+    "firecrawl": "Lectura de páginas y URLs directas (Firecrawl)",
+}
+
+# Niveles de profundidad en lenguaje sencillo, sin exponer los números internos (R8.4).
+_DEPTH_LABELS = {
+    "rápida": "rápida — un vistazo veloz, menos cobertura",
+    "normal": "normal — equilibrio entre tiempo y cobertura (recomendada)",
+    "exhaustiva": "exhaustiva — más fuentes y enlaces, tarda más",
+}
+
+# Contexto fijo que orienta la búsqueda de texto libre hacia convocatorias (lo usa Tavily).
+_SEARCH_CONTEXT = "convocatoria de subvención para ONG"
+
+
+@st.cache_resource
+def _job_manager(db_path: str) -> JobManager:
+    """Singleton de proceso: sobrevive a los reruns; los workers abren sus conexiones."""
+    return JobManager(db_path)
 
 
 def _base_config() -> ResearchConfig:
@@ -95,12 +127,97 @@ def _sidebar(store: ProjectStore) -> Project | None:
 
 
 def _project_view(store: ProjectStore, config: ResearchConfig, project: Project) -> None:
-    """Vista del proyecto seleccionado (investigación y documentos: tareas 29 y 30)."""
+    """Vista del proyecto seleccionado: investigación (R2/R8-R11) y documentos (R3)."""
     st.title(project.name)
     if project.objective:
         st.markdown(project.objective)
     if project.search_terms:
         st.caption("Términos de búsqueda: " + ", ".join(project.search_terms))
+
+    manager = _job_manager(str(config.db_path))
+    _research_form(config, project, manager)
+    _research_status(store, project, manager)
+
+
+def _research_form(config: ResearchConfig, project: Project, manager: JobManager) -> None:
+    """Controles de lanzamiento: términos, nivel (R8), fuentes y URLs (R9), año (R10)."""
+    with st.form("research-form"):
+        st.subheader("Nueva investigación")
+        terms_raw = st.text_input(
+            "Términos de búsqueda (separados por comas)",
+            value=", ".join(project.search_terms),
+            key="research-terms",
+        )
+        level = st.radio(
+            "Nivel de profundidad",
+            list(_DEPTH_LABELS),
+            index=list(_DEPTH_LABELS).index(request_builder.DEFAULT_DEPTH_LEVEL),
+            format_func=_DEPTH_LABELS.get,
+            key="research-depth",
+        )
+        sources = st.multiselect(
+            "Fuentes activas",
+            list(_SOURCE_LABELS),
+            default=list(_SOURCE_LABELS),
+            format_func=_SOURCE_LABELS.get,
+            key="research-sources",
+        )
+        urls_raw = st.text_area(
+            "URLs directas a leer (una por línea, opcional)", key="research-urls"
+        )
+        min_year = st.number_input(
+            "Año mínimo de las convocatorias (opcional)",
+            min_value=2000,
+            max_value=2100,
+            value=None,
+            step=1,
+            key="research-min-year",
+        )
+        if st.form_submit_button("Investigar"):
+            terms = [t.strip() for t in terms_raw.split(",") if t.strip()]
+            direct_urls = [u.strip() for u in urls_raw.splitlines() if u.strip()]
+            try:
+                job_config, request = request_builder.build(
+                    config,
+                    terms=terms,
+                    depth_level=level,
+                    min_year=int(min_year) if min_year else None,
+                    enabled_sources=set(sources),
+                    direct_urls=direct_urls,
+                    search_context=_SEARCH_CONTEXT,
+                )
+            except ValueError as exc:  # p.ej. sin fuentes ni URLs (R9.5)
+                st.error(str(exc))
+            else:
+                manager.submit(project.id, job_config, request)
+                st.rerun()
+
+
+def _research_status(store: ProjectStore, project: Project, manager: JobManager) -> None:
+    """Estado de los jobs y resultados persistidos; refresca mientras haya jobs vivos."""
+    active = [j for j in manager.active_jobs() if j.project_id == project.id]
+    if active:
+        # Sondeo periódico SOLO mientras hay trabajo en curso (R2.2); los hilos de fondo
+        # nunca tocan st.*: este rerun es quien lee su estado.
+        st_autorefresh(interval=_POLL_MS, key="jobs-poll")
+        st.info(f"🔎 {len(active)} investigación(es) en curso… esta vista se actualiza sola.")
+
+    runs = store.list_runs(project.id)
+    if not runs and not active:
+        st.caption("Este proyecto aún no tiene investigaciones.")
+        return
+    for run in runs:
+        started = run.created_at.strftime("%d/%m/%Y %H:%M")
+        if run.status == "running":
+            continue  # ya representado por el aviso de "en curso"
+        if run.status == "error":
+            st.error(f"La investigación del {started} falló: {run.error}. Puedes reintentar.")
+            continue
+        with st.container(border=True):
+            st.markdown(f"**Informe del {started}**")
+            if run.params.get("query_terms"):
+                st.caption("Búsqueda: " + ", ".join(run.params["query_terms"]))
+            render_report(report_from_dict(run.report), key=f"run-{run.id}")
 
 
 def main() -> None:
