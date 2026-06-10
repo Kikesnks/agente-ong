@@ -8,6 +8,23 @@ cambio y mover la entrada a "Resueltas" (al final).
 
 (ninguna)
 
+## Mejoras menores (post-v1, no bloqueantes)
+
+### M1. Exponer `search_context` en el formulario de investigación (UI, R9)
+
+**Origen:** revisión de Kike (2026-06-11) sobre una decisión tomada como "trivial" en UI-29
+que en realidad es de producto: `app.py` cablea `_SEARCH_CONTEXT = "convocatoria de
+subvención para ONG"` como contexto FIJO para orientar la búsqueda de Tavily. UI-1 añadió
+`search_context` a `ResearchRequest` precisamente para poder orientarla POR investigación;
+con el valor fijo, el usuario no puede afinarlo (p.ej. "convocatorias de educación
+ambiental").
+
+**Mejora propuesta:** campo opcional en el formulario de investigación (`_research_form`),
+con el texto actual como valor por defecto. Cambio pequeño: un `st.text_input` más y pasar
+su valor a `request_builder.build(search_context=...)`.
+
+**Cuándo:** revisión post-v1 de la UI.
+
 ## Resueltas
 
 ### 2. Mecanismo de inyección de fuentes fake en el smoke E2E (UI-32, AppTest)
