@@ -30,12 +30,15 @@ class Project:
     """Proyecto de la ONG: agrupa objetivo, términos de búsqueda e investigaciones.
 
     `id is None` => aún no persistido. `name` es único y debe ser válido como nombre de
-    carpeta (gobierna `RECURSOS/[name]/`).
+    carpeta (gobierna `RECURSOS/[name]/`). `search_context` (R13) describe el tipo de
+    organización y su ámbito en lenguaje no técnico; lo heredan todas las investigaciones
+    del proyecto ("" => default de `request_builder` en el lanzamiento).
     """
 
     name: str
     objective: str = ""
     search_terms: list[str] = field(default_factory=list)
+    search_context: str = ""
     id: int | None = None
     created_at: datetime = field(default_factory=_utcnow)
 

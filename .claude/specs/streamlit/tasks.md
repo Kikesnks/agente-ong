@@ -292,7 +292,7 @@ especifica los archivos exactos.
 
 ### Extensión post-v1 — Contexto de búsqueda por proyecto (R13)
 
-- [ ] 33. Contexto de búsqueda por proyecto: modelo, migración, herencia y formulario
+- [x] 33. Contexto de búsqueda por proyecto: modelo, migración, herencia y formulario
   - Files: src/agente_ong/ui/models.py, src/agente_ong/ui/project_store.py,
     src/agente_ong/ui/request_builder.py, src/agente_ong/ui/app.py
   - Tests: tests/ui/test_project_store.py, tests/ui/test_request_builder.py

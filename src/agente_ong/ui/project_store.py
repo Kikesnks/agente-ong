@@ -22,11 +22,12 @@ from agente_ong.ui.models import Project, ResearchRun, RunStatus
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS projects (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    name         TEXT NOT NULL UNIQUE,
-    objective    TEXT NOT NULL DEFAULT '',
-    terms_json   TEXT NOT NULL DEFAULT '[]',
-    created_at   TEXT NOT NULL
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    name            TEXT NOT NULL UNIQUE,
+    objective       TEXT NOT NULL DEFAULT '',
+    terms_json      TEXT NOT NULL DEFAULT '[]',
+    search_context  TEXT NOT NULL DEFAULT '',
+    created_at      TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS research_runs (
@@ -56,6 +57,23 @@ class ProjectStore:
         self._conn.execute("PRAGMA foreign_keys=ON")
         with self._conn:
             self._conn.executescript(_SCHEMA)
+        self._migrate()
+
+    def _migrate(self) -> None:
+        """Migraciones idempotentes para bases creadas con esquemas anteriores (R13.5).
+
+        `CREATE TABLE IF NOT EXISTS` no altera tablas ya existentes, así que las columnas
+        nuevas se añaden aquí comprobando las reales. No toca filas (los proyectos previos
+        heredan el DEFAULT) ni las tablas del investigador.
+        """
+        columns = {
+            row["name"] for row in self._conn.execute("PRAGMA table_info(projects)")
+        }
+        if "search_context" not in columns:
+            with self._conn:
+                self._conn.execute(
+                    "ALTER TABLE projects ADD COLUMN search_context TEXT NOT NULL DEFAULT ''"
+                )
 
     # --- Ciclo de vida / context manager ---
 
@@ -75,23 +93,40 @@ class ProjectStore:
 
     # --- Proyectos ---
 
-    def create_project(self, name: str, objective: str = "", search_terms: list[str] | None = None) -> Project:
+    def create_project(
+        self,
+        name: str,
+        objective: str = "",
+        search_terms: list[str] | None = None,
+        search_context: str = "",
+    ) -> Project:
         """Crea un proyecto y devuelve el `Project` persistido (con id).
 
         El nombre debe ser no vacío; la unicidad la garantiza `UNIQUE(name)` (R1.4/R12.3):
         un duplicado lanza `sqlite3.IntegrityError`, que la UI traduce a mensaje claro.
+        `search_context` (R13) se guarda tal cual lo escribió el usuario ("" = usar el
+        default en el lanzamiento, no se persiste).
         """
         clean = (name or "").strip()
         if not clean:
             raise ValueError("El nombre del proyecto no puede estar vacío.")
-        project = Project(name=clean, objective=objective, search_terms=list(search_terms or []))
+        project = Project(
+            name=clean,
+            objective=objective,
+            search_terms=list(search_terms or []),
+            search_context=search_context.strip(),
+        )
         with self._conn:
             cursor = self._conn.execute(
-                "INSERT INTO projects (name, objective, terms_json, created_at) VALUES (?, ?, ?, ?)",
+                """
+                INSERT INTO projects (name, objective, terms_json, search_context, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
                 (
                     project.name,
                     project.objective,
                     json.dumps(project.search_terms),
+                    project.search_context,
                     project.created_at.isoformat(),
                 ),
             )
@@ -203,5 +238,6 @@ class ProjectStore:
             name=row["name"],
             objective=row["objective"],
             search_terms=list(json.loads(row["terms_json"])),
+            search_context=row["search_context"],
             created_at=datetime.fromisoformat(row["created_at"]),
         )

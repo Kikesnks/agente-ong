@@ -28,6 +28,11 @@ DEPTH_PRESETS: dict[str, tuple[int, int]] = {
 
 DEFAULT_DEPTH_LEVEL = "normal"  # R8.3
 
+# Contexto de búsqueda por defecto (R13.3) cuando el proyecto no define el suyo. Vive aquí
+# y se resuelve EN EL LANZAMIENTO (no se persiste en projects): cambiarlo afecta a todos
+# los proyectos sin contexto propio, sin migrar datos.
+DEFAULT_SEARCH_CONTEXT = "convocatoria de subvención para organizaciones sin ánimo de lucro"
+
 
 def build(
     base_config: ResearchConfig,
@@ -47,6 +52,8 @@ def build(
     - `enabled_sources is None` => todas las fuentes; un set vacío SIN URLs directas no
       tiene nada que investigar y se rechaza antes de crear el job (R9.5).
     - `min_year` se aplica sobre una COPIA de la config (la base no se muta).
+    - `search_context` vacío o None => `DEFAULT_SEARCH_CONTEXT` (R13.3); el valor normal es
+      el `search_context` del proyecto (R13.2).
     """
     if depth_level not in DEPTH_PRESETS:
         raise ValueError(
@@ -65,7 +72,7 @@ def build(
         scope=scope if scope is not None else Scope(),
         max_depth=max_depth,
         max_pages=max_pages,
-        search_context=search_context,
+        search_context=(search_context or "").strip() or DEFAULT_SEARCH_CONTEXT,
         enabled_sources=set(enabled_sources) if enabled_sources is not None else None,
         direct_urls=urls,
     )

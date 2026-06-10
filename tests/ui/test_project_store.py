@@ -55,6 +55,55 @@ def test_duplicate_name_raises_integrity_error(store: ProjectStore) -> None:
         store.create_project("Única")
 
 
+# --- Contexto de búsqueda por proyecto (R13) ---
+
+
+def test_search_context_round_trip(store: ProjectStore) -> None:
+    created = store.create_project(
+        "Fundación", search_context="fundación cultural en Andalucía"
+    )
+    assert store.get_project(created.id).search_context == "fundación cultural en Andalucía"
+
+
+def test_search_context_defaults_to_empty(store: ProjectStore) -> None:
+    created = store.create_project("Sin contexto")
+    assert store.get_project(created.id).search_context == ""
+
+
+def test_opening_pre_r13_database_migrates_without_breaking(tmp_path: Path) -> None:
+    """Una base creada con el esquema anterior (sin search_context) no rompe (R13.5)."""
+    db_path = tmp_path / "vieja.db"
+    # Esquema tal y como era antes de R13, con un proyecto ya guardado.
+    conn = sqlite3.connect(str(db_path))
+    conn.executescript(
+        """
+        CREATE TABLE projects (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            name         TEXT NOT NULL UNIQUE,
+            objective    TEXT NOT NULL DEFAULT '',
+            terms_json   TEXT NOT NULL DEFAULT '[]',
+            created_at   TEXT NOT NULL
+        );
+        INSERT INTO projects (name, objective, terms_json, created_at)
+        VALUES ('Proyecto antiguo', 'objetivo', '["cultura"]', '2026-06-01T00:00:00+00:00');
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    with ProjectStore(db_path) as store:
+        # El proyecto previo se lee con contexto vacío (heredará el default al lanzar).
+        old = store.get_project(1)
+        assert old.name == "Proyecto antiguo" and old.search_context == ""
+        # Y la columna ya funciona para proyectos nuevos en la misma base.
+        new = store.create_project("Nuevo", search_context="ONG de cooperación")
+        assert store.get_project(new.id).search_context == "ONG de cooperación"
+
+    # Reabrir no re-aplica la migración (idempotente).
+    with ProjectStore(db_path) as store:
+        assert store.get_project(1).search_context == ""
+
+
 def test_empty_name_is_rejected(store: ProjectStore) -> None:
     with pytest.raises(ValueError):
         store.create_project("   ")

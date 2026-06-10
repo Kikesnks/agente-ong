@@ -11,7 +11,12 @@ import pytest
 
 from agente_ong.research.config import DEFAULT_MAX_DEPTH, DEFAULT_MAX_PAGES, ResearchConfig
 from agente_ong.research.models import Scope
-from agente_ong.ui.request_builder import DEFAULT_DEPTH_LEVEL, DEPTH_PRESETS, build
+from agente_ong.ui.request_builder import (
+    DEFAULT_DEPTH_LEVEL,
+    DEFAULT_SEARCH_CONTEXT,
+    DEPTH_PRESETS,
+    build,
+)
 
 
 # --- Presets de profundidad (R8) ---
@@ -81,6 +86,29 @@ def test_enabled_sources_none_means_all_sources() -> None:
     _, request = build(ResearchConfig(), terms=["x"])
     assert request.enabled_sources is None
     assert request.direct_urls == []
+
+
+# --- Contexto de búsqueda heredado del proyecto (R13) ---
+
+
+def test_project_search_context_reaches_the_request() -> None:
+    _, request = build(
+        ResearchConfig(), terms=["x"], search_context="fundación cultural en Andalucía"
+    )
+    assert request.search_context == "fundación cultural en Andalucía"
+
+
+@pytest.mark.parametrize("empty", [None, "", "   "])
+def test_empty_search_context_resolves_to_default(empty: str | None) -> None:
+    _, request = build(ResearchConfig(), terms=["x"], search_context=empty)
+    assert request.search_context == DEFAULT_SEARCH_CONTEXT
+
+
+def test_default_search_context_is_org_neutral() -> None:
+    # R13: el default no presupone "ONG" (sesgaba a fundaciones/asociaciones).
+    assert DEFAULT_SEARCH_CONTEXT == (
+        "convocatoria de subvención para organizaciones sin ánimo de lucro"
+    )
 
 
 # --- Validación R9.5: sin fuentes ni URLs no hay investigación ---

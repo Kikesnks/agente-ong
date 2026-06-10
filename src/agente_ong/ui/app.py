@@ -49,9 +49,6 @@ _DEPTH_LABELS = {
     "exhaustiva": "exhaustiva — más fuentes y enlaces, tarda más",
 }
 
-# Contexto fijo que orienta la búsqueda de texto libre hacia convocatorias (lo usa Tavily).
-_SEARCH_CONTEXT = "convocatoria de subvención para ONG"
-
 
 @st.cache_resource
 def _job_manager(db_path: str) -> JobManager:
@@ -67,7 +64,9 @@ def _base_config() -> ResearchConfig:
     return config
 
 
-def _create_project(store: ProjectStore, name: str, objective: str, terms_raw: str) -> Project:
+def _create_project(
+    store: ProjectStore, name: str, objective: str, terms_raw: str, search_context: str
+) -> Project:
     """Valida el nombre, crea el proyecto y su carpeta `RECURSOS/[nombre]/` (R1.4/R12.4).
 
     Orden deliberado: primero la validación del nombre como carpeta (`project_dir`), luego
@@ -76,7 +75,7 @@ def _create_project(store: ProjectStore, name: str, objective: str, terms_raw: s
     """
     directory = uploads.project_dir(name)  # valida; lanza UploadError si no es válido
     terms = [t.strip() for t in terms_raw.split(",") if t.strip()]
-    project = store.create_project(name.strip(), objective.strip(), terms)
+    project = store.create_project(name.strip(), objective.strip(), terms, search_context)
     directory.mkdir(parents=True, exist_ok=True)
     return project
 
@@ -111,9 +110,14 @@ def _sidebar(store: ProjectStore) -> Project | None:
         terms = st.text_input(
             "Términos de búsqueda (separados por comas)", key="new-project-terms"
         )
+        context = st.text_input(
+            "¿Qué tipo de organización sois y cuál es vuestro ámbito? (opcional)",
+            placeholder='p.ej. "fundación cultural en Andalucía" o "ONG de cooperación internacional"',
+            key="new-project-context",
+        )
         if st.form_submit_button("Crear proyecto"):
             try:
-                project = _create_project(store, name, objective, terms)
+                project = _create_project(store, name, objective, terms, context)
             except uploads.UploadError as exc:
                 st.sidebar.error(str(exc))
             except ValueError as exc:
@@ -188,7 +192,8 @@ def _research_form(config: ResearchConfig, project: Project, manager: JobManager
                     min_year=int(min_year) if min_year else None,
                     enabled_sources=set(sources),
                     direct_urls=direct_urls,
-                    search_context=_SEARCH_CONTEXT,
+                    # R13: el contexto se hereda del proyecto; vacío => default en build().
+                    search_context=project.search_context,
                 )
             except ValueError as exc:  # p.ej. sin fuentes ni URLs (R9.5)
                 st.error(str(exc))
