@@ -6,15 +6,23 @@ cambio y mover la entrada a "Resueltas" (al final).
 
 ## Abiertas
 
+(ninguna)
+
+## Resueltas
+
 ### 2. Mecanismo de inyección de fuentes fake en el smoke E2E (UI-32, AppTest)
+
+**RESUELTA el 2026-06-10 por Kike: opción (b) — monkeypatch en proceso desde el test.**
+`Investigador._default_sources` se sustituye por las fakes existentes
+(tests/research/fakes.py) + limpieza del singleton del JobManager (`cache_resource`), sin
+tocar código de producción. Si futuras versiones de Streamlit rompen este mecanismo,
+escalar a la opción (c). Implementada en `tests/ui/test_app_smoke.py`.
 
 **Contexto:** la tarea UI-32 (smoke E2E con `streamlit.testing.v1.AppTest`) debe lanzar una
 investigación SIN usar las APIs reales (no gastar cuota de Tavily/Firecrawl ni golpear
 BDNS/TED). `app.py` construye el `JobManager` con la factoría real de `Investigador`, que a
 su vez construye las fuentes reales en `_default_sources`. Hace falta un punto de inyección
-para que el E2E use `FakeSearchSource`/`FakeFetchSource` (tests/research/fakes.py). La
-decisión estaba aplazada a esta tarea (nota de Kike del 2026-06-09); hay más de un enfoque
-viable, así que queda aquí documentada y UI-32 PENDIENTE.
+para que el E2E use `FakeSearchSource`/`FakeFetchSource` (tests/research/fakes.py).
 
 **Opciones:**
 
@@ -38,8 +46,6 @@ viable, así que queda aquí documentada y UI-32 PENDIENTE.
 **Recomendación:** **(b)** — no toca código de producción, reutiliza las fakes existentes y
 es el patrón pytest estándar (monkeypatch + clear del cache_resource). Si resultara frágil
 con versiones futuras de Streamlit, escalar a (c). Evitaría (a): mezcla test y producto.
-
-## Resueltas
 
 ### 1. Valores concretos de los presets de profundidad (UI-17, R8)
 

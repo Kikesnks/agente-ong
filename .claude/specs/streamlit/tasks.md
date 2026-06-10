@@ -282,7 +282,7 @@ especifica los archivos exactos.
   - _Leverage: requirements.txt_
   - _Requirements: 2.2_
 
-- [ ] 32. Smoke E2E con AppTest en tests/ui/test_app_smoke.py
+- [x] 32. Smoke E2E con AppTest en tests/ui/test_app_smoke.py
   - File: tests/ui/test_app_smoke.py
   - `streamlit.testing.v1.AppTest`: crear proyecto y verlo en la lista; lanzar investigación con
     fuentes fake inyectadas y comprobar que se renderiza el informe ordenado
