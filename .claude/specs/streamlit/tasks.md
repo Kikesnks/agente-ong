@@ -267,7 +267,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/ui/request_builder.py, jobs.py, report_view.py, streamlit_autorefresh_
   - _Requirements: 2.1, 2.2, 2.3, 5.1, 5.2, 8.1, 9.1, 9.2, 10.1, 11.1_
 
-- [ ] 30. Añadir el panel de documentos del proyecto en app.py
+- [x] 30. Añadir el panel de documentos del proyecto en app.py
   - File: src/agente_ong/ui/app.py (continúa de la tarea 29)
   - `st.file_uploader` + guardar con `uploads.save_upload`; listar y borrar documentos del proyecto;
     mostrar errores de validación (tipo/tamaño) de forma clara

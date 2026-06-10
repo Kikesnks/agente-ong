@@ -135,8 +135,12 @@ def _project_view(store: ProjectStore, config: ResearchConfig, project: Project)
         st.caption("Términos de búsqueda: " + ", ".join(project.search_terms))
 
     manager = _job_manager(str(config.db_path))
-    _research_form(config, project, manager)
-    _research_status(store, project, manager)
+    research_tab, docs_tab = st.tabs(["Investigación", "Documentos"])
+    with research_tab:
+        _research_form(config, project, manager)
+        _research_status(store, project, manager)
+    with docs_tab:
+        _documents_panel(project)
 
 
 def _research_form(config: ResearchConfig, project: Project, manager: JobManager) -> None:
@@ -218,6 +222,52 @@ def _research_status(store: ProjectStore, project: Project, manager: JobManager)
             if run.params.get("query_terms"):
                 st.caption("Búsqueda: " + ", ".join(run.params["query_terms"]))
             render_report(report_from_dict(run.report), key=f"run-{run.id}")
+
+
+def _documents_panel(project: Project) -> None:
+    """Subir, listar y borrar documentos del proyecto bajo `RECURSOS/[nombre]/` (R3)."""
+    st.subheader("Documentos del proyecto")
+    mb = uploads.MAX_UPLOAD_BYTES // (1024 * 1024)
+    allowed = ", ".join(sorted(e.upper() for e in uploads.ALLOWED_EXT))
+    st.caption(f"Tipos admitidos: {allowed}. Tamaño máximo: {mb} MB por archivo.")
+
+    uploaded = st.file_uploader(
+        "Subir documentos",
+        type=sorted(uploads.ALLOWED_EXT),
+        accept_multiple_files=True,
+        key=f"docs-uploader-{project.id}",
+    )
+    # Streamlit reenvía los archivos en cada rerun: se registra lo ya guardado para no
+    # duplicarlo (el renombrado automático convertiría cada rerun en una copia nueva).
+    saved_key = f"docs-saved-{project.id}"
+    already_saved: set[str] = st.session_state.setdefault(saved_key, set())
+    for file in uploaded or []:
+        file_id = f"{file.file_id}"
+        if file_id in already_saved:
+            continue
+        try:
+            target = uploads.save_upload(project.name, file.name, file.getvalue())
+        except uploads.UploadError as exc:
+            st.error(f"{file.name}: {exc}")
+        else:
+            already_saved.add(file_id)
+            if target.name != file.name:
+                st.info(f"Ya existía {file.name!r}: guardado como {target.name!r}.")
+
+    documents = uploads.list_documents(project.name)
+    if not documents:
+        st.caption("Este proyecto aún no tiene documentos.")
+        return
+    for doc in documents:
+        col_name, col_del = st.columns([5, 1])
+        col_name.markdown(f"📄 {doc.name}")
+        if col_del.button("Borrar", key=f"doc-del-{project.id}-{doc.name}"):
+            try:
+                uploads.delete_document(project.name, doc.name)
+            except uploads.UploadError as exc:
+                st.error(str(exc))
+            else:
+                st.rerun()
 
 
 def main() -> None:
