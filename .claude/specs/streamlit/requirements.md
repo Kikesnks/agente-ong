@@ -21,7 +21,8 @@ Esta primera spec de UI se centra en tres decisiones de producto ya tomadas:
 Sobre esa base, la spec añade controles para afinar la investigación desde la UI: nivel de
 profundidad (R8), fuente directa y activación de fuentes (R9), filtro temporal por año (R10),
 y resultados ordenados y filtrables (R11); más el modelo de datos de proyectos y su gestión
-(R12, que concreta R1/R6).
+(R12, que concreta R1/R6) y el contexto de búsqueda definido por proyecto (R13, extensión
+decidida el 2026-06-11 tras completar la v1 de la UI).
 
 Nota técnica: Streamlit reejecuta el script en cada interacción y es de un solo hilo por
 sesión; el cumplimiento del requisito de asincronía (no bloquear la UI) exige un mecanismo
@@ -266,6 +267,35 @@ organizar mi trabajo por iniciativa.
    concreto, de modo que sus resultados queden vinculados a ese proyecto.
 6. WHEN se asocian las investigaciones a proyectos THEN el sistema SHALL poder recuperar, por
    proyecto, sus investigaciones y resultados previos.
+
+### Requirement 13 — Contexto de búsqueda por proyecto
+
+> Decisión de producto (Kike, 2026-06-11), posterior a la v1 de la UI: el contexto fijo
+> `_SEARCH_CONTEXT` de `app.py` sesga la búsqueda hacia "ONG" para organizaciones que no se
+> identifican así (fundaciones, asociaciones...). Sustituye a la mejora M1 de
+> DECISIONES_PENDIENTES.md (que proponía exponerlo por investigación): el contexto se define
+> UNA vez al crear el proyecto y todas sus investigaciones lo heredan.
+
+**User Story:** Como técnico de una organización del tercer sector (ONG, fundación,
+asociación…), quiero describir una vez, en mi proyecto, qué tipo de organización somos y
+nuestro ámbito, para que todas las búsquedas de ese proyecto se orienten a nuestra realidad
+sin tener que repetirlo en cada investigación.
+
+#### Acceptance Criteria
+
+1. WHEN el usuario crea un proyecto THEN el sistema SHALL ofrecer un campo de texto en
+   lenguaje no técnico para describir el tipo de organización y su ámbito (p.ej. "fundación
+   de educación ambiental").
+2. WHEN se lanza cualquier investigación de un proyecto THEN el sistema SHALL usar el valor
+   de ese campo como `search_context` del `ResearchRequest` (orienta las fuentes de texto
+   libre, hoy Tavily).
+3. IF el campo está vacío THEN el sistema SHALL usar como valor por defecto "convocatoria de
+   subvención para organizaciones sin ánimo de lucro".
+4. WHEN se lanza una investigación THEN el formulario de investigación SHALL permanecer sin
+   campos adicionales: el contexto se hereda del proyecto, no se pregunta en cada lanzamiento.
+5. WHEN la app abre una base de datos creada antes de este requisito THEN el sistema SHALL
+   seguir funcionando sin romper los proyectos existentes (migración de esquema con valor por
+   defecto).
 
 ## Non-Functional Requirements
 

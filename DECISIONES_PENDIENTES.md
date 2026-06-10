@@ -10,22 +10,25 @@ cambio y mover la entrada a "Resueltas" (al final).
 
 ## Mejoras menores (post-v1, no bloqueantes)
 
-### M1. Exponer `search_context` en el formulario de investigación (UI, R9)
-
-**Origen:** revisión de Kike (2026-06-11) sobre una decisión tomada como "trivial" en UI-29
-que en realidad es de producto: `app.py` cablea `_SEARCH_CONTEXT = "convocatoria de
-subvención para ONG"` como contexto FIJO para orientar la búsqueda de Tavily. UI-1 añadió
-`search_context` a `ResearchRequest` precisamente para poder orientarla POR investigación;
-con el valor fijo, el usuario no puede afinarlo (p.ej. "convocatorias de educación
-ambiental").
-
-**Mejora propuesta:** campo opcional en el formulario de investigación (`_research_form`),
-con el texto actual como valor por defecto. Cambio pequeño: un `st.text_input` más y pasar
-su valor a `request_builder.build(search_context=...)`.
-
-**Cuándo:** revisión post-v1 de la UI.
+(ninguna)
 
 ## Resueltas
+
+### M1. Exponer `search_context` en el formulario de investigación (UI, R9)
+
+**RESUELTA el 2026-06-11: SUSTITUIDA por UI-33 (contexto por proyecto), decisión de Kike.**
+M1 proponía exponer `search_context` por investigación (campo en el formulario de
+lanzamiento); Kike decidió un enfoque distinto: el contexto se define UNA vez al crear el
+proyecto (tipo de organización y ámbito, en lenguaje no técnico) y todas sus investigaciones
+lo heredan, sin añadir campos al formulario de investigación. Además corrige el sesgo del
+texto fijo actual ("…para ONG") para fundaciones y asociaciones: el default pasa a
+"convocatoria de subvención para organizaciones sin ánimo de lucro". Especificada como
+Requirement 13 + tarea UI-33 de la spec streamlit. M1 ya no es válida.
+
+**Origen (histórico):** revisión de Kike (2026-06-11) sobre una decisión tomada como
+"trivial" en UI-29 que en realidad es de producto: `app.py` cablea
+`_SEARCH_CONTEXT = "convocatoria de subvención para ONG"` como contexto FIJO para orientar
+la búsqueda de Tavily, anulando el punto de extensión que UI-1 creó en `ResearchRequest`.
 
 ### 2. Mecanismo de inyección de fuentes fake en el smoke E2E (UI-32, AppTest)
 

@@ -289,3 +289,28 @@ especifica los archivos exactos.
   - Purpose: validar el cableado extremo a extremo de la UI
   - _Leverage: streamlit.testing.v1.AppTest, tests/research/fakes.py_
   - _Requirements: 1.1, 2.1, 4.1, 11.1_
+
+### Extensión post-v1 — Contexto de búsqueda por proyecto (R13)
+
+- [ ] 33. Contexto de búsqueda por proyecto: modelo, migración, herencia y formulario
+  - Files: src/agente_ong/ui/models.py, src/agente_ong/ui/project_store.py,
+    src/agente_ong/ui/request_builder.py, src/agente_ong/ui/app.py
+  - Tests: tests/ui/test_project_store.py, tests/ui/test_request_builder.py
+  - Añadir `search_context: str = ""` a `Project` (models.py); columna
+    `search_context TEXT NOT NULL DEFAULT ''` en `projects` con MIGRACIÓN idempotente para
+    bases existentes (PRAGMA table_info + ALTER TABLE en el arranque del store);
+    `create_project(..., search_context="")` y round-trip en las lecturas; constante
+    `DEFAULT_SEARCH_CONTEXT = "convocatoria de subvención para organizaciones sin ánimo de
+    lucro"` en request_builder.py y `build()` resolviendo vacío/None → default; en app.py:
+    campo "¿Qué tipo de organización sois y cuál es vuestro ámbito?" en el formulario de
+    alta, ELIMINAR la constante `_SEARCH_CONTEXT` y pasar `project.search_context` a
+    `build()`; el formulario de investigación NO cambia (R13.4)
+  - Tests requeridos: el contexto del proyecto llega al `ResearchRequest`; contexto vacío →
+    `DEFAULT_SEARCH_CONTEXT`; abrir una base existente SIN la columna no rompe (la migración
+    la añade y los proyectos previos siguen leyéndose)
+  - Purpose: orientar todas las búsquedas del proyecto a su tipo de organización y ámbito,
+    sin añadir fricción al lanzamiento (sustituye al `_SEARCH_CONTEXT` fijo de app.py y a la
+    mejora M1 de DECISIONES_PENDIENTES.md)
+  - _Leverage: src/agente_ong/ui/project_store.py (esquema y _row_to_project),
+    src/agente_ong/ui/request_builder.py (build), tests/ui/test_project_store.py_
+  - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5_

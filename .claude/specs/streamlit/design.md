@@ -109,7 +109,9 @@ graph TD
 
 **Flujo de una investigación asíncrona (R2):**
 1. El usuario configura criterios + nivel + fuentes + año + URLs y pulsa "Investigar".
-2. `request_builder` traduce los controles a `(ResearchConfig, ResearchRequest)`.
+2. `request_builder` traduce los controles a `(ResearchConfig, ResearchRequest)`; el
+   `search_context` NO es un control del formulario: se hereda del proyecto
+   (`project.search_context`, con default si está vacío — R13).
 3. `JobManager.submit(project_id, config, request)` crea un `Job` (estado `running`) en un hilo
    de fondo y **devuelve de inmediato**. El hilo abre su **propio** `Investigador` (su conexión
    SQLite) y ejecuta `run()`.
@@ -127,12 +129,18 @@ graph TD
 - **Interfaces:** `main()`; `run: streamlit run src/agente_ong/ui/app.py`.
 - **Dependencies:** todos los componentes `ui/*`, `st_autorefresh`.
 - **Reuses:** `ResearchConfig.from_env()` para construir la config base.
+- **R13:** el formulario de alta de proyecto añade el campo "¿Qué tipo de organización sois y
+  cuál es vuestro ámbito?" (texto libre, opcional), con placeholder de ejemplo:
+  `p.ej. "fundación cultural en Andalucía" o "ONG de cooperación internacional"`. La
+  constante `_SEARCH_CONTEXT` se ELIMINA de `app.py`: al lanzar, se pasa
+  `project.search_context` a `request_builder.build(...)` (el default vive en
+  `request_builder.DEFAULT_SEARCH_CONTEXT`). El formulario de investigación no cambia (R13.4).
 
 ### `ui/project_store.py` — `ProjectStore`
 - **Purpose:** CRUD de proyectos e historial de investigaciones en SQLite (tablas `projects`,
   `research_runs`), en el mismo `.db` del investigador.
 - **Interfaces:**
-  - `create_project(name, objective, search_terms) -> Project`
+  - `create_project(name, objective, search_terms, search_context="") -> Project` (R13)
   - `list_projects() -> list[Project]` · `get_project(id) -> Project | None`
   - `save_run(run: ResearchRun) -> int` · `update_run_status(id, status, report?, error?)`
   - `list_runs(project_id) -> list[ResearchRun]`
@@ -152,11 +160,16 @@ graph TD
   vía `st.cache_resource` para sobrevivir a los reruns.
 
 ### `ui/request_builder.py` — Mapeo UI → módulo
-- **Purpose:** traducir controles de UI a `ResearchConfig` + `ResearchRequest` (R8, R9, R10).
+- **Purpose:** traducir controles de UI a `ResearchConfig` + `ResearchRequest` (R8, R9, R10,
+  R13).
 - **Interfaces:**
   - `DEPTH_PRESETS: dict[str, tuple[int, int]]` (rápida/normal/exhaustiva → (max_depth, max_pages))
+  - `DEFAULT_SEARCH_CONTEXT = "convocatoria de subvención para organizaciones sin ánimo de
+    lucro"` (R13.3; vive aquí, no en la base de datos: un `search_context` vacío se resuelve
+    al default EN EL LANZAMIENTO, así el default puede evolucionar sin migrar datos)
   - `build(base_config, *, terms, scope, depth_level, min_year, enabled_sources, direct_urls,
-    search_context) -> tuple[ResearchConfig, ResearchRequest]`
+    search_context) -> tuple[ResearchConfig, ResearchRequest]` — `search_context` vacío o
+    None ⇒ `DEFAULT_SEARCH_CONTEXT`
 - **Dependencies:** modelos del investigador.
 - **Reuses:** overrides `max_depth/max_pages` ya existentes en `ResearchRequest`.
 
@@ -228,6 +241,9 @@ Project
 - name: str (UNIQUE, no vacío; válido como nombre de carpeta)
 - objective: str
 - search_terms: list[str]   # persistido como JSON
+- search_context: str       # R13: tipo de organización y ámbito, en lenguaje no técnico;
+                            # "" = usar el default en el momento de lanzar (no se persiste
+                            # el default, así puede evolucionar sin migrar datos)
 - created_at: datetime (ISO-8601 UTC)
 ```
 
@@ -247,11 +263,12 @@ ResearchRun
 ### Esquema SQLite (tablas nuevas, mismo `.db`)
 ```sql
 CREATE TABLE IF NOT EXISTS projects (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    name         TEXT NOT NULL UNIQUE,
-    objective    TEXT NOT NULL DEFAULT '',
-    terms_json   TEXT NOT NULL DEFAULT '[]',
-    created_at   TEXT NOT NULL
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    name            TEXT NOT NULL UNIQUE,
+    objective       TEXT NOT NULL DEFAULT '',
+    terms_json      TEXT NOT NULL DEFAULT '[]',
+    search_context  TEXT NOT NULL DEFAULT '',   -- R13 (añadida por migración en bases previas)
+    created_at      TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS research_runs (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -265,6 +282,13 @@ CREATE TABLE IF NOT EXISTS research_runs (
 );
 CREATE INDEX IF NOT EXISTS idx_runs_project ON research_runs(project_id);
 ```
+
+**Migración (R13.5):** las bases creadas antes de R13 tienen `projects` sin
+`search_context`. `ProjectStore._ensure_schema` comprueba las columnas reales
+(`PRAGMA table_info(projects)`) y, si falta, ejecuta
+`ALTER TABLE projects ADD COLUMN search_context TEXT NOT NULL DEFAULT ''`. Idempotente
+(no re-altera si ya existe), no toca filas existentes (heredan `''` = default en
+lanzamiento) y no afecta a las tablas del investigador.
 
 ### Job (en memoria, no persistente)
 ```
@@ -312,7 +336,8 @@ Job
 
 ### Unit Testing
 - **`request_builder`**: presets de profundidad → `(max_depth, max_pages)`; propagación de
-  `min_year`, `enabled_sources`, `direct_urls`, `search_context`.
+  `min_year`, `enabled_sources`, `direct_urls`, `search_context`; contexto vacío/None →
+  `DEFAULT_SEARCH_CONTEXT`, contexto del proyecto → llega tal cual al `ResearchRequest` (R13).
 - **`report_serde`**: round-trip `report_to_dict`/`report_from_dict` preservando `Claim.status`,
   `SourceRef`, `unresolved`, `failed_sources`; `report_to_markdown` incluye fuente y estado.
 - **`report_view`**: `sort_opportunities` respeta el orden canónico de `VerificationStatus`;
@@ -320,7 +345,8 @@ Job
 - **`uploads`**: rechazo de path traversal (`../`, rutas absolutas), tipo/tamaño, colisión de
   nombres; escritura dentro de `RECURSOS/[proyecto]/` (con `tmp_path`).
 - **`project_store`**: CRUD de `projects`/`research_runs`, `UNIQUE(name)`, cascade, persistencia
-  de `report_json`.
+  de `report_json`; round-trip de `search_context` y MIGRACIÓN (abrir una base creada con el
+  esquema antiguo, sin la columna, no rompe y la añade — R13.5).
 - **Cambios en el investigador**: `enabled_sources` filtra por nombre; `direct_urls` se leen vía
   fetch aun sin hits (con fakes `FakeSearchSource`/`FakeFetchSource` ya existentes);
   `BdnsSource(min_year=...)` descarta antiguas y conserva las sin fecha (con `_FakeHttp`).
