@@ -275,7 +275,7 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/ui/uploads.py_
   - _Requirements: 3.1, 3.4_
 
-- [ ] 31. Declarar dependencias de UI en requirements.txt
+- [x] 31. Declarar dependencias de UI en requirements.txt
   - File: requirements.txt
   - Añadir `streamlit` y `streamlit-autorefresh` (sondeo de estado de jobs)
   - Purpose: fijar las dependencias de la capa de UI (R2.2)
