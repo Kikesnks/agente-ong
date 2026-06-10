@@ -6,7 +6,38 @@ cambio y mover la entrada a "Resueltas" (al final).
 
 ## Abiertas
 
-(ninguna)
+### 2. Mecanismo de inyección de fuentes fake en el smoke E2E (UI-32, AppTest)
+
+**Contexto:** la tarea UI-32 (smoke E2E con `streamlit.testing.v1.AppTest`) debe lanzar una
+investigación SIN usar las APIs reales (no gastar cuota de Tavily/Firecrawl ni golpear
+BDNS/TED). `app.py` construye el `JobManager` con la factoría real de `Investigador`, que a
+su vez construye las fuentes reales en `_default_sources`. Hace falta un punto de inyección
+para que el E2E use `FakeSearchSource`/`FakeFetchSource` (tests/research/fakes.py). La
+decisión estaba aplazada a esta tarea (nota de Kike del 2026-06-09); hay más de un enfoque
+viable, así que queda aquí documentada y UI-32 PENDIENTE.
+
+**Opciones:**
+
+- **(a) Hook por variable de entorno en `app.py`** (p.ej. `AGENTE_ONG_FAKE_SOURCES=1` hace
+  que `_job_manager` use una factoría con fakes).
+  - - Introduce código de test en la app de producción; las fakes viven en `tests/` y la app
+    no debería importarlas (ni siquiera condicionalmente).
+
+- **(b) Monkeypatch en proceso desde el test (sin tocar la app).** `AppTest` ejecuta el
+  script EN EL MISMO proceso que pytest, así que el test puede, antes de `at.run()`:
+  `monkeypatch.setattr(Investigador, "_default_sources", staticmethod(lambda cfg: fakes))`
+  y limpiar el singleton (`app._job_manager.clear()`). E2E real: app + JobManager +
+  Investigador reales, solo las fuentes son fake.
+  - - Depende de dos detalles de implementación (que AppTest corre en proceso y de
+    `st.cache_resource.clear()`); si Streamlit cambiara eso, el test se rompe.
+
+- **(c) Punto de inyección explícito en `app.py`** (p.ej. `_job_manager` lee una factoría
+  de un global del módulo o `st.session_state`, que el test sustituye).
+  - - Interfaz pública nueva en la app solo para tests; más visible pero más honesto que (a).
+
+**Recomendación:** **(b)** — no toca código de producción, reutiliza las fakes existentes y
+es el patrón pytest estándar (monkeypatch + clear del cache_resource). Si resultara frágil
+con versiones futuras de Streamlit, escalar a (c). Evitaría (a): mezcla test y producto.
 
 ## Resueltas
 
