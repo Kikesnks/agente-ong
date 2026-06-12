@@ -30,12 +30,15 @@ La metodología utilizada es **Spec-Driven Development (SDD)** del framework LID
 
 - Python 3.14 + LangChain + LangGraph (orquestación de agentes)
 - SQLite (persistencia local, sin dependencias externas)
-- Streamlit (interfaz de usuario, en desarrollo)
+- Streamlit (interfaz de usuario)
 - Fuentes: Tavily · Firecrawl · BDNS · TED (Tenders Electronic Daily)
 
 **Principio rector (definido por el autor):** calidad y verificación cruzada por encima de velocidad. El sistema nunca inventa datos — todo dato es trazable a su fuente.
 
 ## Estado actual
+
+Las dos primeras specs están **completas**: módulo investigador (36/36 tareas) e interfaz
+Streamlit (33/33 tareas). **202 tests** en verde (unitarios, integración y end-to-end).
 
 ### ✅ Módulo investigador — completado y validado en producción
 
@@ -45,7 +48,6 @@ El primer módulo, `src/agente_ong/research/`, está completo:
 - **Política de verificación cruzada** con 5 estados (`VERIFIED`, `OFFICIAL_UNCROSSED`, `UNCROSSED_UNVERIFIED`, `CONFLICTING`, `NOT_FOUND`) — diseñada por el autor para reflejar distintos niveles de confianza en los datos
 - **Grafo LangGraph** de 7 nodos con arista condicional
 - **Persistencia SQLite** entre sesiones (el sistema recuerda lo aprendido)
-- **115 tests** (unitarios, integración y end-to-end)
 - **Validado con datos reales**: ~54 convocatorias relevantes encontradas, con verificación cruzada funcionando en producción
 
 ```python
@@ -59,20 +61,24 @@ with Investigador(ResearchConfig.from_env()) as inv:
     ))
 ```
 
-### 🔄 En desarrollo — Interfaz Streamlit
+### ✅ Interfaz Streamlit — completada
 
-La interfaz de usuario está en construcción. Las decisiones de diseño ya tomadas por el autor:
+La interfaz de usuario, `src/agente_ong/ui/`, está completa y operativa:
 
-- Investigación **asíncrona** (el usuario no espera bloqueado)
-- Gestión de **múltiples proyectos** por sesión
-- **Subida de documentos** de la ONG para contextualizar la búsqueda
+- Investigación **asíncrona** (el usuario no espera bloqueado; la app sigue usable)
+- Gestión de **múltiples proyectos** por sesión, persistidos entre sesiones
+- **Contexto de búsqueda por proyecto**: el usuario describe su organización y ámbito una
+  vez al crear el proyecto, y todas sus investigaciones lo heredan
+- **Subida de documentos** de la ONG por proyecto (validación de tipo y tamaño)
 - Resultados **ordenados por fiabilidad** con filtros (fecha, importe, estado de verificación)
 - Control de **profundidad de búsqueda** (rápida / normal / exhaustiva)
 - Activación/desactivación de **fuentes individuales** por investigación
+- **Descarga del informe** en Markdown, con fuente y estado de verificación por cada dato
 
 ### 📋 Pendiente
 
 - Integración de LLM (Claude / OpenAI / Ollama)
+- Chat de proyecto: conversar con el LLM sobre los resultados del informe y los documentos del proyecto
 - Agente redactor de propuestas (con tono ONG auténtico, diseñado para pasar detectores de IA — decisión de producto del autor)
 
 ## Arquitectura
@@ -110,3 +116,15 @@ FIRECRAWL_API_KEY=fc-...
 ```
 
 BDNS y TED son APIs públicas — no necesitan clave.
+
+## Lanzar la interfaz
+
+Con el entorno virtual activado:
+
+```bash
+streamlit run src/agente_ong/ui/app.py
+```
+
+La base de datos se crea automáticamente en `.data/agente_ong.db`. Sin claves de API,
+la búsqueda web (Tavily) y la lectura profunda (Firecrawl) no estarán operativas, pero
+las fuentes oficiales (BDNS y TED) funcionan igualmente.

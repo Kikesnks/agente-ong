@@ -8,6 +8,8 @@ Contexto_para_mi/
 
 # --- Secretos / entorno ---
 .env
+# Secretos locales de Streamlit (en Community Cloud se gestionan desde el panel)
+.streamlit/secrets.toml
 
 # --- Python ---
 __pycache__/
