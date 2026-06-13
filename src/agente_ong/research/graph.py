@@ -249,12 +249,17 @@ class ResearchGraph:
     # --- Helpers ---
 
     def _active_sources(self, request: ResearchRequest, capability: str) -> list[SearchSource]:
-        """Fuentes con la capacidad dada, restringidas a `request.enabled_sources`.
+        """Fuentes con la capacidad dada, restringidas por modo y por `enabled_sources`.
 
-        `enabled_sources is None` => todas las fuentes registradas (comportamiento previo a
-        la UI, Requirement 9.2/9.3).
+        Una fuente cuyo `excluded_modes` incluye el modo de la investigación no se consulta
+        (R15: TED fuera de subvenciones). `enabled_sources is None` => todas las fuentes
+        restantes (comportamiento previo a la UI, Requirement 9.2/9.3).
         """
-        sources = [s for s in self._sources if s.supports(capability)]
+        sources = [
+            s
+            for s in self._sources
+            if s.supports(capability) and request.mode not in s.excluded_modes
+        ]
         if request.enabled_sources is None:
             return sources
         return [s for s in sources if s.name in request.enabled_sources]

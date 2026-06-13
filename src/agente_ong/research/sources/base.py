@@ -20,7 +20,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Literal, TypeVar
 
-from agente_ong.research.models import FetchedDocument, SearchHit, SearchQuery
+from agente_ong.research.models import FetchedDocument, ResearchMode, SearchHit, SearchQuery
 
 Capability = Literal["search", "fetch"]
 
@@ -73,6 +73,11 @@ class SearchSource(ABC):
     @abstractmethod
     def capabilities(self) -> frozenset[Capability]:
         """Capacidades que ofrece la fuente: {'search'}, {'fetch'} o ambas."""
+
+    # Modos de investigación en los que la fuente NO debe consultarse (R15 de
+    # investigador-v2). Default vacío = disponible en todos los modos (retrocompatible).
+    # P.ej. TED publica contratación pública, no subvenciones: se excluye de "calls".
+    excluded_modes: frozenset[ResearchMode] = frozenset()
 
     def supports(self, capability: Capability) -> bool:
         """True si la fuente ofrece la capacidad indicada."""

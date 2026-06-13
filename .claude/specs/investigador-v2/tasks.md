@@ -39,7 +39,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
 
 ### R15 — TED fuera del modo subvenciones
 
-- [ ] 3. excluded_modes en SearchSource y exclusión en el grafo
+- [x] 3. excluded_modes en SearchSource y exclusión en el grafo
   - Files: src/agente_ong/research/sources/base.py, src/agente_ong/research/sources/ted.py,
     src/agente_ong/research/graph.py
   - `SearchSource.excluded_modes: frozenset[ResearchMode] = frozenset()` (default

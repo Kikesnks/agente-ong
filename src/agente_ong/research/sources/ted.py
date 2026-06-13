@@ -82,6 +82,10 @@ class TedSource(SearchSource):
     name = "ted"
     is_official = True
     capabilities: frozenset[Capability] = frozenset({"search"})
+    # R15 (investigador-v2): TED publica CONTRATACIÓN PÚBLICA, no subvenciones — en la
+    # prueba de producción del 12-06-2026 el 100% de sus resultados fueron licitaciones.
+    # Se excluye del modo subvenciones; el código queda para un futuro modo "licitaciones".
+    excluded_modes = frozenset({"calls"})
 
     def __init__(
         self,
