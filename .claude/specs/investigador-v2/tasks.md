@@ -108,7 +108,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
     CAT", aviso de cookies) y de texto útil que NO debe perderse
   - _Requirements: 18.1, 18.2_
 
-- [ ] 10. Aplicar limpieza y límites en el grafo + config
+- [x] 10. Aplicar limpieza y límites en el grafo + config
   - Files: src/agente_ong/research/config.py, src/agente_ong/research/graph.py,
     tests/research/test_graph_flow.py
   - `snippet_max_chars` (default 300) y `organism_max_chars` (default 200) en

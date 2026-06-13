@@ -97,6 +97,10 @@ class ResearchConfig:
     # --- Vocabulario de convocatoria para búsquedas de texto libre (R16, v2) ---
     call_vocabulary: tuple[str, ...] = DEFAULT_CALL_VOCABULARY
 
+    # --- Límites de longitud del contenido en el informe (R18, v2) ---
+    snippet_max_chars: int = 300  # longitud máxima de un snippet por campo
+    organism_max_chars: int = 200  # tope específico del campo Organismo
+
     def __post_init__(self) -> None:
         # Normaliza las rutas a Path por si se inyectan como str.
         if not isinstance(self.entrenamiento_path, Path):
@@ -117,6 +121,7 @@ class ResearchConfig:
             RESEARCH_STALENESS_DAYS (límites; enteros)
           - RESEARCH_MIN_YEAR (año mínimo de convocatorias; entero opcional)
           - RESEARCH_CALL_VOCABULARY (vocabulario de convocatoria, separado por comas)
+          - RESEARCH_SNIPPET_MAX_CHARS, RESEARCH_ORGANISM_MAX_CHARS (límites de longitud)
         """
         entrenamiento = os.environ.get("RECURSOS_ENTRENAMIENTO_PATH")
         db_path = os.environ.get("RESEARCH_DB_PATH")
@@ -141,4 +146,6 @@ class ResearchConfig:
             staleness_days=_env_int("RESEARCH_STALENESS_DAYS", DEFAULT_STALENESS_DAYS),
             min_year=_env_int_or_none("RESEARCH_MIN_YEAR"),
             call_vocabulary=vocabulary,
+            snippet_max_chars=_env_int("RESEARCH_SNIPPET_MAX_CHARS", 300),
+            organism_max_chars=_env_int("RESEARCH_ORGANISM_MAX_CHARS", 200),
         )

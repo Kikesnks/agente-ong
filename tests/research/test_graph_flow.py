@@ -199,6 +199,36 @@ def test_derive_queries_only_combined_when_all_terms_single_word() -> None:
     assert texts == ["agua cultura"]
 
 
+# --- Limpieza y acotado del contenido en el informe (R18, investigador-v2) ---
+
+
+def test_organism_is_cleaned_and_bounded(db_path: Path) -> None:
+    # El snippet del organismo llega con plantilla web y muy largo; en el informe debe
+    # salir sin cookies/navegación y dentro del límite (organism_max_chars).
+    sucio = (
+        "Skip to content\nNuestra web utiliza cookies.\n"
+        + "Ministerio de Asuntos Sociales " * 40
+    )
+    bdns = FakeSearchSource(
+        name="bdns",
+        is_official=True,
+        hits=[
+            make_hit(
+                "https://bo.es/c1", source_name="bdns", title="C1", snippet=sucio,
+                is_official=True,
+            )
+        ],
+    )
+    config = ResearchConfig(max_depth=1, db_path=db_path, organism_max_chars=80)
+    with Investigador(config, sources=[bdns, FakeFetchSource()]) as inv:
+        report = inv.run(_calls_request())
+
+    organism = report.opportunities[0].organism.value
+    assert organism is not None
+    assert "cookies" not in organism and "Skip to content" not in organism
+    assert len(organism) <= 81  # 80 + posible elipsis
+
+
 # --- Exclusión de fuentes por modo (R15, investigador-v2) ---
 
 

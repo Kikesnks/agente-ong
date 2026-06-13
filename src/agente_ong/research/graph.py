@@ -41,6 +41,7 @@ from agente_ong.research.models import (
     VerificationStatus,
 )
 from agente_ong.research.sources.base import SearchSource
+from agente_ong.research.textclean import clean_text, snippet
 from agente_ong.research.urlnorm import normalize_url
 from agente_ong.research.verification import VerificationPolicy, dedupe_refs
 
@@ -307,7 +308,14 @@ class ResearchGraph:
                 for h in group
             ]
             title_val = next((h.title for h in group if h.title), None)
-            organism_val = next((h.snippet for h in group if h.snippet), None)
+            # R18: el snippet del organismo se limpia de plantilla web y se acota (hoy podía
+            # llegar con páginas enteras de menús/cookies).
+            organism_raw = next((h.snippet for h in group if h.snippet), None)
+            organism_val = (
+                snippet(clean_text(organism_raw), self._config.organism_max_chars) or None
+                if organism_raw
+                else None
+            )
             url_val = group[0].url
 
             title = self._classified(Claim(field="titulo", value=title_val), refs)
@@ -462,8 +470,9 @@ class ResearchGraph:
 
 
 def _summarize(doc: FetchedDocument) -> str:
-    """Resumen breve del contenido de un documento para guardar como pista en el ledger."""
-    text = " ".join((doc.content_text or "").split())
-    if len(text) <= _SUMMARY_MAX_CHARS:
-        return text
-    return text[:_SUMMARY_MAX_CHARS].rstrip() + "…"
+    """Resumen breve del contenido de un documento para guardar como pista en el ledger.
+
+    R18: limpia los elementos de plantilla web antes de truncar, para que la pista del
+    ledger no arrastre menús/cookies.
+    """
+    return snippet(clean_text(doc.content_text), _SUMMARY_MAX_CHARS)
