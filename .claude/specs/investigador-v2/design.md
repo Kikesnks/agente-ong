@@ -288,3 +288,12 @@ bloquea nada anterior) → R21 (manual, al final, con todo integrado).
   retrocompatible (dict viejo sin el campo); agrupación en la vista.
 - **R22:** resumen con los 6 campos y pocas líneas; ambas vistas desde el mismo dict;
   smoke E2E ajustado.
+- **R23:** unit de `HttpReaderSource` con fakes HTTP (`_FakeHttp`): documento con texto y
+  enlaces salientes; HTML solo-plantilla → extracción vacía tratada como fallo; sin red →
+  fallo controlado. Integración en `read_deep`: solo los hits `convocatoria_probable`
+  disparan lectura (los `documento_informativo`/`desconocido` no); `direct_urls` siempre se
+  leen; fallo del primario con `firecrawl_max_calls=0` → sin fallback, hit conservado y
+  fallo reflejado; con `firecrawl_max_calls=N` → fallback invocado como máximo N veces;
+  `reader_max_pages` respetado. Más UNA verificación en vivo del lector contra 2-3 URLs
+  reales del diagnóstico del 12-06 antes de fijar el parseo (23.6). `reader_max_pages`
+  por defecto = 15.
