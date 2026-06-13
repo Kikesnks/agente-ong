@@ -79,6 +79,9 @@ class SearchHit:
     title: str | None = None
     snippet: str | None = None
     is_official: bool = False
+    # Año de publicación identificado del resultado (R17 de investigador-v2); None = fecha
+    # desconocida (no se descarta por antigüedad, pero el informe lo refleja).
+    published_year: int | None = None
 
 
 @dataclass

@@ -78,7 +78,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
 
 ### R17 — Filtro temporal en Tavily
 
-- [ ] 7. min_year y published_year en TavilySource (verificar API en vivo)
+- [x] 7. min_year y published_year en TavilySource (verificar API en vivo)
   - Files: src/agente_ong/research/sources/tavily.py, src/agente_ong/research/models.py,
     src/agente_ong/research/investigador.py
   - PRIMERO: verificar EN VIVO (una llamada) si tavily-python soporta time_range/days

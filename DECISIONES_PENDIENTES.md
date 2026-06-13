@@ -6,7 +6,37 @@ cambio y mover la entrada a "Resueltas" (al final).
 
 ## Abiertas
 
-(ninguna)
+### 3. R17.3 — NO se pasa el parámetro de recencia de la API de Tavily (decidido en T7)
+
+**Contexto:** R17.3 pide que, si la API de Tavily ofrece parámetros de recencia, se usen
+"además del filtro en cliente". La verificación en vivo del 13-06-2026 (una llamada,
+`topic='general'`) reveló dos cosas:
+1. La versión instalada de tavily-python SÍ soporta `time_range`/`start_date`/`end_date`/
+   `days`.
+2. Pero con `topic='general'` los resultados NO traen `published_date` (es null; ese campo
+   solo aparece con `topic='news'`).
+
+**Tensión detectada:** pasar `start_date`/`time_range` a la API filtra en SERVIDOR de forma
+que NO podemos inspeccionar — descartaría resultados que el servidor considere antiguos o
+sin fecha, lo que choca con R17.2 ("los resultados sin fecha identificable NO se
+descartan"). Como el propio buscador no fecha los resultados generales, el filtro de API
+sería a la vez poco fiable y potencialmente destructivo de resultados válidos sin fecha.
+
+**Decisión tomada en T7 (a ratificar por Kike):** implementar SOLO el filtro en cliente
+(garantía de R17.1/R17.2: año identificado en `published_date` o, en su defecto, en el
+TÍTULO; sin año → se conserva). NO se pasa el parámetro de recencia de la API, por respeto
+a R17.2. Es una desviación de la letra de R17.3 ("usarlos además"), motivada por la
+evidencia en vivo que la propia R17.3 mandaba recoger.
+
+**Opciones:**
+- (a) Mantener: solo filtro en cliente (implementado). Conservador, respeta R17.2.
+- (b) Pasar además `start_date=min_year-01-01` a la API y aceptar que algún resultado sin
+  fecha pueda perderse (tensión con R17.2).
+- (c) Revisitar si en el futuro se usa `topic='news'` para una pasada específica (ahí sí
+  hay `published_date` fiable).
+
+**Recomendación:** (a). El filtro en cliente cubre el caso real del diagnóstico
+(documento "… Noviembre 2009" con el año en el título) sin arriesgar R17.2.
 
 ## Mejoras menores (post-v1, no bloqueantes)
 

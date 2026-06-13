@@ -113,7 +113,8 @@ class Investigador:
 
         sources: list[SearchSource] = []
         if config.tavily_api_key:
-            sources.append(TavilySource(config))
+            # min_year aplica el filtro temporal en cliente también a Tavily (R17).
+            sources.append(TavilySource(config, min_year=config.min_year))
         if config.firecrawl_api_key:
             sources.append(FirecrawlSource(config))
         # Fuentes oficiales públicas: siempre disponibles. `config.min_year` (R10) gobierna
