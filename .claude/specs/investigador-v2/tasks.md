@@ -68,7 +68,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
   - _Leverage: src/agente_ong/research/config.py (_env_int, patrón from_env)_
   - _Requirements: 16.1, 16.3_
 
-- [ ] 6. Tests del vocabulario en la query
+- [x] 6. Tests del vocabulario en la query
   - File: tests/research/test_sources.py
   - Con cliente fake: la query enviada contiene ≥1 término del vocabulario y conserva el
     search_context y los términos del usuario; BDNS recibe el término SIN alterar (16.2);

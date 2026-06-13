@@ -164,6 +164,41 @@ def test_tavily_enriches_query_with_search_context():
     assert fake.calls[1].endswith(vocabulario)
 
 
+def test_tavily_query_contains_call_vocabulary_term(monkeypatch):
+    # R16.4: la query construida contiene al menos un término de vocabulario de convocatoria.
+    class FakeTavily:
+        def __init__(self):
+            self.calls = []
+
+        def search(self, query, **kw):
+            self.calls.append(query)
+            return {"results": []}
+
+    fake = FakeTavily()
+    TavilySource(ResearchConfig(tavily_api_key="k"), client=fake).search(
+        SearchQuery(text="seguridad alimentaria")
+    )
+    assert any(term in fake.calls[0] for term in ResearchConfig().call_vocabulary)
+
+
+def test_call_vocabulary_is_env_configurable(monkeypatch):
+    monkeypatch.setenv("RESEARCH_CALL_VOCABULARY", "convocatoria abierta, financiación")
+    config = ResearchConfig.from_env()
+    assert config.call_vocabulary == ("convocatoria abierta", "financiación")
+
+    monkeypatch.delenv("RESEARCH_CALL_VOCABULARY")
+    from agente_ong.research.config import DEFAULT_CALL_VOCABULARY
+
+    assert ResearchConfig.from_env().call_vocabulary == DEFAULT_CALL_VOCABULARY
+
+
+def test_bdns_query_terms_are_not_altered_by_vocabulary():
+    # R16.2: el corpus de BDNS ya es solo subvenciones; el término viaja tal cual.
+    http = _FakeHttp({"content": []})
+    BdnsSource(ResearchConfig(), client=http).search(SearchQuery(text="seguridad alimentaria"))
+    assert http.calls[0][2]["params"]["descripcion"] == "seguridad alimentaria"
+
+
 def test_tavily_retries_then_succeeds():
     class Flaky:
         def __init__(self):
