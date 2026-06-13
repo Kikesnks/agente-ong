@@ -28,6 +28,7 @@ from agente_ong.research.sources.base import Capability, SearchSource, with_retr
 
 _API_BASE = "https://www.subvenciones.gob.es/bdnstrans/api"
 _SEARCH_PATH = "/convocatorias/busqueda"
+_DETAIL_PATH = "/convocatorias"  # detalle: ?numConv=...&vpd=GE
 _PUBLIC_CONV_URL = "https://www.subvenciones.gob.es/bdnstrans/GE/es/convocatoria/{}"
 
 
@@ -56,6 +57,7 @@ class BdnsSource(SearchSource):
         *,
         max_results: int = 20,
         min_year: int | None = None,
+        max_detail_calls: int | None = None,
         retry_exceptions: tuple[type[BaseException], ...] = (Exception,),
     ) -> None:
         self._config = config  # nota: la BDNS es pública, no usa bdns_api_key
@@ -63,6 +65,10 @@ class BdnsSource(SearchSource):
         # Año mínimo de `fechaRecepcion`; None = sin filtro. Se aplica en cliente porque la
         # API de búsqueda de la BDNS no admite filtro de fecha.
         self._min_year = min_year
+        # Nº máx. de llamadas al detalle por búsqueda (R19.3); None => valor de config.
+        self._max_detail_calls = (
+            max_detail_calls if max_detail_calls is not None else config.bdns_max_detail_calls
+        )
         self._retry_exceptions = retry_exceptions
         if client is None:
             # Import perezoso: solo se necesita httpx si no se inyecta un cliente (tests).
@@ -85,7 +91,39 @@ class BdnsSource(SearchSource):
             return response.json()
 
         data = with_retry(call, exceptions=self._retry_exceptions)
-        return self._to_hits(data)
+        hits = self._to_hits(data)
+        # R19: el min_year ya filtró en _to_hits, así que el detalle solo se pide para los
+        # hits supervivientes (no se gastan llamadas en descartes — 19.2).
+        self._enrich_with_detail(hits)
+        return hits
+
+    def _enrich_with_detail(self, hits: list[SearchHit]) -> None:
+        """Rellena importe y plazo de los primeros N hits con su detalle (R19.1/R19.3).
+
+        Un fallo de detalle no descarta el hit ni aborta los demás (R19.4/R19.5): el hit
+        conserva sus datos de búsqueda y queda sin importe/plazo (None).
+        """
+        for hit in hits[: self._max_detail_calls]:
+            numero = hit.url.rsplit("/", 1)[-1]
+            if not numero:
+                continue
+            try:
+                detail = self._fetch_detail(numero)
+            except Exception:  # noqa: BLE001 - se aísla; nunca inventar el dato (R19.4)
+                continue
+            hit.amount = _format_amount(detail.get("presupuestoTotal"))
+            hit.deadline = _format_deadline(detail)
+
+    def _fetch_detail(self, numero: str) -> dict[str, Any]:
+        def call() -> Any:
+            response = self._client.get(
+                _API_BASE + _DETAIL_PATH, params={"numConv": numero, "vpd": "GE"}
+            )
+            response.raise_for_status()
+            return response.json()
+
+        data = with_retry(call, exceptions=self._retry_exceptions)
+        return data if isinstance(data, dict) else {}
 
     def _to_hits(self, data: Any) -> list[SearchHit]:
         if not isinstance(data, dict):
@@ -132,3 +170,35 @@ class BdnsSource(SearchSource):
         if organism and fecha:
             return f"{organism} (recepción: {fecha})"
         return organism or fecha or None
+
+
+def _format_amount(value: Any) -> str | None:
+    """Formatea `presupuestoTotal` (numérico) como '307.600 €'. None si falta o no es número."""
+    if value in (None, "", 0):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    # Separador de miles con punto (es-ES); sin decimales si es entero.
+    entero = int(number)
+    if entero == number:
+        return f"{entero:,}".replace(",", ".") + " €"
+    return f"{number:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") + " €"
+
+
+def _format_deadline(detail: dict[str, Any]) -> str | None:
+    """Plazo legible desde el detalle. Prioriza la fecha de FIN (el cierre del plazo).
+
+    Devuelve None si no hay fechas (nunca se inventa el dato, R19.4). El año del cierre
+    queda en el texto para que los filtros temporales del informe lo reconozcan.
+    """
+    fin = detail.get("fechaFinSolicitud")
+    ini = detail.get("fechaInicioSolicitud")
+    abierto = detail.get("abierto")
+    estado = " (abierto)" if abierto is True else " (cerrado)" if abierto is False else ""
+    if fin:
+        return f"hasta {fin}{estado}"
+    if ini:
+        return f"desde {ini}{estado}"
+    return None

@@ -142,7 +142,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
 
 ### R19 — Detalle BDNS (importe y plazo)
 
-- [ ] 13. Llamada al detalle en BdnsSource (verificar campos en vivo) y uso en el grafo
+- [x] 13. Llamada al detalle en BdnsSource (verificar campos en vivo) y uso en el grafo
   - Files: src/agente_ong/research/sources/bdns.py, src/agente_ong/research/models.py,
     src/agente_ong/research/config.py, src/agente_ong/research/graph.py
   - PRIMERO: verificar EN VIVO (una llamada a `/convocatorias?numConv=...&vpd=GE`) los

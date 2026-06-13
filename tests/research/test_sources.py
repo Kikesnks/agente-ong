@@ -400,7 +400,10 @@ def test_bdns_retries_then_succeeds():
             return _FakeResponse({"content": [{"numeroConvocatoria": "1", "descripcion": "x"}]})
 
     flaky = Flaky()
-    src = BdnsSource(ResearchConfig(), client=flaky, retry_exceptions=(ConnectionError,))
+    # max_detail_calls=0 aísla el reintento de la BÚSQUEDA (sin llamadas al detalle R19).
+    src = BdnsSource(
+        ResearchConfig(), client=flaky, retry_exceptions=(ConnectionError,), max_detail_calls=0
+    )
     hits = src.search(SearchQuery(text="x"))
     assert flaky.n == 3 and len(hits) == 1
 

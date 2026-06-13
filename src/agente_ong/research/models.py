@@ -88,6 +88,10 @@ class SearchHit:
     published_year: int | None = None
     # Pre-clasificación heurística del resultado (R20); default retrocompatible.
     result_type: ResultType = "desconocido"
+    # Importe y plazo recuperados del detalle de la fuente (R19; hoy solo BDNS los rellena).
+    # None = no disponible; nunca se inventan.
+    amount: str | None = None
+    deadline: str | None = None
 
 
 @dataclass

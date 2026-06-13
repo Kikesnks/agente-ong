@@ -319,11 +319,21 @@ class ResearchGraph:
             )
             url_val = group[0].url
 
+            # R19: importe y plazo pueden venir del detalle de la fuente (hoy BDNS). El
+            # claim se respalda con las refs de los hits que aportaron el dato → pasa de
+            # NOT_FOUND a OFFICIAL_UNCROSSED, trazable. Sin dato => None => NOT_FOUND.
+            amount_val, amount_refs = self._first_with(group, "amount")
+            deadline_val, deadline_refs = self._first_with(group, "deadline")
+
             title = self._classified(Claim(field="titulo", value=title_val), refs)
             url_claim = self._classified(Claim(field="url", value=url_val), refs)
             organism = self._classified(Claim(field="organismo", value=organism_val), refs)
-            amount = self._classified(Claim(field="importe", is_critical=True), [])
-            deadline = self._classified(Claim(field="plazo", is_critical=True), [])
+            amount = self._classified(
+                Claim(field="importe", value=amount_val, is_critical=True), amount_refs
+            )
+            deadline = self._classified(
+                Claim(field="plazo", value=deadline_val, is_critical=True), deadline_refs
+            )
             scope = self._classified(Claim(field="ambito"), [])
 
             # R20: pre-clasificación heurística — el mejor tipo de los hits del grupo.
@@ -342,6 +352,22 @@ class ResearchGraph:
                 )
             )
         return opportunities
+
+    @staticmethod
+    def _first_with(group: list[SearchHit], attr: str) -> tuple[str | None, list[SourceRef]]:
+        """Primer valor no vacío de `attr` (amount/deadline) en el grupo y su procedencia.
+
+        Devuelve `(valor, [SourceRef])`; si ningún hit lo aporta, `(None, [])` -> el claim
+        quedará NOT_FOUND (R19.4, nunca inventar).
+        """
+        for hit in group:
+            value = getattr(hit, attr, None)
+            if value:
+                ref = SourceRef(
+                    url=hit.url, source_name=hit.source_name, is_official=hit.is_official
+                )
+                return value, [ref]
+        return None, []
 
     def _classified(self, claim: Claim, refs: list[SourceRef]) -> Claim:
         """Asigna a `claim` sus fuentes de respaldo (sin URLs repetidas, R14.3) y su estado."""

@@ -101,6 +101,9 @@ class ResearchConfig:
     snippet_max_chars: int = 300  # longitud máxima de un snippet por campo
     organism_max_chars: int = 200  # tope específico del campo Organismo
 
+    # --- Detalle de BDNS (R19, v2): nº máx. de llamadas al detalle por investigación ---
+    bdns_max_detail_calls: int = 20
+
     def __post_init__(self) -> None:
         # Normaliza las rutas a Path por si se inyectan como str.
         if not isinstance(self.entrenamiento_path, Path):
@@ -122,6 +125,7 @@ class ResearchConfig:
           - RESEARCH_MIN_YEAR (año mínimo de convocatorias; entero opcional)
           - RESEARCH_CALL_VOCABULARY (vocabulario de convocatoria, separado por comas)
           - RESEARCH_SNIPPET_MAX_CHARS, RESEARCH_ORGANISM_MAX_CHARS (límites de longitud)
+          - RESEARCH_BDNS_MAX_DETAIL_CALLS (nº máx. de llamadas al detalle de BDNS)
         """
         entrenamiento = os.environ.get("RECURSOS_ENTRENAMIENTO_PATH")
         db_path = os.environ.get("RESEARCH_DB_PATH")
@@ -148,4 +152,5 @@ class ResearchConfig:
             call_vocabulary=vocabulary,
             snippet_max_chars=_env_int("RESEARCH_SNIPPET_MAX_CHARS", 300),
             organism_max_chars=_env_int("RESEARCH_ORGANISM_MAX_CHARS", 200),
+            bdns_max_detail_calls=_env_int("RESEARCH_BDNS_MAX_DETAIL_CALLS", 20),
         )
