@@ -52,10 +52,13 @@ class TavilySource(SearchSource):
     def search(self, query: SearchQuery) -> list[SearchHit]:
         """Lanza la búsqueda y mapea los resultados de Tavily a `SearchHit`.
 
-        Si la query trae `search_context`, lo antepone al texto para orientar la búsqueda
-        (p.ej. "convocatoria subvención ONG 2026"); si no, usa el texto tal cual.
+        La query se compone como "{contexto} {términos} {vocabulario}" (R16): el
+        `search_context` del proyecto se mantiene delante (se complementa, no se
+        sustituye) y el vocabulario de convocatoria orienta el ranking hacia la OFERTA de
+        financiación, no hacia proyectos ya financiados o noticias.
         """
-        text = f"{query.search_context} {query.text}" if query.search_context else query.text
+        parts = [query.search_context, query.text, " ".join(self._config.call_vocabulary)]
+        text = " ".join(p for p in parts if p)
 
         def call() -> dict[str, Any]:
             return self._client.search(

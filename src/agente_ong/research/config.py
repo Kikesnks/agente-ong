@@ -23,6 +23,17 @@ DEFAULT_STALENESS_DAYS = 30
 # Ruta por defecto del material de entrenamiento (relativa a la raíz del proyecto).
 DEFAULT_ENTRENAMIENTO_PATH = Path("RECURSOS") / "ENTRENAMIENTO"
 
+# Vocabulario de OFERTA de financiación que orienta las búsquedas de texto libre hacia
+# convocatorias abiertas, no hacia la ejecución de fondos (R16 de investigador-v2; lista
+# exacta fijada en design.md, configurable vía RESEARCH_CALL_VOCABULARY).
+DEFAULT_CALL_VOCABULARY = (
+    "convocatoria",
+    "subvención",
+    "ayudas",
+    "bases reguladoras",
+    "plazo de presentación",
+)
+
 # Ruta por defecto de la base de datos de persistencia (carpeta oculta interna de la app).
 DEFAULT_DB_PATH = Path(".data") / "agente_ong.db"
 
@@ -83,6 +94,9 @@ class ResearchConfig:
     # None => cada fuente aplica su propio default (TED: año anterior; BDNS: sin filtro).
     min_year: int | None = None
 
+    # --- Vocabulario de convocatoria para búsquedas de texto libre (R16, v2) ---
+    call_vocabulary: tuple[str, ...] = DEFAULT_CALL_VOCABULARY
+
     def __post_init__(self) -> None:
         # Normaliza las rutas a Path por si se inyectan como str.
         if not isinstance(self.entrenamiento_path, Path):
@@ -102,9 +116,16 @@ class ResearchConfig:
           - RESEARCH_MAX_DEPTH, RESEARCH_MAX_PAGES, RESEARCH_MAX_QUERIES,
             RESEARCH_STALENESS_DAYS (límites; enteros)
           - RESEARCH_MIN_YEAR (año mínimo de convocatorias; entero opcional)
+          - RESEARCH_CALL_VOCABULARY (vocabulario de convocatoria, separado por comas)
         """
         entrenamiento = os.environ.get("RECURSOS_ENTRENAMIENTO_PATH")
         db_path = os.environ.get("RESEARCH_DB_PATH")
+        vocabulary_raw = os.environ.get("RESEARCH_CALL_VOCABULARY")
+        vocabulary = (
+            tuple(t.strip() for t in vocabulary_raw.split(",") if t.strip())
+            if vocabulary_raw and vocabulary_raw.strip()
+            else DEFAULT_CALL_VOCABULARY
+        )
         return cls(
             tavily_api_key=os.environ.get("TAVILY_API_KEY"),
             firecrawl_api_key=os.environ.get("FIRECRAWL_API_KEY"),
@@ -119,4 +140,5 @@ class ResearchConfig:
             max_queries=_env_int("RESEARCH_MAX_QUERIES", DEFAULT_MAX_QUERIES),
             staleness_days=_env_int("RESEARCH_STALENESS_DAYS", DEFAULT_STALENESS_DAYS),
             min_year=_env_int_or_none("RESEARCH_MIN_YEAR"),
+            call_vocabulary=vocabulary,
         )

@@ -151,13 +151,17 @@ def test_tavily_enriches_query_with_search_context():
     fake = FakeTavily()
     src = TavilySource(ResearchConfig(tavily_api_key="k"), client=fake)
 
-    # Con search_context: se antepone al texto.
+    # Con search_context: se antepone al texto; el vocabulario de convocatoria (R16) se
+    # añade SIEMPRE al final (complementa el contexto, no lo sustituye — 16.3).
     src.search(SearchQuery(text="agua", search_context="convocatoria subvención ONG 2026"))
-    # Sin search_context: el texto queda igual que antes.
+    # Sin search_context: términos + vocabulario.
     src.search(SearchQuery(text="agua"))
 
-    assert fake.calls[0] == "convocatoria subvención ONG 2026 agua"
-    assert fake.calls[1] == "agua"
+    assert fake.calls[0].startswith("convocatoria subvención ONG 2026 agua")
+    assert fake.calls[1].startswith("agua")
+    vocabulario = " ".join(ResearchConfig().call_vocabulary)
+    assert fake.calls[0].endswith(vocabulario)
+    assert fake.calls[1].endswith(vocabulario)
 
 
 def test_tavily_retries_then_succeeds():

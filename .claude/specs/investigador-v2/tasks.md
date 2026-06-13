@@ -59,7 +59,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
 
 ### R16 — Vocabulario de convocatoria en Tavily
 
-- [ ] 5. call_vocabulary en config y composición de la query en TavilySource
+- [x] 5. call_vocabulary en config y composición de la query en TavilySource
   - Files: src/agente_ong/research/config.py, src/agente_ong/research/sources/tavily.py
   - `DEFAULT_CALL_VOCABULARY = ("convocatoria", "subvención", "ayudas", "bases
     reguladoras", "plazo de presentación")`; campo `call_vocabulary` en ResearchConfig +
