@@ -100,7 +100,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
 
 ### R18 — Limpieza del contenido
 
-- [ ] 9. Módulo textclean con heurísticas y límites
+- [x] 9. Módulo textclean con heurísticas y límites
   - Files: src/agente_ong/research/textclean.py, tests/research/test_textclean.py
   - `clean_text(text)` (patrones de cookies/navegación/idiomas/suscripción/redes, colapso
     de espacios y líneas duplicadas) y `snippet(text, max_chars)` (truncado en palabra con
