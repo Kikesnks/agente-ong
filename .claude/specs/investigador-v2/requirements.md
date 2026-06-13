@@ -149,6 +149,40 @@ Criterios de aceptación:
 
 ---
 
+## R23 — Lectura profunda sin dependencia de créditos
+
+**Contexto:** Firecrawl agotó sus créditos en la primera prueba real (757 créditos en dos
+búsquedas) y además falló en producción con algunos sitios. La fase de pruebas con testers
+requiere búsquedas ilimitadas sin coste. El detalle BDNS (R19) ya cubre importe/plazo, por
+lo que la lectura profunda queda relegada a material complementario que no justifica coste
+por llamada.
+
+Criterios de aceptación:
+- 23.1 Existirá un adapter de lectura propio (HttpReaderSource o nombre equivalente)
+  basado en httpx + trafilatura, implementando el mismo puerto de lectura que Firecrawl,
+  sin dependencias de pago. La extracción del texto principal descarta plantilla web
+  (complementa, no sustituye, la limpieza de R18).
+- 23.2 El lector propio será la opción POR DEFECTO para la lectura profunda. Firecrawl
+  pasa a fallback opcional: solo se invoca si el lector propio falla en una URL (error de
+  red tras reintentos o extracción vacía) Y hay créditos configurados.
+- 23.3 La lectura profunda solo se aplicará a hits con result_type =
+  "convocatoria_probable" (usa la clasificación de R20), independientemente del lector.
+  Los documento_informativo y desconocido no consumen lectura profunda.
+- 23.4 Límites configurables en ResearchConfig (+ env): reader_max_pages (máximo de
+  páginas leídas en profundidad por búsqueda, default a proponer en design) y
+  firecrawl_max_calls (máximo de llamadas al fallback por búsqueda, default 0 = fallback
+  desactivado). Default 0 garantiza coste cero salvo activación explícita.
+- 23.5 El fallo de lectura (propio y fallback) no descarta el hit: conserva sus datos de
+  búsqueda y el informe refleja que no se pudo leer en profundidad (coherente con 19.4 —
+  nunca inventar, siempre trazable).
+- 23.6 Los tests usarán fakes de cliente HTTP (patrón _FakeHttp); habrá UNA verificación
+  en vivo del lector propio contra 2-3 URLs reales del diagnóstico del 12-06 antes de
+  codificar el parseo definitivo (mismo método que 17.3/19.1).
+
+Dependencias: R23 requiere R20 (result_type) implementado. No bloquea las tareas 1-15.
+
+---
+
 ## Decisiones tomadas (12-06-2026, Kike)
 
 - **P1 — opción (b):** Tavily fuente secundaria para subvenciones (ver 16.5). Se conserva

@@ -197,6 +197,51 @@ y sus resultados se conservan, señalizados.
   detallado" da acceso al completo; DOS botones de descarga (resumido / detallado)
   (22.3). El smoke E2E se ajusta a la nueva estructura.
 
+### R23 — Lectura profunda sin dependencia de créditos
+
+**Dónde:** módulo nuevo `sources/reader.py`, `config.py`, `graph.py::read_deep`,
+`investigador.py` (wiring), `ui/app.py` (etiqueta), `requirements.txt` (trafilatura).
+
+**Dónde encaja el adapter (verificado en código):** no existe un "puerto de lectura"
+separado — la capacidad `fetch` de `SearchSource` ES el puerto de lectura
+(`FirecrawlSource` es un `SearchSource` con `capabilities={"fetch"}` y `read_deep` usa los
+fetchers activos). `HttpReaderSource` implementa por tanto `SearchSource` con
+`capabilities={"fetch"}`, `name="reader"`, `is_official=False` — mismo puerto, cero
+cambios de interfaz (23.1).
+
+- **HttpReaderSource (23.1):** `httpx.Client` (timeout, User-Agent de navegador) +
+  `trafilatura.extract()` para el texto principal (descarta plantilla web en origen;
+  `textclean` de R18 sigue aplicándose después — complementa, no sustituye). Enlaces
+  salientes: `trafilatura` no los devuelve → se extraen los `href` absolutos http(s) del
+  HTML (regex/lxml), deduplicados y acotados (~50) para alimentar la profundización como
+  hacía Firecrawl. Reintentos con `with_retry` (a diferencia de firecrawl-py, httpx no
+  reintenta solo). Extracción vacía ⇒ se trata como fallo de lectura (dispara fallback).
+  Dependencia nueva sin coste: `trafilatura` en requirements.txt.
+- **Orquestación primario/fallback (23.2):** vive en `graph.read_deep`. Los fetchers
+  activos se ordenan: el PRIMERO es el primario (reader; `_default_sources` lo construye
+  siempre — no necesita clave) y el resto son fallback (Firecrawl, construido solo si hay
+  api_key). Por cada URL: primario → si falla (excepción tras reintentos o documento
+  vacío) y quedan llamadas de fallback (`firecrawl_max_calls`, contador POR investigación)
+  → fallback. Con `firecrawl_max_calls=0` (default) el fallback nunca se invoca: coste
+  cero garantizado (23.4).
+- **Gating por result_type (23.3):** la frontera de `read_deep` solo se siembra con hits
+  `result_type == "convocatoria_probable"`. Las `direct_urls` del usuario SIEMPRE se leen
+  (petición explícita, R9). Los enlaces salientes de páginas ya leídas heredan la
+  elegibilidad de su página origen (vienen de una convocatoria probable).
+- **Límites (23.4):** `reader_max_pages: int = 15` (propuesta; máximo de páginas leídas
+  en profundidad por búsqueda, env RESEARCH_READER_MAX_PAGES — coexiste con `max_pages`:
+  gana el menor) y `firecrawl_max_calls: int = 0` (env RESEARCH_FIRECRAWL_MAX_CALLS).
+- **Fallo sin descarte (23.5):** como hoy — el hit conserva sus datos de búsqueda; el
+  fallo se anota en `failed_sources` y el ledger registra `outcome="error"`; el informe
+  refleja que esa URL no se pudo leer en profundidad.
+- **UI (consecuencia mínima, análoga a 15.3):** la entrada `"firecrawl"` de
+  `_SOURCE_LABELS` pasa a `"reader"` con etiqueta "Lectura de páginas y URLs directas"
+  (el lector propio es el que la UI activa/desactiva; Firecrawl ya no es una fuente que
+  el usuario elija — es un fallback de configuración).
+- **Verificación en vivo (23.6):** antes de fijar el parseo, UNA pasada del lector propio
+  contra 2-3 URLs reales del diagnóstico del 12-06 (las que Firecrawl falló o llenó de
+  plantilla); los tests de la suite usan fakes HTTP (patrón `_FakeHttp`).
+
 ### R21 — Re-validación con casos reales (manual)
 
 Tarea conjunta con Kike, NO autónoma: re-ejecutar las dos búsquedas del 12-06-2026
@@ -210,7 +255,8 @@ R14 (independiente) → R15 (independiente) → R16/R17 (tocan TavilySource; R17
 a SearchHit) → R18 (textclean, independiente) → R20 (necesita los campos de SearchHit y
 conviene antes que R19 para clasificar también los hits enriquecidos) → R19 (usa
 SearchHit.amount/deadline) → R22 (necesita R18 y R20 para que la vista detallada y la
-agrupación tengan sentido) → R21 (manual, al final, con todo integrado).
+agrupación tengan sentido) → R23 (requiere R20: el gating de lectura usa result_type; no
+bloquea nada anterior) → R21 (manual, al final, con todo integrado).
 
 ## Error Handling
 

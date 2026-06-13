@@ -175,13 +175,53 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
   - _Leverage: src/agente_ong/ui/report_serde.py (report_to_markdown), tarea 12_
   - _Requirements: 22.1, 22.2, 22.3, 22.4_
 
+### R23 — Lectura profunda sin dependencia de créditos
+
+- [ ] 16. HttpReaderSource (httpx + trafilatura) con verificación en vivo previa
+  - Files: src/agente_ong/research/sources/reader.py, requirements.txt,
+    tests/research/test_sources.py
+  - PRIMERO (23.6): verificación en vivo del lector contra 2-3 URLs reales del
+    diagnóstico del 12-06 antes de fijar el parseo. `HttpReaderSource(SearchSource)` con
+    `capabilities={"fetch"}`, name="reader": httpx (timeout, UA) + trafilatura para el
+    texto principal; enlaces salientes extraídos del HTML (absolutos, dedupe, cap ~50);
+    `with_retry`; extracción vacía => fallo. `trafilatura` en requirements.txt. Tests con
+    fakes HTTP: documento con texto y enlaces; HTML basura => fallo; sin red
+  - _Leverage: src/agente_ong/research/sources/base.py (SearchSource, with_retry),
+    src/agente_ong/research/sources/firecrawl.py (mapeo a FetchedDocument)_
+  - _Requirements: 23.1, 23.6_
+
+- [ ] 17. Orquestación primario/fallback, gating por result_type y límites
+  - Files: src/agente_ong/research/config.py, src/agente_ong/research/graph.py,
+    src/agente_ong/research/investigador.py, src/agente_ong/ui/app.py
+  - `reader_max_pages` (default 15) y `firecrawl_max_calls` (default 0) en ResearchConfig
+    + envs; `read_deep`: frontera solo con hits convocatoria_probable (direct_urls siempre;
+    los enlaces salientes heredan elegibilidad), primario = primer fetcher, fallback con
+    contador por investigación (0 = nunca); fallo de lectura no descarta el hit (23.5);
+    `_default_sources` construye HttpReaderSource SIEMPRE (delante de Firecrawl); UI:
+    entrada "firecrawl" de _SOURCE_LABELS pasa a "reader" ("Lectura de páginas y URLs
+    directas")
+  - _Leverage: src/agente_ong/research/sources/reader.py (tarea 16)_
+  - _Requirements: 23.2, 23.3, 23.4, 23.5_
+
+- [ ] 18. Tests de integración del flujo de lectura v2
+  - Files: tests/research/test_graph_flow.py, tests/ui/test_app_smoke.py
+  - Casos: solo los convocatoria_probable consumen lectura profunda (los
+    documento_informativo no); direct_urls se leen siempre; fallo del primario con
+    firecrawl_max_calls=0 => sin fallback, hit conservado y fallo reflejado; con
+    firecrawl_max_calls=N => fallback invocado como máximo N veces; reader_max_pages
+    respetado; smoke ajustado a la fuente "reader"
+  - _Leverage: tests/research/fakes.py (FakeFetchSource)_
+  - _Requirements: 23.2, 23.3, 23.4, 23.5_
+
 ### R21 — Re-validación con casos reales (MANUAL, conjunta con Kike)
 
-- [ ] 16. [MANUAL — NO autónoma] Re-ejecutar las dos búsquedas del 12-06-2026 y documentar
+- [ ] 19. [MANUAL — NO autónoma] Re-ejecutar las dos búsquedas del 12-06-2026 y documentar
   - File: Contexto_para_mi/revalidacion_investigador_v2.md (documento nuevo)
-  - Con Kike: mismas dos búsquedas (términos y contexto del 12-06-2026); comparar: % de
-    resultados tipo convocatoria, importe/plazo presentes en BDNS, sin duplicados en
-    verificación, sin licitaciones TED, sin documentos pre-min_year con fecha conocida
-    (21.1); documentar antes/después como material de portafolio (21.2); dejar constancia
-    de que la validación de criterio fino queda para testers expertos (21.3)
+  - Con Kike: mismas dos búsquedas (términos y contexto del 12-06-2026); comparar con
+    NÚMEROS ABSOLUTOS además de porcentajes (total de resultados, cuántos con
+    importe/plazo, cuántos tipo convocatoria): % y nº de resultados tipo convocatoria,
+    importe/plazo presentes en BDNS, sin duplicados en verificación, sin licitaciones
+    TED, sin documentos pre-min_year con fecha conocida (21.1); documentar antes/después
+    como material de portafolio (21.2); dejar constancia de que la validación de criterio
+    fino queda para testers expertos (21.3)
   - _Requirements: 21.1, 21.2, 21.3_
