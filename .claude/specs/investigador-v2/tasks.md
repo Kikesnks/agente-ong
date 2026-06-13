@@ -90,7 +90,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
   - _Leverage: src/agente_ong/research/sources/bdns.py (patrón min_year/_too_old)_
   - _Requirements: 17.1, 17.2, 17.3_
 
-- [ ] 8. Tests del filtro temporal de Tavily
+- [x] 8. Tests del filtro temporal de Tavily
   - File: tests/research/test_sources.py
   - Casos: published_date antigua → descartado; año antiguo en el título → descartado;
     sin fecha identificable → conservado con published_year=None; min_year=None → no

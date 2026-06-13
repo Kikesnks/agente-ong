@@ -199,6 +199,73 @@ def test_bdns_query_terms_are_not_altered_by_vocabulary():
     assert http.calls[0][2]["params"]["descripcion"] == "seguridad alimentaria"
 
 
+def _tavily_with_results(results, *, min_year=None):
+    """TavilySource con un cliente fake que devuelve `results` fijos."""
+    class FakeTavily:
+        def search(self, query, **kw):
+            return {"results": results}
+
+    return TavilySource(
+        ResearchConfig(tavily_api_key="k"), client=FakeTavily(), min_year=min_year
+    )
+
+
+# --- R17: filtro temporal de Tavily en cliente ---
+
+
+def test_tavily_discards_old_published_date():
+    src = _tavily_with_results(
+        [
+            {"url": "https://x.es/viejo", "title": "Estudio", "published_date": "2009-11-02"},
+            {"url": "https://x.es/nuevo", "title": "Convocatoria", "published_date": "2026-01-10"},
+        ],
+        min_year=2025,
+    )
+    urls = [h.url for h in src.search(SearchQuery(text="agua"))]
+    assert urls == ["https://x.es/nuevo"]
+
+
+def test_tavily_discards_old_year_in_title():
+    # Caso real del diagnóstico: "Crisis y pobreza rural... Noviembre 2009".
+    src = _tavily_with_results(
+        [
+            {"url": "https://x.es/a", "title": "Crisis y pobreza rural. Noviembre 2009"},
+            {"url": "https://x.es/b", "title": "Convocatoria 2026 de ayudas"},
+        ],
+        min_year=2025,
+    )
+    hits = src.search(SearchQuery(text="rural"))
+    assert [h.url for h in hits] == ["https://x.es/b"]
+    assert hits[0].published_year == 2026
+
+
+def test_tavily_keeps_undated_results_with_published_year_none():
+    # R17.2: sin fecha identificable NO se descarta; published_year queda en None.
+    src = _tavily_with_results(
+        [{"url": "https://x.es/sinfecha", "title": "Subvenciones para cultura"}],
+        min_year=2025,
+    )
+    hits = src.search(SearchQuery(text="cultura"))
+    assert len(hits) == 1 and hits[0].published_year is None
+
+
+def test_tavily_year_only_in_body_does_not_discard():
+    # Un año en el cuerpo no data el documento (solo título/published_date).
+    src = _tavily_with_results(
+        [{"url": "https://x.es/a", "title": "Ayudas vigentes", "content": "ejecutó fondos de 2009"}],
+        min_year=2025,
+    )
+    hits = src.search(SearchQuery(text="ayudas"))
+    assert len(hits) == 1 and hits[0].published_year is None
+
+
+def test_tavily_min_year_none_does_not_filter():
+    src = _tavily_with_results(
+        [{"url": "https://x.es/a", "title": "Algo de 2009"}], min_year=None
+    )
+    assert len(src.search(SearchQuery(text="x"))) == 1
+
+
 def test_tavily_retries_then_succeeds():
     class Flaky:
         def __init__(self):
