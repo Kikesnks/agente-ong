@@ -4,15 +4,17 @@ Encarna el principio de producto "calidad y verificación cruzada por encima de 
 asigna a cada dato (`Claim`) un `VerificationStatus` según cuántas fuentes lo respaldan y si
 son oficiales, y señala las contradicciones en lugar de elegir en silencio.
 
-Reglas de clasificación (Requirements 3.3, 3.4, 4.2, 4.4):
+Reglas de clasificación (Requirements 3.3, 3.4, 4.2, 4.4; R14 de investigador-v2):
 
   - Fuentes contradictorias presentes        -> CONFLICTING
   - Sin valor / sin fuentes de respaldo       -> NOT_FOUND
-  - >= 2 fuentes de respaldo                   -> VERIFIED
+  - >= 2 fuentes con URL normalizada DISTINTA -> VERIFIED
   - 1 fuente de respaldo, oficial              -> OFFICIAL_UNCROSSED   (aceptable, no cruzada)
   - 1 fuente de respaldo, no oficial           -> UNCROSSED_UNVERIFIED (preocupante)
 
-La política de revalidación por caducidad (flag `stale`) se añade en la tarea 14.
+R14: la misma URL repetida (aunque la reporten fuentes distintas) cuenta como UNA sola
+fuente — `dedupe_refs` colapsa por `normalize_url` y `classify` deduplica antes de contar.
+El "Verificado" exige corroboración real entre URLs distintas.
 """
 
 from __future__ import annotations
@@ -22,6 +24,24 @@ from datetime import datetime, timedelta, timezone
 
 from agente_ong.research.config import ResearchConfig
 from agente_ong.research.models import Claim, Intent, SourceRef, VerificationStatus
+from agente_ong.research.urlnorm import normalize_url
+
+
+def dedupe_refs(refs: Sequence[SourceRef]) -> list[SourceRef]:
+    """Colapsa referencias con la misma URL normalizada en una sola (R14.1).
+
+    Orden estable (primera aparición). Ante duplicado se conserva la referencia OFICIAL si
+    la hay: la oficialidad no debe perderse al colapsar (gobierna OFFICIAL_UNCROSSED).
+    """
+    kept: dict[str, SourceRef] = {}
+    for ref in refs:
+        key = normalize_url(ref.url)
+        current = kept.get(key)
+        if current is None:
+            kept[key] = ref
+        elif ref.is_official and not current.is_official:
+            kept[key] = ref
+    return list(kept.values())
 
 
 class VerificationPolicy:
@@ -49,16 +69,20 @@ class VerificationPolicy:
         if conflicting:
             return VerificationStatus.CONFLICTING
 
+        # R14: la misma URL repetida cuenta una sola vez (defensa en profundidad: se
+        # deduplica aquí aunque el llamador ya lo haga).
+        distinct = dedupe_refs(supporting)
+
         # 2) Sin valor o sin respaldo => no encontrado.
-        if claim.value is None or len(supporting) == 0:
+        if claim.value is None or len(distinct) == 0:
             return VerificationStatus.NOT_FOUND
 
-        # 3) Corroborado por dos o más fuentes => verificado.
-        if len(supporting) >= 2:
+        # 3) Corroborado por dos o más URLs DISTINTAS => verificado (R14.2).
+        if len(distinct) >= 2:
             return VerificationStatus.VERIFIED
 
         # 4) Una sola fuente: depende de si es oficial.
-        only = supporting[0]
+        only = distinct[0]
         if only.is_official:
             return VerificationStatus.OFFICIAL_UNCROSSED
         return VerificationStatus.UNCROSSED_UNVERIFIED

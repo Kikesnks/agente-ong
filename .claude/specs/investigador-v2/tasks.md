@@ -17,7 +17,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
 
 ### R14 — Verificación sin fuentes duplicadas
 
-- [ ] 1. dedupe_refs y conteo por URL normalizada en VerificationPolicy
+- [x] 1. dedupe_refs y conteo por URL normalizada en VerificationPolicy
   - Files: src/agente_ong/research/verification.py, tests/research/test_verification.py
   - Helper `dedupe_refs(refs)` (colapsa por `normalize_url`, conserva la ref OFICIAL ante
     duplicado, orden estable); `classify()` deduplica `supporting` antes de contar:
@@ -28,7 +28,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
   - _Leverage: src/agente_ong/research/urlnorm.py (normalize_url)_
   - _Requirements: 14.1, 14.2, 14.4_
 
-- [ ] 2. claim.sources sin URLs repetidas en el informe (graph)
+- [x] 2. claim.sources sin URLs repetidas en el informe (graph)
   - Files: src/agente_ong/research/graph.py, tests/research/test_graph_flow.py
   - `_classified` asigna `claim.sources = dedupe_refs(refs)`; test de regresión con el
     caso real (mismo hit/URL repetido por varias queries → nunca VERIFIED, fuentes sin

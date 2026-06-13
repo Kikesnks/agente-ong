@@ -42,19 +42,18 @@ _BTN_RESEARCH = "FormSubmitter:research-form-Investigar"
 
 @pytest.fixture
 def fake_sources() -> list:
-    """Dos fuentes de búsqueda + fetch: c1 con respaldo cruzado (VERIFIED), c2 solo
-    oficial (OFFICIAL_UNCROSSED) — suficiente para verificar el orden del informe."""
+    """Dos fuentes de búsqueda + fetch. Regla R14 (investigador-v2): la misma URL cuenta
+    una sola vez, así que el informe ordena oficial (bdns) antes que no oficial (tavily)."""
     bdns = FakeSearchSource(
         name="bdns",
         is_official=True,
         hits=[
-            make_hit("https://bo.es/c1", source_name="bdns", title="Cruzada", is_official=True),
-            make_hit("https://bo.es/c2", source_name="bdns", title="Solo oficial", is_official=True),
+            make_hit("https://bo.es/c1", source_name="bdns", title="Oficial", is_official=True),
         ],
     )
     tavily = FakeSearchSource(
         name="tavily",
-        hits=[make_hit("https://bo.es/c1", source_name="tavily", title="Cruzada dup")],
+        hits=[make_hit("https://web.example/c3", source_name="tavily", title="Web general")],
     )
     return [bdns, tavily, FakeFetchSource(name="firecrawl")]
 
@@ -134,11 +133,11 @@ def test_research_flow_renders_sorted_report(app: AppTest, fake_sources: list) -
     app.run()  # rerun: la UI recoge el run persistido y renderiza el informe
     assert not app.exception, app.exception[0].value
 
-    # Informe ordenado por fiabilidad: la convocatoria VERIFIED antes que la solo oficial.
+    # Informe ordenado por fiabilidad: la oficial (sin cruzar) antes que la no verificada.
     labels = [e.label for e in app.expander if "—" in str(e.label)]
     assert len(labels) == 2
-    assert "Cruzada" in labels[0] and "Verificado" in labels[0]
-    assert "Solo oficial" in labels[1] and "oficial (sin cruzar)" in labels[1]
+    assert "Oficial" in labels[0] and "oficial (sin cruzar)" in labels[0]
+    assert "Web general" in labels[1] and "Sin verificar" in labels[1]
 
     # Descarga del informe disponible (R7.1).
     assert len(app.get("download_button")) == 1

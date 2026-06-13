@@ -74,12 +74,15 @@ def test_full_flow_produces_report_with_traceable_opportunities(db_path: Path) -
     assert report.ledger, "el informe debe listar las fuentes consultadas"
 
 
-# --- Verificación cruzada (Requirement 4.4) ---
+# --- Verificación cruzada (Requirement 4.4; regla R14 de investigador-v2) ---
 
 
 def test_cross_verification_statuses(db_path: Path) -> None:
-    # c1 lo devuelven DOS fuentes (oficial + no oficial, misma URL normalizada) -> VERIFIED.
-    # c2 solo la oficial -> OFFICIAL_UNCROSSED. c3 solo la no oficial -> UNCROSSED_UNVERIFIED.
+    # REGLA v2 (R14): la misma URL cuenta UNA sola vez aunque la devuelvan fuentes
+    # distintas. c1 (bdns + tavily, misma URL normalizada) ya NO es VERIFIED: una URL =
+    # una fuente, y al colapsar sobrevive la oficial -> OFFICIAL_UNCROSSED. VERIFIED exige
+    # corroboración entre URLs DISTINTAS, que la agrupación por URL actual no produce
+    # (llegará con la agrupación semántica, SPEC 2+). c3 solo no oficial -> UNCROSSED.
     bdns = FakeSearchSource(
         name="bdns",
         is_official=True,
@@ -101,9 +104,27 @@ def test_cross_verification_statuses(db_path: Path) -> None:
         report = inv.run(_calls_request())
 
     by_url = {opp.url.value: opp for opp in report.opportunities}
-    assert by_url["https://bo.es/c1"].title.status == VerificationStatus.VERIFIED
+    assert by_url["https://bo.es/c1"].title.status == VerificationStatus.OFFICIAL_UNCROSSED
     assert by_url["https://bo.es/c2"].title.status == VerificationStatus.OFFICIAL_UNCROSSED
     assert by_url["https://bo.es/c3"].title.status == VerificationStatus.UNCROSSED_UNVERIFIED
+
+
+def test_repeated_url_is_never_verified_and_sources_are_deduped(db_path: Path) -> None:
+    # Regresión del caso real del diagnóstico (12-06-2026): la misma URL devuelta varias
+    # veces (varias queries de la misma fuente) se marcaba "Verificado (2+ fuentes)" con
+    # la URL repetida en la lista de fuentes (R14.4).
+    repetida = make_hit("https://web.example/conv", source_name="tavily", title="Conv")
+    tavily = FakeSearchSource(name="tavily", hits=[repetida, repetida, repetida])
+
+    with _investigador([tavily, FakeFetchSource()], db_path) as inv:
+        report = inv.run(_calls_request(query_terms=["agua limpia", "salud mental"]))
+
+    assert len(report.opportunities) == 1
+    opp = report.opportunities[0]
+    assert opp.title.status == VerificationStatus.UNCROSSED_UNVERIFIED, "nunca VERIFIED"
+    # La lista de fuentes del informe no repite URLs (R14.3).
+    urls = [ref.url for ref in opp.title.sources]
+    assert len(urls) == len(set(urls)) == 1
 
 
 # --- Fiabilidad: una fuente caída no aborta la investigación ---

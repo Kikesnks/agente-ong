@@ -42,7 +42,7 @@ from agente_ong.research.models import (
 )
 from agente_ong.research.sources.base import SearchSource
 from agente_ong.research.urlnorm import normalize_url
-from agente_ong.research.verification import VerificationPolicy
+from agente_ong.research.verification import VerificationPolicy, dedupe_refs
 
 # Longitud máxima del resumen que se guarda en el ledger por cada documento leído.
 _SUMMARY_MAX_CHARS = 280
@@ -326,9 +326,9 @@ class ResearchGraph:
         return opportunities
 
     def _classified(self, claim: Claim, refs: list[SourceRef]) -> Claim:
-        """Asigna a `claim` sus fuentes de respaldo y su `VerificationStatus`."""
-        claim.sources = refs
-        claim.status = self._policy.classify(claim, refs)
+        """Asigna a `claim` sus fuentes de respaldo (sin URLs repetidas, R14.3) y su estado."""
+        claim.sources = dedupe_refs(refs)
+        claim.status = self._policy.classify(claim, claim.sources)
         return claim
 
     # --- Nodo: ask_user ---

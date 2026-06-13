@@ -21,9 +21,9 @@ def policy() -> VerificationPolicy:
     return VerificationPolicy(ResearchConfig(staleness_days=30))
 
 
-def _src(*, official: bool = False, days_ago: int = 0) -> SourceRef:
+def _src(*, official: bool = False, days_ago: int = 0, url: str = "https://x.es/a") -> SourceRef:
     return SourceRef(
-        url="https://x.es/a",
+        url=url,
         source_name="bdns" if official else "tavily",
         is_official=official,
         retrieved_at=NOW - timedelta(days=days_ago),
@@ -45,15 +45,53 @@ def test_classify_no_sources_is_not_found(policy: VerificationPolicy) -> None:
     assert policy.classify(_claim("x"), []) is VerificationStatus.NOT_FOUND
 
 
+# R14: VERIFIED exige URLs normalizadas DISTINTAS (antes bastaban dos refs cualesquiera).
 @pytest.mark.parametrize(
     "supporting",
     [
-        [_src(), _src()],  # dos no oficiales
-        [_src(official=True), _src()],  # oficial + no oficial
+        [_src(url="https://x.es/a"), _src(url="https://y.es/b")],  # dos no oficiales
+        [_src(official=True, url="https://x.es/a"), _src(url="https://y.es/b")],
     ],
 )
-def test_classify_two_or_more_is_verified(policy: VerificationPolicy, supporting) -> None:
+def test_classify_two_or_more_distinct_urls_is_verified(
+    policy: VerificationPolicy, supporting
+) -> None:
     assert policy.classify(_claim(), supporting) is VerificationStatus.VERIFIED
+
+
+# --- R14: deduplicación de fuentes por URL normalizada ---
+
+
+def test_same_url_three_times_is_one_source_never_verified(policy: VerificationPolicy) -> None:
+    # Caso real del diagnóstico del 12-06-2026: "Verificado (2+ fuentes)" con la misma
+    # URL repetida. Tras R14: una sola fuente no oficial => UNCROSSED_UNVERIFIED.
+    refs = [_src(url="https://x.es/a")] * 3
+    assert policy.classify(_claim(), refs) is VerificationStatus.UNCROSSED_UNVERIFIED
+
+
+def test_same_url_with_equivalent_variants_counts_once(policy: VerificationPolicy) -> None:
+    # Variantes que normalizan igual (mayúsculas del host, barra final) no suman fuentes.
+    refs = [_src(url="https://x.es/a"), _src(url="HTTPS://X.ES/a/")]
+    assert policy.classify(_claim(), refs) is VerificationStatus.UNCROSSED_UNVERIFIED
+
+
+def test_official_ref_survives_the_collapse(policy: VerificationPolicy) -> None:
+    # Misma URL desde fuente no oficial y oficial: cuenta UNA, y conserva la oficialidad.
+    refs = [_src(url="https://x.es/a"), _src(official=True, url="https://x.es/a")]
+    assert policy.classify(_claim(), refs) is VerificationStatus.OFFICIAL_UNCROSSED
+
+
+def test_dedupe_refs_is_stable_and_prefers_official() -> None:
+    from agente_ong.research.verification import dedupe_refs
+
+    a1 = _src(url="https://x.es/a")
+    a2 = _src(official=True, url="https://x.es/a/")
+    b = _src(url="https://y.es/b")
+    deduped = dedupe_refs([a1, b, a2])
+    # Orden estable por primera aparición (a antes que b) y la oficial sobrevive.
+    assert len(deduped) == 2
+    assert deduped[0].is_official is True  # a2 reemplaza a a1 conservando la posición
+    assert deduped[1].url == "https://y.es/b"
 
 
 def test_classify_single_official_is_official_uncrossed(policy: VerificationPolicy) -> None:
