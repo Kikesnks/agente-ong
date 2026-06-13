@@ -120,7 +120,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
 
 ### R20 — Pre-clasificación result_type
 
-- [ ] 11. ResultType, triage heurístico y asignación en el grafo
+- [x] 11. ResultType, triage heurístico y asignación en el grafo
   - Files: src/agente_ong/research/models.py, src/agente_ong/research/triage.py,
     src/agente_ong/research/graph.py
   - `ResultType` Literal + `SearchHit.result_type`/`GrantOpportunity.result_type` con

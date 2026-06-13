@@ -24,6 +24,10 @@ Intent = Literal["explore", "use_in_proposal"]
 LedgerKind = Literal["query", "url"]
 LedgerOutcome = Literal["useful", "empty", "error", "pending"]
 CaptureMode = Literal["download", "text_copy"]
+# Pre-clasificación de un resultado (R20 de investigador-v2): prepara el terreno para el
+# filtrado semántico con LLM (SPEC 2+) sin implementarlo. "desconocido" es el default
+# retrocompatible.
+ResultType = Literal["convocatoria_probable", "documento_informativo", "desconocido"]
 
 
 def _utcnow() -> datetime:
@@ -82,6 +86,8 @@ class SearchHit:
     # Año de publicación identificado del resultado (R17 de investigador-v2); None = fecha
     # desconocida (no se descarta por antigüedad, pero el informe lo refleja).
     published_year: int | None = None
+    # Pre-clasificación heurística del resultado (R20); default retrocompatible.
+    result_type: ResultType = "desconocido"
 
 
 @dataclass
@@ -129,6 +135,8 @@ class GrantOpportunity:
     scope: Claim
     url: Claim
     overall_status: VerificationStatus = VerificationStatus.NOT_FOUND
+    # Pre-clasificación heurística (R20): el mejor tipo de los hits de esta convocatoria.
+    result_type: ResultType = "desconocido"
 
 
 # ---------------------------------------------------------------------------

@@ -42,6 +42,7 @@ from agente_ong.research.models import (
 )
 from agente_ong.research.sources.base import SearchSource
 from agente_ong.research.textclean import clean_text, snippet
+from agente_ong.research.triage import best_result_type, classify_hit
 from agente_ong.research.urlnorm import normalize_url
 from agente_ong.research.verification import VerificationPolicy, dedupe_refs
 
@@ -325,6 +326,9 @@ class ResearchGraph:
             deadline = self._classified(Claim(field="plazo", is_critical=True), [])
             scope = self._classified(Claim(field="ambito"), [])
 
+            # R20: pre-clasificación heurística — el mejor tipo de los hits del grupo.
+            result_type = best_result_type([classify_hit(h) for h in group])
+
             opportunities.append(
                 GrantOpportunity(
                     title=title,
@@ -334,6 +338,7 @@ class ResearchGraph:
                     scope=scope,
                     url=url_claim,
                     overall_status=title.status,
+                    result_type=result_type,
                 )
             )
         return opportunities
