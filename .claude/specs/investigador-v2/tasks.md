@@ -48,7 +48,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
   - _Leverage: src/agente_ong/research/graph.py (_active_sources)_
   - _Requirements: 15.1, 15.2_
 
-- [ ] 4. Tests de exclusión por modo + TED fuera de la UI
+- [x] 4. Tests de exclusión por modo + TED fuera de la UI
   - Files: tests/research/test_graph_flow.py, src/agente_ong/ui/app.py,
     tests/ui/test_app_smoke.py
   - Tests: en mode="calls" una fuente con excluded_modes={"calls"} no se consulta; sin

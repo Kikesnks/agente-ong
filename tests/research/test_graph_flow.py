@@ -199,6 +199,38 @@ def test_derive_queries_only_combined_when_all_terms_single_word() -> None:
     assert texts == ["agua cultura"]
 
 
+# --- Exclusión de fuentes por modo (R15, investigador-v2) ---
+
+
+def test_source_with_excluded_mode_is_not_consulted_in_that_mode(db_path: Path) -> None:
+    # El caso real es TED (excluded_modes={"calls"}); aquí con una fake equivalente.
+    licitaciones = FakeSearchSource(
+        name="ted",
+        is_official=True,
+        hits=[make_hit("https://ted.eu/lic1", source_name="ted", title="Licitación")],
+    )
+    licitaciones.excluded_modes = frozenset({"calls"})
+    bdns = FakeSearchSource(
+        name="bdns",
+        is_official=True,
+        hits=[make_hit("https://bo.es/c1", source_name="bdns", title="C1", is_official=True)],
+    )
+
+    with _investigador([licitaciones, bdns, FakeFetchSource()], db_path) as inv:
+        report = inv.run(_calls_request())
+
+    assert licitaciones.search_calls == [], "la fuente excluida del modo no se consulta"
+    assert bdns.search_calls, "las demás fuentes siguen consultándose"
+    assert [o.url.value for o in report.opportunities] == ["https://bo.es/c1"]
+
+
+def test_source_without_excluded_modes_behaves_as_before(db_path: Path) -> None:
+    fuente = FakeSearchSource(name="bdns", is_official=True, hits=[])
+    with _investigador([fuente, FakeFetchSource()], db_path) as inv:
+        inv.run(_calls_request())
+    assert fuente.search_calls, "default excluded_modes vacío => sin cambios"
+
+
 # --- Selección de fuentes y URLs directas (Requirements 9.1-9.4) ---
 
 

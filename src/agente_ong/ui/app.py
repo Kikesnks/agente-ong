@@ -35,9 +35,9 @@ _POLL_MS = 2000
 
 # Fuentes que la UI ofrece activar/desactivar (R9.2). Espeja las que construye
 # Investigador._default_sources; la UI solo conoce el NOMBRE y una etiqueta legible.
+# TED no se ofrece (R15.3, investigador-v2): publica licitaciones, no subvenciones.
 _SOURCE_LABELS = {
     "bdns": "BDNS — subvenciones de España (oficial)",
-    "ted": "TED — licitaciones de la UE (oficial)",
     "tavily": "Búsqueda web (Tavily)",
     "firecrawl": "Lectura de páginas y URLs directas (Firecrawl)",
 }
