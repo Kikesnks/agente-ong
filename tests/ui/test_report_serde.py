@@ -54,6 +54,7 @@ def _sample_report() -> ResearchReport:
             sources=[official, unofficial],
         ),
         overall_status=VerificationStatus.VERIFIED,
+        result_type="convocatoria_probable",
     )
     return ResearchReport(
         mode="calls",
@@ -113,6 +114,23 @@ def test_round_trip_preserves_status_enums_and_source_flags() -> None:
 def test_round_trip_of_empty_report() -> None:
     report = ResearchReport(mode="training")
     assert report_from_dict(report_to_dict(report)) == report
+
+
+# --- R20: result_type en el serde (round-trip + retrocompatibilidad) ---
+
+
+def test_result_type_survives_round_trip() -> None:
+    restored = report_from_dict(report_to_dict(_sample_report()))
+    assert restored.opportunities[0].result_type == "convocatoria_probable"
+
+
+def test_pre_v2_dict_without_result_type_loads_as_desconocido() -> None:
+    # Un informe persistido ANTES de v2 no tiene la clave; debe cargar sin romper.
+    data = report_to_dict(_sample_report())
+    for opp in data["opportunities"]:
+        del opp["result_type"]
+    restored = report_from_dict(data)
+    assert restored.opportunities[0].result_type == "desconocido"
 
 
 # --- Markdown (R7.1, R7.2) ---

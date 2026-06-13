@@ -131,7 +131,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
   - _Leverage: src/agente_ong/research/sources/ (name por fuente)_
   - _Requirements: 20.1, 20.3, 16.5_
 
-- [ ] 12. Tests de triage + serde retrocompatible + agrupación en la vista
+- [x] 12. Tests de triage + serde retrocompatible + agrupación en la vista
   - Files: tests/research/test_triage.py, src/agente_ong/ui/report_serde.py,
     src/agente_ong/ui/report_view.py (+ sus tests en tests/ui/)
   - Tests de heurística por casos; serde con `data.get("result_type", "desconocido")`

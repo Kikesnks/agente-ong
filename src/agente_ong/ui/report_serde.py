@@ -52,6 +52,7 @@ def report_to_dict(report: ResearchReport) -> dict:
 def _opp_to_dict(opp: GrantOpportunity) -> dict:
     data = {name: _claim_to_dict(getattr(opp, name)) for name in _OPP_CLAIM_FIELDS}
     data["overall_status"] = opp.overall_status.value
+    data["result_type"] = opp.result_type  # R20
     return data
 
 
@@ -122,7 +123,10 @@ def report_from_dict(data: dict) -> ResearchReport:
 def _opp_from_dict(data: dict) -> GrantOpportunity:
     claims = {name: _claim_from_dict(data[name]) for name in _OPP_CLAIM_FIELDS}
     return GrantOpportunity(
-        overall_status=VerificationStatus(data["overall_status"]), **claims
+        overall_status=VerificationStatus(data["overall_status"]),
+        # R20 retrocompatible: los informes persistidos antes de v2 no traen el campo.
+        result_type=data.get("result_type", "desconocido"),
+        **claims,
     )
 
 

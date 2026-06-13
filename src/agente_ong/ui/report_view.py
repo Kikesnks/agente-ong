@@ -41,6 +41,20 @@ def sort_opportunities(opportunities: list[GrantOpportunity]) -> list[GrantOppor
     return sorted(opportunities, key=lambda opp: _STATUS_RANK[opp.overall_status])
 
 
+def partition_by_actionability(
+    opportunities: list[GrantOpportunity],
+) -> tuple[list[GrantOpportunity], list[GrantOpportunity]]:
+    """Separa lo accionable del material informativo (R20.2).
+
+    Devuelve `(accionables, informativos)` preservando el orden de entrada: los
+    `documento_informativo` (Tavily sin señal de convocatoria) van al segundo grupo; las
+    convocatorias probables y las de tipo desconocido, al primero.
+    """
+    actionable = [o for o in opportunities if o.result_type != "documento_informativo"]
+    informational = [o for o in opportunities if o.result_type == "documento_informativo"]
+    return actionable, informational
+
+
 def filter_opportunities(
     opportunities: list[GrantOpportunity],
     *,
@@ -113,7 +127,9 @@ def render_report(report: ResearchReport, *, key: str = "report") -> None:
     """
     import streamlit as st  # import perezoso: las funciones puras no requieren Streamlit
 
-    opportunities = sort_opportunities(report.opportunities)
+    ordered = sort_opportunities(report.opportunities)
+    # R20.2: el material informativo (no convocatorias) se presenta en una sección aparte.
+    opportunities, informational = partition_by_actionability(ordered)
 
     if opportunities:
         st.caption(f"{len(opportunities)} convocatoria(s), ordenadas de más a menos fiable.")
@@ -158,6 +174,17 @@ def render_report(report: ResearchReport, *, key: str = "report") -> None:
                         st.caption(f"Fuente(s): {urls}")
     else:
         st.info("La investigación no encontró convocatorias.")
+
+    if informational:
+        st.subheader("Material informativo (no convocatorias)")
+        st.caption(
+            "Documentos relacionados (estudios, noticias, páginas) que no parecen "
+            "convocatorias abiertas. Útiles como contexto."
+        )
+        for opp in informational:
+            title = opp.title.value or "(sin título)"
+            url = opp.url.value
+            st.markdown(f"- [{title}]({url})" if url else f"- {title}")
 
     if report.unresolved:
         st.subheader("Necesito tu ayuda")

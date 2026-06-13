@@ -133,11 +133,17 @@ def test_research_flow_renders_sorted_report(app: AppTest, fake_sources: list) -
     app.run()  # rerun: la UI recoge el run persistido y renderiza el informe
     assert not app.exception, app.exception[0].value
 
-    # Informe ordenado por fiabilidad: la oficial (sin cruzar) antes que la no verificada.
+    # La convocatoria accionable (BDNS, oficial) se renderiza como expander con su estado.
     labels = [e.label for e in app.expander if "—" in str(e.label)]
-    assert len(labels) == 2
+    assert len(labels) == 1
     assert "Oficial" in labels[0] and "oficial (sin cruzar)" in labels[0]
-    assert "Web general" in labels[1] and "Sin verificar" in labels[1]
+
+    # R20.2: el resultado de Tavily sin señal de convocatoria va a "Material informativo"
+    # (sección aparte, no como convocatoria accionable).
+    subheaders = " ".join(str(s.value) for s in app.subheader)
+    assert "Material informativo" in subheaders
+    all_md = " ".join(str(m.value) for m in app.markdown)
+    assert "Web general" in all_md
 
     # Descarga del informe disponible (R7.1).
     assert len(app.get("download_button")) == 1

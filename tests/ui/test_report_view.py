@@ -8,7 +8,12 @@ _Requirements: 11.1, 11.2, 11.3, 11.4_
 from __future__ import annotations
 
 from agente_ong.research.models import Claim, GrantOpportunity, VerificationStatus
-from agente_ong.ui.report_view import STATUS_ORDER, filter_opportunities, sort_opportunities
+from agente_ong.ui.report_view import (
+    STATUS_ORDER,
+    filter_opportunities,
+    partition_by_actionability,
+    sort_opportunities,
+)
 
 
 def _opp(
@@ -17,6 +22,7 @@ def _opp(
     *,
     deadline: str | None = None,
     amount: str | None = None,
+    result_type: str = "desconocido",
 ) -> GrantOpportunity:
     return GrantOpportunity(
         title=Claim(field="titulo", value=title, status=status),
@@ -26,6 +32,7 @@ def _opp(
         scope=Claim(field="ambito"),
         url=Claim(field="url", value=f"https://x.es/{title}"),
         overall_status=status,
+        result_type=result_type,
     )
 
 
@@ -134,3 +141,27 @@ def test_combined_with_status_filter() -> None:
         opps, status=VerificationStatus.VERIFIED, min_year=2025, min_amount=50_000
     )
     assert _titles(filtered) == ["v-ok"]
+
+
+# --- Partición por accionabilidad (R20.2) ---
+
+
+def test_partition_separates_informational_from_actionable() -> None:
+    a = _opp("conv", VerificationStatus.OFFICIAL_UNCROSSED, result_type="convocatoria_probable")
+    b = _opp("desc", VerificationStatus.NOT_FOUND, result_type="desconocido")
+    c = _opp("info", VerificationStatus.UNCROSSED_UNVERIFIED, result_type="documento_informativo")
+
+    actionable, informational = partition_by_actionability([a, b, c])
+    assert _titles(actionable) == ["conv", "desc"]  # probable + desconocido
+    assert _titles(informational) == ["info"]
+
+
+def test_partition_preserves_order() -> None:
+    opps = [
+        _opp("i1", VerificationStatus.VERIFIED, result_type="documento_informativo"),
+        _opp("a1", VerificationStatus.VERIFIED, result_type="convocatoria_probable"),
+        _opp("i2", VerificationStatus.VERIFIED, result_type="documento_informativo"),
+    ]
+    actionable, informational = partition_by_actionability(opps)
+    assert _titles(actionable) == ["a1"]
+    assert _titles(informational) == ["i1", "i2"]
