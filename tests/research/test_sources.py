@@ -13,6 +13,7 @@ from agente_ong.research.models import SearchQuery
 from agente_ong.research.sources.base import with_retry
 from agente_ong.research.sources.bdns import BdnsSource
 from agente_ong.research.sources.firecrawl import FirecrawlSource
+from agente_ong.research.sources.reader import HttpReaderSource
 from agente_ong.research.sources.tavily import TavilySource
 from agente_ong.research.sources.ted import TedSource
 
@@ -446,6 +447,132 @@ def test_firecrawl_does_not_retry_itself():
     assert failing.n == 1
 
 
+# --- HttpReaderSource (no oficial, fetch, lector propio sin créditos — R23) ---
+
+
+class _FakeHtmlResponse:
+    def __init__(self, text, status_code=200):
+        self.text = text
+        self._status_code = status_code
+
+    def raise_for_status(self):
+        if self._status_code >= 400:
+            raise RuntimeError(f"HTTP {self._status_code}")
+
+
+class _FakeHtmlClient:
+    """Cliente HTTP falso que devuelve `text`/`status_code` fijos por GET."""
+
+    def __init__(self, text, status_code=200):
+        self._text = text
+        self._status_code = status_code
+        self.calls = []
+
+    def get(self, url, **kwargs):
+        self.calls.append((url, kwargs))
+        return _FakeHtmlResponse(self._text, self._status_code)
+
+
+# Página real con contenido útil y enlaces (forma representativa de una convocatoria).
+_READER_PAGE_WITH_CONTENT = """<html><head><title>Convocatoria de ayudas</title></head>
+<body>
+<nav>Inicio | Skip to content | Aviso de cookies | ES / CAT / EN</nav>
+<article>
+<h1>Convocatoria de subvenciones 2026</h1>
+<p>Esta es la convocatoria de subvenciones para proyectos de cooperacion internacional.
+El plazo de presentacion de solicitudes finaliza el 30 de septiembre de 2026. Las bases
+reguladoras detallan los requisitos de los beneficiarios y la dotacion presupuestaria
+disponible para esta convocatoria de ayudas.</p>
+<a href="/bases">Bases reguladoras</a>
+<a href="https://otro.example/anexo">Anexo</a>
+<a href="#top">Volver arriba</a>
+</article>
+<footer>Politica de privacidad | Aviso legal | Suscribete a nuestro boletin</footer>
+</body></html>"""
+
+# HTML real de una SPA (Angular) sin contenido server-side: trafilatura no extrae nada
+# (capturado en la verificación en vivo de R23.6 contra una página de detalle de BDNS).
+_READER_PAGE_SPA_SHELL = """<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Sistema Nacional de Publicidad de Subvenciones y Ayudas Publicas</title>
+  <base href="/bdnstrans/">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="background">
+  <app-root></app-root>
+  <script src="main.js" type="module"></script>
+</body>
+</html>"""
+
+
+def test_reader_extracts_text_and_outbound_links():
+    client = _FakeHtmlClient(_READER_PAGE_WITH_CONTENT)
+    src = HttpReaderSource(ResearchConfig(), client=client)
+
+    doc = src.fetch("https://x.example/conv")
+
+    assert "convocatoria de subvenciones" in doc.content_text.lower()
+    assert "plazo de presentacion" in doc.content_text.lower()
+    # Plantilla web (cookies/nav/footer) descartada por trafilatura.
+    assert "aviso de cookies" not in doc.content_text.lower()
+    assert "politica de privacidad" not in doc.content_text.lower()
+    assert doc.title == "Convocatoria de ayudas"
+    assert doc.content_type == "text/html"
+    assert doc.raw_bytes is None
+    # Enlaces absolutos http(s), sin fragmentos, deduplicados.
+    assert doc.outbound_links == ["https://x.example/bases", "https://otro.example/anexo"]
+
+
+def test_reader_caps_outbound_links_at_50():
+    links_html = "".join(f'<a href="https://x.example/p{i}">p{i}</a>' for i in range(80))
+    html = f"<html><body><article>{_READER_PAGE_WITH_CONTENT}{links_html}</article></body></html>"
+    src = HttpReaderSource(ResearchConfig(), client=_FakeHtmlClient(html))
+
+    doc = src.fetch("https://x.example/conv")
+
+    assert len(doc.outbound_links) == 50
+
+
+def test_reader_empty_extraction_is_failure():
+    # HTML real (SPA sin contenido server-side): extracción vacía => fallo, no se inventa nada.
+    src = HttpReaderSource(ResearchConfig(), client=_FakeHtmlClient(_READER_PAGE_SPA_SHELL))
+    with pytest.raises(ValueError):
+        src.fetch("https://www.subvenciones.gob.es/bdnstrans/GE/es/convocatoria/912840")
+
+
+def test_reader_http_error_is_failure_without_extraction(monkeypatch):
+    # Un 503 (p.ej. WAF) se descarta por raise_for_status ANTES de pasar por trafilatura,
+    # aunque el cuerpo de error tenga texto.
+    client = _FakeHtmlClient("Error 503 - Service Unavailable", status_code=503)
+    src = HttpReaderSource(ResearchConfig(), client=client, retry_exceptions=(RuntimeError,))
+    monkeypatch.setattr("agente_ong.research.sources.base.time.sleep", lambda _s: None)
+    with pytest.raises(RuntimeError):
+        src.fetch("https://bloqueado.example/conv")
+
+
+def test_reader_retries_then_succeeds(monkeypatch):
+    monkeypatch.setattr("agente_ong.research.sources.base.time.sleep", lambda _s: None)
+
+    class Flaky:
+        def __init__(self):
+            self.n = 0
+
+        def get(self, url, **kwargs):
+            self.n += 1
+            if self.n < 3:
+                raise ConnectionError("red caída")
+            return _FakeHtmlResponse(_READER_PAGE_WITH_CONTENT)
+
+    flaky = Flaky()
+    src = HttpReaderSource(ResearchConfig(), client=flaky, retry_exceptions=(ConnectionError,))
+    doc = src.fetch("https://x.example/conv")
+
+    assert flaky.n == 3
+    assert "convocatoria de subvenciones" in doc.content_text.lower()
+
+
 # --- BdnsSource (oficial, search) ---
 
 
@@ -654,5 +781,14 @@ def test_official_flags():
     cfg = ResearchConfig()
     assert TavilySource(cfg, client=object()).is_official is False
     assert FirecrawlSource(cfg, client=object()).is_official is False
+    assert HttpReaderSource(cfg, client=object()).is_official is False
     assert BdnsSource(cfg, client=object()).is_official is True
     assert TedSource(cfg, client=object()).is_official is True
+
+
+def test_reader_name_and_capabilities():
+    src = HttpReaderSource(ResearchConfig(), client=object())
+    assert src.name == "reader"
+    assert src.capabilities == frozenset({"fetch"})
+    assert src.supports("fetch") is True
+    assert src.supports("search") is False
