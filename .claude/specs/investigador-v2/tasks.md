@@ -154,7 +154,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
   - _Leverage: src/agente_ong/research/sources/bdns.py (_FakeHttp-compatible, with_retry)_
   - _Requirements: 19.1, 19.2, 19.3, 19.4_
 
-- [ ] 14. Tests del detalle BDNS
+- [x] 14. Tests del detalle BDNS
   - Files: tests/research/test_sources.py, tests/research/test_graph_flow.py
   - Con `_FakeHttp` multi-respuesta: el detalle rellena importe/plazo; se respeta el
     límite de llamadas; NO se llama al detalle de convocatorias descartadas por min_year;

@@ -283,6 +283,100 @@ def test_tavily_retries_then_succeeds():
     assert flaky.n == 3 and hits[0].url == "https://ok.es"
 
 
+# --- R19: detalle de BDNS (importe y plazo) ---
+
+
+class _RoutingHttp:
+    """Cliente fake que enruta GET por path: búsqueda vs detalle, y cuenta cada uno."""
+
+    def __init__(self, search_data, detail_by_num=None, *, detail_fails=False):
+        self._search_data = search_data
+        self._detail_by_num = detail_by_num or {}
+        self._detail_fails = detail_fails
+        self.search_calls = 0
+        self.detail_calls = 0
+        self.detail_nums: list[str] = []
+
+    def get(self, url, **kw):
+        if url.endswith("/busqueda"):
+            self.search_calls += 1
+            return _FakeResponse(self._search_data)
+        # detalle
+        self.detail_calls += 1
+        num = str(kw.get("params", {}).get("numConv"))
+        self.detail_nums.append(num)
+        if self._detail_fails:
+            raise ConnectionError("detalle caído")
+        return _FakeResponse(self._detail_by_num.get(num, {}))
+
+
+def _search_page(*numeros, fecha="2026-01-10"):
+    return {
+        "content": [
+            {"numeroConvocatoria": n, "descripcion": f"Conv {n}", "fechaRecepcion": fecha}
+            for n in numeros
+        ]
+    }
+
+
+def test_bdns_detail_fills_amount_and_deadline():
+    http = _RoutingHttp(
+        _search_page("100"),
+        {
+            "100": {
+                "presupuestoTotal": 307600,
+                "fechaFinSolicitud": "2026-12-20",
+                "abierto": True,
+            }
+        },
+    )
+    src = BdnsSource(ResearchConfig(), client=http)
+    hit = src.search(SearchQuery(text="cultura"))[0]
+    assert hit.amount == "307.600 €"
+    assert hit.deadline == "hasta 2026-12-20 (abierto)"
+    assert http.detail_calls == 1
+
+
+def test_bdns_detail_call_limit_is_respected():
+    http = _RoutingHttp(_search_page("1", "2", "3", "4", "5"))
+    src = BdnsSource(ResearchConfig(), client=http, max_detail_calls=2)
+    src.search(SearchQuery(text="x"))
+    assert http.detail_calls == 2  # solo los 2 primeros, aunque haya 5 hits
+
+
+def test_bdns_min_year_filters_before_detail_calls():
+    # Dos convocatorias: una de 2023 (descartada por min_year) y una de 2026.
+    data = {
+        "content": [
+            {"numeroConvocatoria": "viejo", "descripcion": "V", "fechaRecepcion": "2023-05-01"},
+            {"numeroConvocatoria": "nuevo", "descripcion": "N", "fechaRecepcion": "2026-05-01"},
+        ]
+    }
+    http = _RoutingHttp(data, {"nuevo": {"presupuestoTotal": 1000}})
+    src = BdnsSource(ResearchConfig(), client=http, min_year=2025)
+    hits = src.search(SearchQuery(text="x"))
+    # Solo se pide el detalle de la superviviente (no se gastan llamadas en descartes).
+    assert http.detail_calls == 1 and http.detail_nums == ["nuevo"]
+    assert [h.title for h in hits] == ["N"]
+
+
+def test_bdns_detail_failure_keeps_hit_without_amount_deadline():
+    http = _RoutingHttp(_search_page("100"), detail_fails=True)
+    src = BdnsSource(
+        ResearchConfig(), client=http, retry_exceptions=(ConnectionError,)
+    )
+    hits = src.search(SearchQuery(text="x"))
+    assert len(hits) == 1  # el fallo del detalle no descarta el hit
+    assert hits[0].amount is None and hits[0].deadline is None
+
+
+def test_bdns_detail_without_fields_leaves_none():
+    http = _RoutingHttp(_search_page("100"), {"100": {"descripcion": "sin importe ni plazo"}})
+    src = BdnsSource(ResearchConfig(), client=http)
+    hit = src.search(SearchQuery(text="x"))[0]
+    assert hit.amount is None and hit.deadline is None
+
+
 # --- FirecrawlSource (no oficial, fetch) ---
 
 

@@ -199,6 +199,44 @@ def test_derive_queries_only_combined_when_all_terms_single_word() -> None:
     assert texts == ["agua cultura"]
 
 
+# --- Detalle BDNS: importe y plazo trazables en el informe (R19, investigador-v2) ---
+
+
+def test_bdns_amount_and_deadline_reach_the_report(db_path: Path) -> None:
+    # Una fuente fake que ya trae amount/deadline en el hit (como hará BdnsSource tras el
+    # detalle): el informe debe mostrarlos como OFFICIAL_UNCROSSED y trazables a su URL.
+    hit = make_hit(
+        "https://bo.es/c1", source_name="bdns", title="Conv 1", is_official=True
+    )
+    hit.amount = "307.600 €"
+    hit.deadline = "hasta 2026-12-20 (abierto)"
+    bdns = FakeSearchSource(name="bdns", is_official=True, hits=[hit])
+
+    with _investigador([bdns, FakeFetchSource()], db_path) as inv:
+        report = inv.run(_calls_request())
+
+    opp = report.opportunities[0]
+    assert opp.amount.value == "307.600 €"
+    assert opp.deadline.value == "hasta 2026-12-20 (abierto)"
+    assert opp.amount.status == VerificationStatus.OFFICIAL_UNCROSSED
+    assert opp.amount.sources and opp.amount.sources[0].url == "https://bo.es/c1"
+    assert opp.deadline.sources[0].is_official is True
+
+
+def test_missing_amount_deadline_stay_not_found(db_path: Path) -> None:
+    # Sin datos de detalle (hit sin amount/deadline): se mantiene NOT_FOUND, nunca inventa.
+    bdns = FakeSearchSource(
+        name="bdns",
+        is_official=True,
+        hits=[make_hit("https://bo.es/c2", source_name="bdns", title="C2", is_official=True)],
+    )
+    with _investigador([bdns, FakeFetchSource()], db_path) as inv:
+        report = inv.run(_calls_request())
+    opp = report.opportunities[0]
+    assert opp.amount.value is None and opp.amount.status == VerificationStatus.NOT_FOUND
+    assert opp.deadline.value is None
+
+
 # --- Limpieza y acotado del contenido en el informe (R18, investigador-v2) ---
 
 
