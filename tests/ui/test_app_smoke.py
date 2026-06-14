@@ -55,7 +55,7 @@ def fake_sources() -> list:
         name="tavily",
         hits=[make_hit("https://web.example/c3", source_name="tavily", title="Web general")],
     )
-    return [bdns, tavily, FakeFetchSource(name="firecrawl")]
+    return [bdns, tavily, FakeFetchSource(name="reader")]
 
 
 @pytest.fixture

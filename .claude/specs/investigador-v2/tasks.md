@@ -177,7 +177,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
 
 ### R23 — Lectura profunda sin dependencia de créditos
 
-- [ ] 16. HttpReaderSource (httpx + trafilatura) con verificación en vivo previa
+- [x] 16. HttpReaderSource (httpx + trafilatura) con verificación en vivo previa
   - Files: src/agente_ong/research/sources/reader.py, requirements.txt,
     tests/research/test_sources.py
   - PRIMERO (23.6): verificación en vivo del lector contra 2-3 URLs reales del
@@ -190,7 +190,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
     src/agente_ong/research/sources/firecrawl.py (mapeo a FetchedDocument)_
   - _Requirements: 23.1, 23.6_
 
-- [ ] 17. Orquestación primario/fallback, gating por result_type y límites
+- [x] 17. Orquestación primario/fallback, gating por result_type y límites
   - Files: src/agente_ong/research/config.py, src/agente_ong/research/graph.py,
     src/agente_ong/research/investigador.py, src/agente_ong/ui/app.py
   - `reader_max_pages` (default 15) y `firecrawl_max_calls` (default 0) en ResearchConfig
@@ -203,7 +203,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
   - _Leverage: src/agente_ong/research/sources/reader.py (tarea 16)_
   - _Requirements: 23.2, 23.3, 23.4, 23.5_
 
-- [ ] 18. Tests de integración del flujo de lectura v2
+- [x] 18. Tests de integración del flujo de lectura v2
   - Files: tests/research/test_graph_flow.py, tests/ui/test_app_smoke.py
   - Casos: solo los convocatoria_probable consumen lectura profunda (los
     documento_informativo no); direct_urls se leen siempre; fallo del primario con

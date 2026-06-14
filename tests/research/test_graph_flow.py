@@ -366,3 +366,103 @@ def test_direct_url_is_read_with_all_search_sources_disabled(db_path: Path) -> N
 
     assert bdns.search_calls == [] and tavily.search_calls == []
     assert fetch.fetch_calls == ["https://ong.example/directa"]
+
+
+# --- Lectura profunda v2: gating por result_type, fallback y límites (R23) ---
+
+
+def test_read_deep_only_fetches_convocatoria_probable_hits(db_path: Path) -> None:
+    # bdns -> convocatoria_probable (R20); tavily sin señales -> documento_informativo.
+    # Solo el primero consume lectura profunda (23.3); el segundo igualmente aparece en
+    # el informe (agrupación por URL no depende del gating de lectura).
+    bdns = FakeSearchSource(
+        name="bdns",
+        is_official=True,
+        hits=[make_hit("https://bo.es/c1", source_name="bdns", title="C1", is_official=True)],
+    )
+    tavily = FakeSearchSource(
+        name="tavily",
+        hits=[make_hit("https://web.example/info", source_name="tavily", title="Articulo")],
+    )
+    fetch = FakeFetchSource(
+        documents={"https://bo.es/c1": make_document("https://bo.es/c1", text="detalle c1")}
+    )
+
+    with _investigador([bdns, tavily, fetch], db_path) as inv:
+        report = inv.run(_calls_request())
+
+    assert fetch.fetch_calls == ["https://bo.es/c1"]
+    by_url = {opp.url.value: opp for opp in report.opportunities}
+    assert by_url["https://bo.es/c1"].result_type == "convocatoria_probable"
+    assert by_url["https://web.example/info"].result_type == "documento_informativo"
+
+
+def test_primary_failure_without_fallback_keeps_hit_and_reports_failure(db_path: Path) -> None:
+    # firecrawl_max_calls=0 (default, 23.4): el fallback nunca se invoca; el fallo del
+    # primario se refleja en failed_sources y el hit conserva sus datos (23.5).
+    bdns = FakeSearchSource(
+        name="bdns",
+        is_official=True,
+        hits=[make_hit("https://bo.es/c1", source_name="bdns", title="C1", is_official=True)],
+    )
+    reader = FakeFetchSource(name="reader", fail=ConnectionError("boom"))
+    firecrawl = FakeFetchSource(name="firecrawl")
+
+    config = ResearchConfig(max_depth=1, db_path=db_path)
+    with Investigador(config, sources=[bdns, reader, firecrawl]) as inv:
+        report = inv.run(_calls_request())
+
+    assert reader.fetch_calls == ["https://bo.es/c1"]
+    assert firecrawl.fetch_calls == []
+    assert any(f.source_name == "reader" for f in report.failed_sources)
+    assert report.opportunities[0].url.value == "https://bo.es/c1"
+
+
+def test_fallback_invoked_up_to_firecrawl_max_calls(db_path: Path) -> None:
+    # firecrawl_max_calls=1 (23.2/23.4): el fallback se invoca como máximo N veces, una
+    # por investigación, no por URL.
+    bdns = FakeSearchSource(
+        name="bdns",
+        is_official=True,
+        hits=[
+            make_hit("https://bo.es/c1", source_name="bdns", title="C1", is_official=True),
+            make_hit("https://bo.es/c2", source_name="bdns", title="C2", is_official=True),
+        ],
+    )
+    reader = FakeFetchSource(name="reader", fail=ConnectionError("boom"))
+    firecrawl = FakeFetchSource(
+        name="firecrawl",
+        documents={"https://bo.es/c1": make_document("https://bo.es/c1", text="fallback c1")},
+    )
+
+    config = ResearchConfig(max_depth=1, db_path=db_path, firecrawl_max_calls=1)
+    with Investigador(config, sources=[bdns, reader, firecrawl]) as inv:
+        report = inv.run(_calls_request())
+
+    assert reader.fetch_calls == ["https://bo.es/c1", "https://bo.es/c2"]
+    assert firecrawl.fetch_calls == ["https://bo.es/c1"]  # cupo agotado tras la primera
+    assert sum(1 for f in report.failed_sources if f.source_name == "reader") == 2
+
+
+def test_reader_max_pages_limits_pages_fetched(db_path: Path) -> None:
+    # reader_max_pages (23.4) gana frente a max_pages (50 por defecto con max_depth=1).
+    bdns = FakeSearchSource(
+        name="bdns",
+        is_official=True,
+        hits=[
+            make_hit("https://bo.es/c1", source_name="bdns", title="C1", is_official=True),
+            make_hit("https://bo.es/c2", source_name="bdns", title="C2", is_official=True),
+        ],
+    )
+    fetch = FakeFetchSource(
+        documents={
+            "https://bo.es/c1": make_document("https://bo.es/c1", text="detalle c1"),
+            "https://bo.es/c2": make_document("https://bo.es/c2", text="detalle c2"),
+        }
+    )
+
+    config = ResearchConfig(max_depth=1, db_path=db_path, reader_max_pages=1)
+    with Investigador(config, sources=[bdns, fetch]) as inv:
+        inv.run(_calls_request())
+
+    assert fetch.fetch_calls == ["https://bo.es/c1"]
