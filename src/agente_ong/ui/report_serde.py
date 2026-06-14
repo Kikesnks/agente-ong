@@ -233,6 +233,64 @@ def report_to_markdown(report: ResearchReport) -> str:
     return "\n".join(lines)
 
 
+def report_to_markdown_summary(report: ResearchReport) -> str:
+    """Vista RESUMIDA del informe (R22.1): una ficha breve por convocatoria.
+
+    Por cada convocatoria accionable: título, organismo, importe, plazo, URL y estado de
+    verificación — pocas líneas. El material informativo (no convocatorias, R20) se lista
+    aparte solo con título y URL. Se genera del mismo informe que la vista detallada (22.4).
+    """
+    actionable = [o for o in report.opportunities if o.result_type != "documento_informativo"]
+    informational = [o for o in report.opportunities if o.result_type == "documento_informativo"]
+
+    lines: list[str] = ["# Informe de investigación (resumen)", ""]
+
+    if actionable:
+        lines.append(f"## Convocatorias ({len(actionable)})")
+        lines.append("")
+        for i, opp in enumerate(actionable, start=1):
+            lines.append(f"### {i}. {opp.title.value or '(sin título)'}")
+            lines.append(f"- **Organismo**: {_summary_value(opp.organism)}")
+            lines.append(f"- **Importe**: {_summary_value(opp.amount)}")
+            lines.append(f"- **Plazo**: {_summary_value(opp.deadline)}")
+            lines.append(f"- **URL**: {opp.url.value or '—'}")
+            lines.append(f"- **Verificación**: {_status_label(opp.overall_status)}")
+            lines.append("")
+    else:
+        lines.append("## Convocatorias")
+        lines.append("")
+        lines.append("No se encontraron convocatorias.")
+        lines.append("")
+
+    if informational:
+        lines.append("## Material informativo (no convocatorias)")
+        lines.append("")
+        for opp in informational:
+            title = opp.title.value or "(sin título)"
+            url = opp.url.value
+            lines.append(f"- [{title}]({url})" if url else f"- {title}")
+        lines.append("")
+
+    if report.unresolved:
+        lines.append("## Información no resuelta")
+        lines.append("")
+        for u in report.unresolved:
+            lines.append(f"- **{u.topic}**: {u.reason}")
+        lines.append("")
+
+    if report.failed_sources:
+        names = ", ".join(sorted({f.source_name for f in report.failed_sources}))
+        lines.append(f"## Fuentes con problemas: {names}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def _summary_value(claim: Claim) -> str:
+    """Valor de un claim para la ficha resumida: el dato o '—' si no se encontró."""
+    return claim.value if claim.value is not None else "—"
+
+
 def _status_label(status: VerificationStatus) -> str:
     return _STATUS_LABELS.get(status, status.value)
 

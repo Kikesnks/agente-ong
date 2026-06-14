@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 
 from agente_ong.research.models import GrantOpportunity, ResearchReport, VerificationStatus
-from agente_ong.ui.report_serde import report_to_markdown
+from agente_ong.ui.report_serde import report_to_markdown, report_to_markdown_summary
 
 # Orden canónico de presentación: de más a menos fiable (R11.1).
 STATUS_ORDER: tuple[VerificationStatus, ...] = (
@@ -198,14 +198,28 @@ def render_report(report: ResearchReport, *, key: str = "report") -> None:
             for f in report.failed_sources:
                 st.text(f"{f.source_name}: {f.error}")
 
-    # Descarga (R7): sin resultados ni incidencias no se ofrece un archivo vacío engañoso.
-    if opportunities or report.unresolved or report.failed_sources:
-        st.download_button(
-            "Descargar informe (Markdown)",
-            data=report_to_markdown(report),
-            file_name="informe_investigacion.md",
+    # Vista detallada bajo demanda (R22): el render de arriba es la vista RESUMIDA por
+    # defecto; el informe completo (con todos los datos y fuentes) queda en un expander.
+    if opportunities or informational:
+        with st.expander("Ver informe detallado"):
+            st.markdown(report_to_markdown(report))
+
+    # Descargas (R7/R22.3): sin contenido no se ofrece un archivo vacío engañoso (R7.2).
+    if opportunities or informational or report.unresolved or report.failed_sources:
+        col_resumen, col_detalle = st.columns(2)
+        col_resumen.download_button(
+            "Descargar resumen (Markdown)",
+            data=report_to_markdown_summary(report),
+            file_name="informe_resumen.md",
             mime="text/markdown",
-            key=f"{key}-download",
+            key=f"{key}-download-summary",
+        )
+        col_detalle.download_button(
+            "Descargar informe detallado (Markdown)",
+            data=report_to_markdown(report),
+            file_name="informe_detallado.md",
+            mime="text/markdown",
+            key=f"{key}-download-full",
         )
     else:
         st.caption("Descarga no disponible: la investigación no produjo contenido (R7.2).")

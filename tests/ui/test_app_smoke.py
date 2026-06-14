@@ -145,5 +145,5 @@ def test_research_flow_renders_sorted_report(app: AppTest, fake_sources: list) -
     all_md = " ".join(str(m.value) for m in app.markdown)
     assert "Web general" in all_md
 
-    # Descarga del informe disponible (R7.1).
-    assert len(app.get("download_button")) == 1
+    # Descargas disponibles (R22.3): resumen + detallado.
+    assert len(app.get("download_button")) == 2

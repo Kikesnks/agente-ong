@@ -165,7 +165,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
 
 ### R22 — Dos vistas del informe
 
-- [ ] 15. Vista resumida en serde y render con dos descargas
+- [x] 15. Vista resumida en serde y render con dos descargas
   - Files: src/agente_ong/ui/report_serde.py, src/agente_ong/ui/report_view.py,
     tests/ui/test_report_serde.py, tests/ui/test_app_smoke.py
   - `report_to_markdown_summary` (título/organismo/importe/plazo/URL/estado, pocas líneas

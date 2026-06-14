@@ -20,7 +20,12 @@ from agente_ong.research.models import (
     Unresolved,
     VerificationStatus,
 )
-from agente_ong.ui.report_serde import report_from_dict, report_to_dict, report_to_markdown
+from agente_ong.ui.report_serde import (
+    report_from_dict,
+    report_to_dict,
+    report_to_markdown,
+    report_to_markdown_summary,
+)
 
 
 def _ref(url: str = "https://bo.es/c1", *, official: bool = True) -> SourceRef:
@@ -153,4 +158,52 @@ def test_markdown_includes_unresolved_and_failed_sources_sections() -> None:
 
 def test_markdown_without_opportunities_says_so() -> None:
     md = report_to_markdown(ResearchReport(mode="calls"))
+    assert "No se encontraron convocatorias" in md
+
+
+# --- R22: vista resumida ---
+
+
+def test_summary_has_the_six_fields_and_is_short() -> None:
+    md = report_to_markdown_summary(_sample_report())
+    for label in ("Organismo", "Importe", "Plazo", "URL", "Verificación"):
+        assert label in md
+    assert "Ayudas cultura" in md  # título como encabezado
+    # Resumida = pocas líneas por convocatoria; mucho más corta que la detallada.
+    assert len(md.splitlines()) < len(report_to_markdown(_sample_report()).splitlines())
+
+
+def test_summary_and_detail_come_from_the_same_report() -> None:
+    # Ambas vistas se generan del mismo objeto, sin segunda investigación (R22.4).
+    report = _sample_report()
+    assert report_to_markdown_summary(report)  # no lanza
+    assert report_to_markdown(report)
+    # El título de la convocatoria aparece en las dos.
+    assert "Ayudas cultura" in report_to_markdown_summary(report)
+    assert "Ayudas cultura" in report_to_markdown(report)
+
+
+def test_summary_lists_informational_apart() -> None:
+    from agente_ong.research.models import Claim, GrantOpportunity
+
+    info = GrantOpportunity(
+        title=Claim(field="titulo", value="Estudio sobre pobreza"),
+        organism=Claim(field="organismo"),
+        amount=Claim(field="importe"),
+        deadline=Claim(field="plazo"),
+        scope=Claim(field="ambito"),
+        url=Claim(field="url", value="https://web.example/estudio"),
+        overall_status=VerificationStatus.UNCROSSED_UNVERIFIED,
+        result_type="documento_informativo",
+    )
+    report = ResearchReport(mode="calls", opportunities=[info])
+    md = report_to_markdown_summary(report)
+    assert "Material informativo" in md
+    assert "Estudio sobre pobreza" in md
+    # Sin convocatorias accionables, lo dice claramente.
+    assert "No se encontraron convocatorias" in md
+
+
+def test_summary_without_content_says_so() -> None:
+    md = report_to_markdown_summary(ResearchReport(mode="calls"))
     assert "No se encontraron convocatorias" in md
