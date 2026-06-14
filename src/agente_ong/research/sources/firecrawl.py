@@ -39,6 +39,9 @@ class FirecrawlSource(SearchSource):
     name = "firecrawl"
     is_official = False
     capabilities: frozenset[Capability] = frozenset({"fetch"})
+    # Fallback de configuración (R23): no aparece en el selector de fuentes de la UI, por
+    # lo que `enabled_sources` no debe excluirlo.
+    user_selectable = False
 
     def __init__(
         self,

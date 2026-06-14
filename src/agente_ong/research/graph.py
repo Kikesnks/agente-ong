@@ -165,6 +165,10 @@ class ResearchGraph:
                 except Exception as exc:  # noqa: BLE001 - se reporta, no se aborta
                     failed.append(FailedSource(source_name=source.name, error=str(exc)))
                     continue
+                # R20/23.3: se pre-clasifica cada hit aquí para que `read_deep` (que se
+                # ejecuta antes de `verify`) ya pueda usar `hit.result_type` en su gating.
+                for hit in results:
+                    hit.result_type = classify_hit(hit)
                 hits.extend(results)
 
         # No se deduplican los hits aquí a propósito: `verify` los agrupa por URL para la
@@ -181,8 +185,16 @@ class ResearchGraph:
     def read_deep(self, state: ResearchState) -> dict:
         """Profundiza leyendo las URLs de los hits y siguiendo sus enlaces relevantes.
 
-        Recorrido en anchura limitado por `DepthLimiter` (profundidad/páginas) y por el
-        ledger (no re-visita URLs ya vistas, evitando ciclos; Requirements 6.1, 6.2).
+        Recorrido en anchura limitado por `DepthLimiter` (profundidad/páginas), por
+        `reader_max_pages` (R23.4, gana el menor frente a `max_pages`) y por el ledger (no
+        re-visita URLs ya vistas, evitando ciclos; Requirements 6.1, 6.2).
+
+        R23.3: en modo "calls" la frontera solo se siembra con las `direct_urls` del
+        usuario (siempre) y los hits `result_type == "convocatoria_probable"`; los
+        enlaces salientes heredan la elegibilidad de su página origen (ya elegible al
+        estar en la frontera). En modo "training" el gating no aplica (R20 reserva
+        "documento_informativo"/"desconocido" para material que SÍ es relevante como
+        ejemplo de entrenamiento): todos los hits siembran la frontera, como antes de R23.
         """
         documents = list(state.get("documents", []))
         failed = list(state.get("failed_sources", []))
@@ -194,30 +206,38 @@ class ResearchGraph:
         fetch_sources = self._active_sources(state["request"], "fetch")
         if not fetch_sources:
             return {"documents": documents}
-        fetcher = fetch_sources[0]
+        primary, *fallbacks = fetch_sources
+        firecrawl_calls_left = self._config.firecrawl_max_calls
+        # R23.4: reader_max_pages coexiste con max_pages; gana el menor.
+        max_pages = min(self._limiter.max_pages, self._config.reader_max_pages)
 
-        # Frontera (url, profundidad). Las URLs directas del usuario y los hits están en el
-        # nivel 1; las directas van primero para que se lean aunque se agote el presupuesto
-        # de páginas (Requirement 9.1/9.4). El ledger evita la doble lectura si una URL
-        # directa coincide con un hit.
+        # Frontera (url, profundidad). Las URLs directas del usuario y los hits elegibles
+        # están en el nivel 1; las directas van primero para que se lean aunque se agote el
+        # presupuesto de páginas (Requirement 9.1/9.4). El ledger evita la doble lectura si
+        # una URL directa coincide con un hit.
         frontier: list[tuple[str, int]] = [
             (url, 1) for url in state["request"].direct_urls
         ]
-        frontier.extend((hit.url, 1) for hit in state.get("hits", []))
+        calls_mode = state["request"].mode == "calls"
+        frontier.extend(
+            (hit.url, 1)
+            for hit in state.get("hits", [])
+            if not calls_mode or hit.result_type == "convocatoria_probable"
+        )
 
         while frontier:
             url, level = frontier.pop(0)
             if self._ledger.seen(url, kind="url"):
                 continue
             # ¿Podemos descender un nivel más y leer otra página?
-            if not self._limiter.can_expand(level - 1, pages, queries_made):
+            if not self._limiter.can_expand(level - 1, pages, queries_made) or pages >= max_pages:
                 break
 
             self._ledger.mark_queried(url, kind="url")
-            try:
-                doc = fetcher.fetch(url)
-            except Exception as exc:  # noqa: BLE001 - se reporta, no se aborta
-                failed.append(FailedSource(source_name=fetcher.name, error=str(exc)))
+            doc, fetcher, firecrawl_calls_left = self._fetch_with_fallback(
+                url, primary, fallbacks, firecrawl_calls_left, failed
+            )
+            if doc is None:
                 self._ledger.record(url, kind="url", outcome="error")
                 continue
 
@@ -248,6 +268,37 @@ class ResearchGraph:
             "depth": depth_reached,
         }
 
+    @staticmethod
+    def _fetch_with_fallback(
+        url: str,
+        primary: SearchSource,
+        fallbacks: list[SearchSource],
+        firecrawl_calls_left: int,
+        failed: list[FailedSource],
+    ) -> tuple[FetchedDocument | None, SearchSource | None, int]:
+        """Lee `url` con `primary`; si falla, recurre a `fallbacks` mientras quede cupo.
+
+        R23.2: el primario es el lector propio (sin coste); el fallback (Firecrawl) se
+        invoca como máximo `firecrawl_calls_left` veces. R23.5: un fallo no descarta la
+        URL — devuelve `(None, None, cupo)` y el llamador lo registra como error sin
+        abortar el resto.
+        """
+        try:
+            return primary.fetch(url), primary, firecrawl_calls_left
+        except Exception as exc:  # noqa: BLE001 - se reporta, no se aborta
+            failed.append(FailedSource(source_name=primary.name, error=str(exc)))
+
+        for fallback in fallbacks:
+            if firecrawl_calls_left <= 0:
+                break
+            firecrawl_calls_left -= 1
+            try:
+                return fallback.fetch(url), fallback, firecrawl_calls_left
+            except Exception as exc:  # noqa: BLE001 - se reporta, no se aborta
+                failed.append(FailedSource(source_name=fallback.name, error=str(exc)))
+
+        return None, None, firecrawl_calls_left
+
     # --- Helpers ---
 
     def _active_sources(self, request: ResearchRequest, capability: str) -> list[SearchSource]:
@@ -255,7 +306,9 @@ class ResearchGraph:
 
         Una fuente cuyo `excluded_modes` incluye el modo de la investigación no se consulta
         (R15: TED fuera de subvenciones). `enabled_sources is None` => todas las fuentes
-        restantes (comportamiento previo a la UI, Requirement 9.2/9.3).
+        restantes (comportamiento previo a la UI, Requirement 9.2/9.3). Las fuentes con
+        `user_selectable=False` (R23: Firecrawl, fallback de configuración) nunca se
+        excluyen por `enabled_sources` — el usuario no las elige.
         """
         sources = [
             s
@@ -264,7 +317,11 @@ class ResearchGraph:
         ]
         if request.enabled_sources is None:
             return sources
-        return [s for s in sources if s.name in request.enabled_sources]
+        return [
+            s
+            for s in sources
+            if s.name in request.enabled_sources or not s.user_selectable
+        ]
 
     # --- Nodo: verify ---
 

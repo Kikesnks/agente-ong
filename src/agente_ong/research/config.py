@@ -104,6 +104,14 @@ class ResearchConfig:
     # --- Detalle de BDNS (R19, v2): nº máx. de llamadas al detalle por investigación ---
     bdns_max_detail_calls: int = 20
 
+    # --- Lectura profunda sin créditos (R23, v2) ---
+    # Máximo de páginas leídas en profundidad por investigación; coexiste con `max_pages`
+    # (gana el menor). El lector propio (HttpReaderSource) es el primario, sin coste.
+    reader_max_pages: int = 15
+    # Máximo de llamadas al fallback (Firecrawl) por investigación; 0 = nunca (coste cero
+    # garantizado por defecto, solo se invoca si el lector propio falla en una URL).
+    firecrawl_max_calls: int = 0
+
     def __post_init__(self) -> None:
         # Normaliza las rutas a Path por si se inyectan como str.
         if not isinstance(self.entrenamiento_path, Path):
@@ -126,6 +134,8 @@ class ResearchConfig:
           - RESEARCH_CALL_VOCABULARY (vocabulario de convocatoria, separado por comas)
           - RESEARCH_SNIPPET_MAX_CHARS, RESEARCH_ORGANISM_MAX_CHARS (límites de longitud)
           - RESEARCH_BDNS_MAX_DETAIL_CALLS (nº máx. de llamadas al detalle de BDNS)
+          - RESEARCH_READER_MAX_PAGES (nº máx. de páginas leídas en profundidad)
+          - RESEARCH_FIRECRAWL_MAX_CALLS (nº máx. de llamadas al fallback Firecrawl)
         """
         entrenamiento = os.environ.get("RECURSOS_ENTRENAMIENTO_PATH")
         db_path = os.environ.get("RESEARCH_DB_PATH")
@@ -153,4 +163,6 @@ class ResearchConfig:
             snippet_max_chars=_env_int("RESEARCH_SNIPPET_MAX_CHARS", 300),
             organism_max_chars=_env_int("RESEARCH_ORGANISM_MAX_CHARS", 200),
             bdns_max_detail_calls=_env_int("RESEARCH_BDNS_MAX_DETAIL_CALLS", 20),
+            reader_max_pages=_env_int("RESEARCH_READER_MAX_PAGES", 15),
+            firecrawl_max_calls=_env_int("RESEARCH_FIRECRAWL_MAX_CALLS", 0),
         )

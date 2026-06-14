@@ -108,6 +108,7 @@ class Investigador:
 
         from agente_ong.research.sources.bdns import BdnsSource
         from agente_ong.research.sources.firecrawl import FirecrawlSource
+        from agente_ong.research.sources.reader import HttpReaderSource
         from agente_ong.research.sources.tavily import TavilySource
         from agente_ong.research.sources.ted import TedSource
 
@@ -115,6 +116,9 @@ class Investigador:
         if config.tavily_api_key:
             # min_year aplica el filtro temporal en cliente también a Tavily (R17).
             sources.append(TavilySource(config, min_year=config.min_year))
+        # R23: lector propio sin créditos, SIEMPRE disponible y primario; Firecrawl (si hay
+        # clave) queda como fallback de configuración (firecrawl_max_calls, default 0).
+        sources.append(HttpReaderSource(config))
         if config.firecrawl_api_key:
             sources.append(FirecrawlSource(config))
         # Fuentes oficiales públicas: siempre disponibles. `config.min_year` (R10) gobierna

@@ -36,10 +36,12 @@ _POLL_MS = 2000
 # Fuentes que la UI ofrece activar/desactivar (R9.2). Espeja las que construye
 # Investigador._default_sources; la UI solo conoce el NOMBRE y una etiqueta legible.
 # TED no se ofrece (R15.3, investigador-v2): publica licitaciones, no subvenciones.
+# Firecrawl tampoco se ofrece (R23, investigador-v2): el lector propio ("reader") es el
+# fetcher por defecto y Firecrawl queda como fallback de configuración invisible.
 _SOURCE_LABELS = {
     "bdns": "BDNS — subvenciones de España (oficial)",
     "tavily": "Búsqueda web (Tavily)",
-    "firecrawl": "Lectura de páginas y URLs directas (Firecrawl)",
+    "reader": "Lectura de páginas y URLs directas",
 }
 
 # Niveles de profundidad en lenguaje sencillo, sin exponer los números internos (R8.4).

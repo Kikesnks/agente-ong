@@ -79,6 +79,12 @@ class SearchSource(ABC):
     # P.ej. TED publica contratación pública, no subvenciones: se excluye de "calls".
     excluded_modes: frozenset[ResearchMode] = frozenset()
 
+    # False si la fuente no es una opción activable por el usuario (R23 de
+    # investigador-v2): `_active_sources` no la excluye aunque falte de
+    # `request.enabled_sources` (p.ej. Firecrawl, fallback de configuración invisible en
+    # la UI). Default True = comportamiento previo (retrocompatible).
+    user_selectable: bool = True
+
     def supports(self, capability: Capability) -> bool:
         """True si la fuente ofrece la capacidad indicada."""
         return capability in self.capabilities

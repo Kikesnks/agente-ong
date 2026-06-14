@@ -6,7 +6,32 @@ cambio y mover la entrada a "Resueltas" (al final).
 
 ## Abiertas
 
-(ninguna)
+### 4. R23.3 — el gating por `result_type` de `read_deep` NO aplica en modo "training" (T17)
+
+**IMPLEMENTADO así, pendiente de ratificar.** 23.3 dice "La lectura profunda solo se
+aplicará a hits con `result_type == 'convocatoria_probable'`... independientemente del
+lector", sin distinguir modos. Aplicado tal cual, esto rompería el modo "training": su
+objetivo es capturar material de ejemplo variado (R20 reserva justo "documento_informativo"
+para ese material complementario), y los hits de training (p.ej. Tavily sin señales fuertes)
+casi nunca clasifican como `convocatoria_probable`.
+
+**Implementado:** en `graph.py::read_deep`, el filtro `result_type == "convocatoria_probable"`
+solo se aplica si `request.mode == "calls"`. En modo "training" todos los hits siembran la
+frontera (comportamiento previo a R23, sin gating). Las `direct_urls` siempre se leen en
+ambos modos (23.3 explícito).
+
+**Efecto colateral necesario:** para que el gating en modo "calls" funcione, `graph.search`
+ahora asigna `hit.result_type = classify_hit(hit)` a cada hit nuevo (antes solo se calculaba
+en `_build_opportunities`, que corre DESPUÉS de `read_deep`, así que `hit.result_type` seguía
+siendo siempre "desconocido" en el gating). `_build_opportunities` sigue recalculando con
+`classify_hit` (idempotente, no se tocó) en vez de leer `hit.result_type` — redundante pero
+sin riesgo.
+
+**Recomendación:** ratificar el alcance "solo modo calls" como definitivo, o si Kike prefiere
+que "training" también filtre por `result_type`, ampliar la heurística de `triage.classify_hit`
+para que material de entrenamiento típico (PDFs de proyectos ejecutados, memorias, etc.)
+no caiga sistemáticamente en "desconocido"/"documento_informativo" antes de aplicar el gating
+ahí también.
 
 ## Mejoras menores (post-v1, no bloqueantes)
 
