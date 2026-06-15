@@ -7,7 +7,8 @@ _Requirements: 11.1, 11.2, 11.3, 11.4_
 
 from __future__ import annotations
 
-from agente_ong.research.models import Claim, GrantOpportunity, VerificationStatus
+from agente_ong.research.models import Claim, GrantOpportunity, ResearchReport, VerificationStatus
+from agente_ong.ui.report_serde import opportunity_numbers
 from agente_ong.ui.report_view import (
     STATUS_ORDER,
     filter_opportunities,
@@ -165,3 +166,31 @@ def test_partition_preserves_order() -> None:
     actionable, informational = partition_by_actionability(opps)
     assert _titles(actionable) == ["a1"]
     assert _titles(informational) == ["i1", "i2"]
+
+
+# --- R14.3: número estable con sort + filter ---
+
+
+def test_opportunity_number_stable_after_sort_and_filter() -> None:
+    """R14.3: el número de una convocatoria no cambia si sort/filter la mueven o la ocultan.
+
+    Verifica también el supuesto de id(): sort_opportunities y filter_opportunities devuelven
+    referencias a los mismos objetos (no copias). Si devolvieran copias, id() no casaría y
+    el dict daría KeyError o el número incorrecto.
+    """
+    opp_first = _opp("first", VerificationStatus.VERIFIED, result_type="convocatoria_probable")
+    opp_second = _opp("second", VerificationStatus.NOT_FOUND, result_type="convocatoria_probable")
+    report = ResearchReport(mode="calls", opportunities=[opp_first, opp_second])
+
+    numbers = opportunity_numbers(report)
+    assert numbers[id(opp_first)] == 1
+    assert numbers[id(opp_second)] == 2
+
+    # Flujo de render_report: sort → partition → filter que oculta opp_first.
+    sorted_opps = sort_opportunities(report.opportunities)
+    actionable, _ = partition_by_actionability(sorted_opps)
+    filtered = filter_opportunities(actionable, status=VerificationStatus.NOT_FOUND)
+
+    # Solo opp_second pasa el filtro; debe conservar su número original (2, no 1).
+    assert filtered == [opp_second]  # misma referencia, no copia
+    assert numbers[id(filtered[0])] == 2

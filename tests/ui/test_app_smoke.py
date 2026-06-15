@@ -137,6 +137,7 @@ def test_research_flow_renders_sorted_report(app: AppTest, fake_sources: list) -
     labels = [e.label for e in app.expander if "—" in str(e.label)]
     assert len(labels) == 1
     assert "Oficial" in labels[0] and "oficial (sin cruzar)" in labels[0]
+    assert str(labels[0]).startswith("1.")  # R14.1: número visible en la cabecera del expander
 
     # R20.2: el resultado de Tavily sin señal de convocatoria va a "Material informativo"
     # (sección aparte, no como convocatoria accionable).

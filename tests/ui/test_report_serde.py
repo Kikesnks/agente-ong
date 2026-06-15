@@ -21,6 +21,7 @@ from agente_ong.research.models import (
     VerificationStatus,
 )
 from agente_ong.ui.report_serde import (
+    opportunity_numbers,
     report_from_dict,
     report_to_dict,
     report_to_markdown,
@@ -206,4 +207,55 @@ def test_summary_lists_informational_apart() -> None:
 
 def test_summary_without_content_says_so() -> None:
     md = report_to_markdown_summary(ResearchReport(mode="calls"))
+    assert "No se encontraron convocatorias" in md
+
+
+def _simple_opp(title: str, result_type: str = "convocatoria_probable") -> GrantOpportunity:
+    return GrantOpportunity(
+        title=Claim(field="titulo", value=title, status=VerificationStatus.VERIFIED),
+        organism=Claim(field="organismo"),
+        amount=Claim(field="importe"),
+        deadline=Claim(field="plazo"),
+        scope=Claim(field="ambito"),
+        url=Claim(field="url", value=f"https://x.es/{title}"),
+        overall_status=VerificationStatus.VERIFIED,
+        result_type=result_type,
+    )
+
+
+# --- R14: opportunity_numbers ---
+
+
+def test_opportunity_numbers_assigns_1_to_n_to_actionable_only() -> None:
+    opp_a = _simple_opp("probable", "convocatoria_probable")
+    opp_b = _simple_opp("desconocido", "desconocido")
+    opp_c = _simple_opp("informativo", "documento_informativo")
+    report = ResearchReport(mode="calls", opportunities=[opp_a, opp_b, opp_c])
+    numbers = opportunity_numbers(report)
+    assert numbers[id(opp_a)] == 1
+    assert numbers[id(opp_b)] == 2
+    assert id(opp_c) not in numbers
+    assert len(numbers) == 2
+
+
+def test_detail_and_summary_use_same_numbers_for_mixed_report() -> None:
+    """R14.2: la vista detallada y la resumida usan los mismos números de convocatoria."""
+    opp_probable = _simple_opp("accionable", "convocatoria_probable")
+    opp_info = _simple_opp("informativo", "documento_informativo")
+    report = ResearchReport(mode="calls", opportunities=[opp_probable, opp_info])
+    md_summary = report_to_markdown_summary(report)
+    md_detail = report_to_markdown(report)
+    assert "### 1. accionable" in md_summary
+    assert "### 1. accionable" in md_detail
+    assert "Material informativo" in md_detail
+    assert "informativo" in md_detail
+
+
+def test_detail_markdown_separates_informational_section() -> None:
+    """report_to_markdown (detallado) tiene sección propia para documentos informativos."""
+    info = _simple_opp("estudio", "documento_informativo")
+    report = ResearchReport(mode="calls", opportunities=[info])
+    md = report_to_markdown(report)
+    assert "Material informativo" in md
+    assert "estudio" in md
     assert "No se encontraron convocatorias" in md

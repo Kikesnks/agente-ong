@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 
 from agente_ong.research.models import GrantOpportunity, ResearchReport, VerificationStatus
-from agente_ong.ui.report_serde import report_to_markdown, report_to_markdown_summary
+from agente_ong.ui.report_serde import opportunity_numbers, report_to_markdown, report_to_markdown_summary
 
 # Orden canónico de presentación: de más a menos fiable (R11.1).
 STATUS_ORDER: tuple[VerificationStatus, ...] = (
@@ -127,6 +127,8 @@ def render_report(report: ResearchReport, *, key: str = "report") -> None:
     """
     import streamlit as st  # import perezoso: las funciones puras no requieren Streamlit
 
+    # R14: calcular ANTES de sort/filter — id() deja de ser válido si los objetos se copian.
+    numbers = opportunity_numbers(report)
     ordered = sort_opportunities(report.opportunities)
     # R20.2: el material informativo (no convocatorias) se presenta en una sección aparte.
     opportunities, informational = partition_by_actionability(ordered)
@@ -164,7 +166,7 @@ def render_report(report: ResearchReport, *, key: str = "report") -> None:
             st.info("Ninguna convocatoria cumple los filtros.")
         for i, opp in enumerate(filtered):
             title = opp.title.value or "(sin título)"
-            with st.expander(f"{status_badge(opp.overall_status)} — {title}", expanded=i == 0):
+            with st.expander(f"{numbers[id(opp)]}. {status_badge(opp.overall_status)} — {title}", expanded=i == 0):
                 for attr, label in _CLAIM_ROWS:
                     claim = getattr(opp, attr)
                     value = claim.value if claim.value is not None else "—"

@@ -195,16 +195,41 @@ _CLAIM_TITLES = {
 }
 
 
+def opportunity_numbers(report: ResearchReport) -> dict[int, int]:
+    """Mapea id(opp) → número (1..N) para las convocatorias accionables (R14).
+
+    Numera en el orden de `report.opportunities` (orden de construcción del investigador,
+    preservado por `report_to_dict`/`report_from_dict`). El material informativo
+    (`documento_informativo`) no recibe número (R14.4).
+
+    Usa `id()` como clave porque `GrantOpportunity` no es hashable (dataclass con eq=True).
+    El mapeo es válido mientras los objetos sean los mismos de `report` —
+    `sort_opportunities`, `filter_opportunities` y `partition_by_actionability` devuelven
+    listas reordenadas de las MISMAS referencias, nunca copias.
+    """
+    numbers: dict[int, int] = {}
+    n = 0
+    for opp in report.opportunities:
+        if opp.result_type != "documento_informativo":
+            n += 1
+            numbers[id(opp)] = n
+    return numbers
+
+
 def report_to_markdown(report: ResearchReport) -> str:
     """Genera el informe en Markdown legible: cada dato con su valor, estado y fuentes."""
     lines: list[str] = ["# Informe de investigación", ""]
 
-    if report.opportunities:
-        lines.append(f"## Convocatorias ({len(report.opportunities)})")
+    actionable = [o for o in report.opportunities if o.result_type != "documento_informativo"]
+    informational = [o for o in report.opportunities if o.result_type == "documento_informativo"]
+    numbers = opportunity_numbers(report)
+
+    if actionable:
+        lines.append(f"## Convocatorias ({len(actionable)})")
         lines.append("")
-        for i, opp in enumerate(report.opportunities, start=1):
+        for opp in actionable:
             heading = opp.title.value or "(sin título)"
-            lines.append(f"### {i}. {heading}")
+            lines.append(f"### {numbers[id(opp)]}. {heading}")
             lines.append(f"Estado general: {_status_label(opp.overall_status)}")
             lines.append("")
             for name in _OPP_CLAIM_FIELDS:
@@ -214,6 +239,15 @@ def report_to_markdown(report: ResearchReport) -> str:
         lines.append("## Convocatorias")
         lines.append("")
         lines.append("No se encontraron convocatorias.")
+        lines.append("")
+
+    if informational:
+        lines.append("## Material informativo (no convocatorias)")
+        lines.append("")
+        for opp in informational:
+            title = opp.title.value or "(sin título)"
+            url = opp.url.value
+            lines.append(f"- [{title}]({url})" if url else f"- {title}")
         lines.append("")
 
     if report.unresolved:
@@ -244,12 +278,13 @@ def report_to_markdown_summary(report: ResearchReport) -> str:
     informational = [o for o in report.opportunities if o.result_type == "documento_informativo"]
 
     lines: list[str] = ["# Informe de investigación (resumen)", ""]
+    numbers = opportunity_numbers(report)
 
     if actionable:
         lines.append(f"## Convocatorias ({len(actionable)})")
         lines.append("")
-        for i, opp in enumerate(actionable, start=1):
-            lines.append(f"### {i}. {opp.title.value or '(sin título)'}")
+        for opp in actionable:
+            lines.append(f"### {numbers[id(opp)]}. {opp.title.value or '(sin título)'}")
             lines.append(f"- **Organismo**: {_summary_value(opp.organism)}")
             lines.append(f"- **Importe**: {_summary_value(opp.amount)}")
             lines.append(f"- **Plazo**: {_summary_value(opp.deadline)}")
