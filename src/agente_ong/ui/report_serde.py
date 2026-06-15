@@ -288,7 +288,7 @@ def report_to_markdown_summary(report: ResearchReport) -> str:
             lines.append(f"- **Organismo**: {_summary_value(opp.organism)}")
             lines.append(f"- **Importe**: {_summary_value(opp.amount)}")
             lines.append(f"- **Plazo**: {_summary_value(opp.deadline)}")
-            lines.append(f"- **URL**: {opp.url.value or '—'}")
+            lines.append(f"- **URL**: {opp.url.value or '—'}{url_verification_suffix(opp.url)}")
             lines.append(f"- **Verificación**: {_status_label(opp.overall_status)}")
             lines.append("")
     else:
@@ -330,9 +330,28 @@ def _status_label(status: VerificationStatus) -> str:
     return _STATUS_LABELS.get(status, status.value)
 
 
+def format_verification_date(retrieved_at: datetime) -> str:
+    """Fecha de consulta en formato DD-MM-AAAA (R15.5)."""
+    return retrieved_at.strftime("%d-%m-%Y")
+
+
+def url_verification_suffix(claim: Claim) -> str:
+    """Sufijo '(verificada el DD-MM-AAAA)' para el campo URL; vacío si no hay fuentes (R15.3).
+
+    Solo debe aplicarse al campo url (R15). El borde real es sources == [] — en ese caso
+    no hay fecha que mostrar y se devuelve cadena vacía para no añadir texto inútil.
+    """
+    if not claim.sources:
+        return ""
+    dates = ", ".join(format_verification_date(ref.retrieved_at) for ref in claim.sources)
+    return f" (verificada el {dates})"
+
+
 def _claim_line(title: str, claim: Claim) -> str:
     """Línea Markdown de un dato: valor, estado de verificación y URLs de sus fuentes."""
     value = claim.value if claim.value is not None else "—"
+    if claim.field == "url":
+        value += url_verification_suffix(claim)  # R15
     line = f"- **{title}**: {value} · {_status_label(claim.status)}"
     if claim.stale:
         line += " · ⚠ posiblemente desactualizado"

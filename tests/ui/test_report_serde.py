@@ -8,6 +8,7 @@ de fuente por cada dato. _Requirements: 6.2, 7.1, 7.2_
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 
 from agente_ong.research.models import (
     Claim,
@@ -21,11 +22,13 @@ from agente_ong.research.models import (
     VerificationStatus,
 )
 from agente_ong.ui.report_serde import (
+    format_verification_date,
     opportunity_numbers,
     report_from_dict,
     report_to_dict,
     report_to_markdown,
     report_to_markdown_summary,
+    url_verification_suffix,
 )
 
 
@@ -259,3 +262,45 @@ def test_detail_markdown_separates_informational_section() -> None:
     assert "Material informativo" in md
     assert "estudio" in md
     assert "No se encontraron convocatorias" in md
+
+
+# --- R15: format_verification_date / url_verification_suffix ---
+
+
+def test_format_verification_date_returns_dd_mm_yyyy() -> None:
+    dt = datetime(2026, 6, 15, 12, 30, 0, tzinfo=timezone.utc)
+    assert format_verification_date(dt) == "15-06-2026"
+
+
+def test_url_suffix_without_sources_is_empty() -> None:
+    """R15.3: si claim.sources está vacío no se añade texto de fecha."""
+    claim = Claim(field="url", value="https://x.es/c1")
+    assert url_verification_suffix(claim) == ""
+
+
+def test_url_suffix_with_source_includes_date() -> None:
+    dt = datetime(2026, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
+    ref = SourceRef(url="https://x.es/c1", source_name="bdns", is_official=True, retrieved_at=dt)
+    claim = Claim(field="url", value="https://x.es/c1", sources=[ref])
+    assert url_verification_suffix(claim) == " (verificada el 15-06-2026)"
+
+
+def test_summary_and_detail_url_include_verification_date() -> None:
+    """R15.1: la URL con fuentes muestra '(verificada el DD-MM-AAAA)' en ambas vistas."""
+    dt = datetime(2026, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
+    ref = SourceRef(url="https://bo.es/c1", source_name="bdns", is_official=True, retrieved_at=dt)
+    opp = GrantOpportunity(
+        title=Claim(field="titulo", value="Ayudas prueba"),
+        organism=Claim(field="organismo"),
+        amount=Claim(field="importe"),
+        deadline=Claim(field="plazo"),
+        scope=Claim(field="ambito"),
+        url=Claim(field="url", value="https://bo.es/c1", sources=[ref]),
+        overall_status=VerificationStatus.OFFICIAL_UNCROSSED,
+        result_type="convocatoria_probable",
+    )
+    report = ResearchReport(mode="calls", opportunities=[opp])
+    md_summary = report_to_markdown_summary(report)
+    md_detail = report_to_markdown(report)
+    assert "verificada el 15-06-2026" in md_summary
+    assert "verificada el 15-06-2026" in md_detail

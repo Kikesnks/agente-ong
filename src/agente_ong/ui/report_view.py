@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 
 from agente_ong.research.models import GrantOpportunity, ResearchReport, VerificationStatus
-from agente_ong.ui.report_serde import opportunity_numbers, report_to_markdown, report_to_markdown_summary
+from agente_ong.ui.report_serde import opportunity_numbers, report_to_markdown, report_to_markdown_summary, url_verification_suffix
 
 # Orden canónico de presentación: de más a menos fiable (R11.1).
 STATUS_ORDER: tuple[VerificationStatus, ...] = (
@@ -170,6 +170,8 @@ def render_report(report: ResearchReport, *, key: str = "report") -> None:
                 for attr, label in _CLAIM_ROWS:
                     claim = getattr(opp, attr)
                     value = claim.value if claim.value is not None else "—"
+                    if attr == "url":
+                        value += url_verification_suffix(claim)  # R15
                     st.markdown(f"**{label}:** {value} · {status_badge(claim.status)}")
                     if claim.sources:
                         urls = " · ".join(ref.url for ref in claim.sources)

@@ -145,6 +145,7 @@ def test_research_flow_renders_sorted_report(app: AppTest, fake_sources: list) -
     assert "Material informativo" in subheaders
     all_md = " ".join(str(m.value) for m in app.markdown)
     assert "Web general" in all_md
+    assert "verificada el" in all_md  # R15.1: fecha de consulta visible en la UI
 
     # Descargas disponibles (R22.3): resumen + detallado.
     assert len(app.get("download_button")) == 2
