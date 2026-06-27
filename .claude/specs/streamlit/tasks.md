@@ -314,3 +314,49 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/ui/project_store.py (esquema y _row_to_project),
     src/agente_ong/ui/request_builder.py (build), tests/ui/test_project_store.py_
   - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5_
+
+### Extensión post-v1 — Resultados enumerados y trazabilidad de URL (R14/R15)
+
+- [x] 34. opportunity_numbers + numeración visible en UI y Markdown (UI-34, R14)
+  - Files: src/agente_ong/ui/report_serde.py, src/agente_ong/ui/report_view.py,
+    tests/ui/test_report_serde.py, tests/ui/test_report_view.py, tests/ui/test_app_smoke.py
+  - `opportunity_numbers(report) -> dict[int, int]` en report_serde.py: `id(opp) -> 1..N` sobre
+    las convocatorias con `result_type != "documento_informativo"`, en el orden de
+    `report.opportunities` (sin numerar material informativo, 14.4). `report_to_markdown_summary`
+    usa esta función (sustituye su `enumerate(actionable, start=1)` local — mismo resultado,
+    una sola fuente de verdad). `report_to_markdown` (detallado) se reestructura: partición
+    accionables/informativos como la resumida, sección "Convocatorias (N)" numerada vía
+    `opportunity_numbers`, nueva sección "Material informativo (no convocatorias)" (título +
+    URL). `render_report`: calcula `numbers = opportunity_numbers(report)` ANTES de
+    `sort_opportunities`/`filter_opportunities` (14.3); cada expander muestra
+    `f"{numbers[id(opp)]}. "` como prefijo de su cabecera
+  - Tests: `opportunity_numbers` numera 1..N solo accionables en el orden de almacenamiento,
+    sin numerar informativos; con un informe que mezcla accionables e informativos, el
+    detallado produce sección "Material informativo" y los MISMOS números que la resumida
+    para las convocatorias (14.2); aplicar un filtro de estado en `render_report` no cambia el
+    número de la convocatoria que sigue visible (14.3); smoke: la primera convocatoria
+    accionable se renderiza con una etiqueta de expander que empieza por "1. "
+  - _Leverage: src/agente_ong/ui/report_view.py (partition_by_actionability,
+    sort_opportunities, filter_opportunities — sin cambios de firma),
+    src/agente_ong/ui/report_serde.py (report_to_markdown_summary y su partición
+    actionable/informational ya existente)_
+  - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5_
+
+- [x] 35. URL consultada con fecha de verificación (UI-35, R15)
+  - Files: src/agente_ong/ui/report_serde.py, src/agente_ong/ui/report_view.py,
+    tests/ui/test_report_serde.py, tests/ui/test_app_smoke.py
+  - `format_verification_date(retrieved_at: datetime) -> str` (`"%d-%m-%Y"`, 15.5) y
+    `_url_verification_suffix(claim: Claim) -> str` (privada) en report_serde.py: `""` si
+    `claim.sources` está vacío (15.3); si no, `" (verificada el DD-MM-AAAA[, DD-MM-AAAA...])"`
+    con una fecha por `SourceRef.retrieved_at` (una por fuente, sin deduplicar — 15.2). Aplicar
+    SOLO al campo "url" (no al resto de Claims): en `report_to_markdown_summary` (línea "URL"),
+    en `_claim_line` del detallado (cuando `claim.field == "url"`), y en `render_report` (fila
+    "URL" de `_CLAIM_ROWS`). Sin llamadas de red nuevas (15.4): el dato viene de
+    `SourceRef.retrieved_at`, ya presente en el informe persistido
+  - Tests: `format_verification_date` da "DD-MM-AAAA"; un claim "url" con una fuente produce
+    sufijo con esa fecha; con `sources=[]` el sufijo es vacío (no inventa fecha, 15.3); la
+    vista resumida, la detallada y la UI (smoke) muestran "verificada el" junto a la URL
+    cuando hay fuente registrada (15.1)
+  - _Leverage: src/agente_ong/research/models.py (SourceRef.retrieved_at, ya existente y
+    poblado por defecto en cada hit por `_classified`)_
+  - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5_

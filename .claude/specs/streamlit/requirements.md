@@ -297,6 +297,62 @@ sin tener que repetirlo en cada investigación.
    seguir funcionando sin romper los proyectos existentes (migración de esquema con valor por
    defecto).
 
+### Requirement 14 — Resultados enumerados (UI-34)
+
+> Mini-extensión post-v1 (15-06-2026), preparatoria de SPEC 3 (chat de proyecto): el usuario
+> necesita poder referirse a una convocatoria concreta del informe ("el resultado 3") en una
+> conversación futura con el asistente. Para que esa referencia sea inequívoca, el número
+> debe ser el MISMO en la pantalla y en las descargas, y no cambiar con el orden de
+> presentación ni con los filtros.
+
+**User Story:** Como usuario, quiero que cada convocatoria del informe tenga un número visible
+(1, 2, 3...), igual en la pantalla y en los Markdown descargables, para poder referirme a ella
+sin ambigüedad en una futura conversación sobre el informe.
+
+#### Acceptance Criteria
+
+1. WHEN se muestra el informe en la UI THEN cada convocatoria accionable (`result_type !=
+   "documento_informativo"`) SHALL mostrar un número de orden visible (1, 2, 3...).
+2. WHEN se descarga el informe (resumido o detallado, Markdown) THEN cada convocatoria SHALL
+   llevar el MISMO número que tiene en la pantalla, para la misma ejecución del informe.
+3. El número SHALL asignarse según el orden de almacenamiento de `report.opportunities` (el
+   orden en que el investigador construyó las convocatorias), de forma estable: NO SHALL
+   depender del orden de presentación (`sort_opportunities`, por fiabilidad) ni de los filtros
+   activos en la UI — una convocatoria conserva su número aunque cambie de posición o quede
+   oculta por un filtro.
+4. El material informativo (`result_type == "documento_informativo"`, R20.2 del investigador)
+   SHALL presentarse sin número (no es una "convocatoria" referenciable por número).
+5. IF se recarga un informe ya persistido (de antes de esta extensión) THEN el número SHALL
+   calcularse al renderizar, sin cambios de esquema ni migración: el mismo informe produce
+   siempre la misma numeración.
+
+### Requirement 15 — Trazabilidad de la URL consultada (UI-35)
+
+> Decisión tomada (15-06-2026): SIN re-verificación en vivo de enlaces al mostrar el informe
+> (supondría llamadas adicionales y lentitud). Lo garantizable es la trazabilidad ya existente:
+> la URL fue consultada en la fecha registrada por el sistema de verificación
+> (`SourceRef.retrieved_at`). La re-comprobación bajo demanda ("¿sigue vivo este enlace?") queda
+> para v1.1.
+
+**User Story:** Como usuario, quiero ver junto a cada convocatoria la URL consultada y la fecha
+en que se consultó, para poder revisarla yo mismo si lo necesito, con la garantía de que el
+dato no se ha inventado.
+
+#### Acceptance Criteria
+
+1. WHEN se muestra una convocatoria (en la UI o en el Markdown, resumido o detallado) THEN si
+   su dato "URL" tiene al menos una fuente registrada (`Claim.sources`) THEN el sistema SHALL
+   mostrar, junto a la URL, "verificada el DD-MM-AAAA" a partir de `SourceRef.retrieved_at` de
+   esa fuente.
+2. WHEN el dato "URL" tiene varias fuentes con fechas distintas THEN el sistema SHALL mostrar
+   cada fecha (sin promediar ni elegir una al azar).
+3. IF el dato "URL" no tiene fuentes registradas (p.ej. estado NOT_FOUND, o informes previos sin
+   `sources`) THEN el sistema SHALL mostrar la URL (o "—") sin añadir una fecha inventada.
+4. El sistema SHALL NOT realizar ninguna llamada de red nueva para verificar o re-comprobar el
+   enlace al renderizar el informe (decisión 15-06-2026; la re-comprobación bajo demanda queda
+   para v1.1).
+5. Formato de fecha: "DD-MM-AAAA" (p.ej. "15-06-2026"), derivado de `retrieved_at` (UTC).
+
 ## Non-Functional Requirements
 
 ### Performance
@@ -325,3 +381,5 @@ sin tener que repetirlo en cada investigación.
 - El estado de verificación de cada dato (verificado / fuente oficial no cruzada / no
   verificado de forma cruzada / no encontrado) se presenta de forma comprensible para el
   usuario final (Requirement 4).
+- La fecha de verificación de cada URL (Requirement 15) se presenta en formato "DD-MM-AAAA",
+  sin timestamps técnicos (ISO/UTC) visibles para el usuario final.

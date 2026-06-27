@@ -176,19 +176,79 @@ graph TD
 ### `ui/report_serde.py` — Serialización de informes
 - **Purpose:** `ResearchReport ⇄ dict/JSON` para persistir runs y para la descarga (R7).
 - **Interfaces:** `report_to_dict(report) -> dict` · `report_from_dict(d) -> ResearchReport` ·
-  `report_to_markdown(report) -> str` (descarga legible).
-- **Dependencies:** modelos del investigador, `json`.
-- **Reuses:** estructura de `ResearchReport`/`Claim`/`SourceRef` (incluye `status` y fuentes).
+  `report_to_markdown(report) -> str` (descarga detallada, R7) ·
+  `report_to_markdown_summary(report) -> str` (descarga resumida, R22) ·
+  `opportunity_numbers(report) -> dict[int, int]` (R14, nueva) ·
+  `format_verification_date(retrieved_at) -> str` (R15, nueva).
+- **Dependencies:** modelos del investigador, `json`, `datetime`.
+- **Reuses:** estructura de `ResearchReport`/`Claim`/`SourceRef` (incluye `status`, `sources` y
+  `retrieved_at`).
+- **R14/R15:** ver "Extensión UI-34/UI-35" más abajo.
 
 ### `ui/report_view.py` — Render, orden y filtros
 - **Purpose:** presentar convocatorias ordenadas por verificación y filtrables (R4, R11),
-  estados como badges legibles, `unresolved`, `failed_sources`, botón de descarga (R7).
+  estados como badges legibles, `unresolved`, `failed_sources`, botón de descarga (R7), número
+  visible por convocatoria (R14) y trazabilidad de URL con fecha (R15).
 - **Interfaces (funciones puras testeables, separadas del render):**
   - `sort_opportunities(opps) -> list[GrantOpportunity]` (orden VERIFIED → … → NOT_FOUND)
   - `filter_opportunities(opps, *, status?, min_year?, min_amount?) -> list[...]`
+  - `partition_by_actionability(opps) -> (accionables, informativos)` (R20.2)
   - `render_report(report, ...)` (capa Streamlit, fina)
-- **Dependencies:** `VerificationStatus`, Streamlit (solo en `render_*`).
+- **Dependencies:** `VerificationStatus`, `report_serde` (`opportunity_numbers`,
+  `format_verification_date`, `report_to_markdown*`), Streamlit (solo en `render_*`).
 - **Reuses:** `VerificationStatus` para el orden canónico.
+- **R14/R15:** ver "Extensión UI-34/UI-35" más abajo.
+
+### Extensión UI-34/UI-35 — numeración estable y trazabilidad de URL (R14/R15)
+
+**Decisión de diseño clave (numeración):** el número de una convocatoria NO se calcula sobre
+la lista que ve el usuario (ordenada por fiabilidad y opcionalmente filtrada), porque esa lista
+cambia de orden/contenido con cada interacción. Se calcula sobre `report.opportunities` — el
+orden en que el investigador construyó el informe, que es el mismo orden que se persiste y
+recarga (`report_to_dict`/`report_from_dict` preservan listas) — filtrando `result_type !=
+"documento_informativo"` (R20.2) y numerando 1..N. Así la pantalla, el Markdown resumido y el
+Markdown detallado SIEMPRE coinciden, y un filtro de la UI solo OCULTA números, nunca los
+reasigna.
+
+- **`opportunity_numbers(report) -> dict[int, int]`** (nueva, en `report_serde.py`): mapea
+  `id(opportunity) -> número` (1..N) para las convocatorias accionables, en el orden de
+  `report.opportunities`. Se usa `id()` porque `GrantOpportunity` no es hashable (dataclass con
+  `eq=True`); el mapeo se recalcula en cada render/generación de Markdown a partir del MISMO
+  `report`, así que los `id()` son válidos dentro de esa llamada (`sort_opportunities` /
+  `filter_opportunities` / `partition_by_actionability` devuelven listas reordenadas de los
+  MISMOS objetos, nunca copias).
+- **`report_to_markdown_summary`**: pasa a numerar con `opportunity_numbers(report)` en vez de
+  un `enumerate(actionable, start=1)` local (mismo resultado hoy; garantiza que no diverja del
+  detallado ni de la UI si el orden de partición cambiara en el futuro).
+- **`report_to_markdown`** (detallado): se reestructura para separar accionables/informativos
+  igual que la resumida (R20.2) — hasta ahora numeraba TODOS los `opportunities` (incluidos los
+  informativos) en una sola lista, lo que rompería la correspondencia de números con la
+  resumida y la UI. Ahora: sección "Convocatorias (N)" con accionables numerados vía
+  `opportunity_numbers`, y nueva sección "Material informativo (no convocatorias)" (título +
+  URL) igual que la resumida.
+- **`render_report`**: calcula `numbers = opportunity_numbers(report)` ANTES de
+  `sort_opportunities`/`filter_opportunities`; cada expander muestra `f"{numbers[id(opp)]}. "`
+  como prefijo de su cabecera. El material informativo no lleva número (R14.4).
+
+**Trazabilidad de URL (R15):**
+- **`format_verification_date(retrieved_at: datetime) -> str`** (nueva, en `report_serde.py`):
+  `retrieved_at.strftime("%d-%m-%Y")`.
+- **`_url_verification_suffix(claim: Claim) -> str`** (nueva, privada de `report_serde.py`): si
+  `claim.sources` está vacío devuelve `""`; si no, devuelve `" (verificada el
+  DD-MM-AAAA[, DD-MM-AAAA...])"` con una fecha por cada `SourceRef` (sin deduplicar fechas
+  iguales: tras R14 lo habitual es una sola fuente → una sola fecha).
+- Se aplica SOLO al campo `url` (no al resto de `Claim` de la convocatoria): en
+  `report_to_markdown_summary` (línea "URL"), en `_claim_line` del detallado (cuando
+  `claim.field == "url"`), y en `render_report` (fila "URL" de `_CLAIM_ROWS`).
+- Sin llamadas de red nuevas (R15.4): el dato viene de `SourceRef.retrieved_at`, ya presente en
+  el informe persistido.
+
+**Duplicación conocida (sin resolver aquí):** `report_serde.py` ya repite el filtro
+`result_type != "documento_informativo"` que también vive en
+`report_view.partition_by_actionability` (para evitar el ciclo de imports `report_view →
+report_serde`); `opportunity_numbers` repite el mismo filtro una vez más. Sigue anotado en el
+roadmap para extraerse a un helper compartido en v1.1; no se resuelve en esta mini-extensión
+para no ampliar su alcance.
 
 ### `ui/uploads.py` — Documentos de la ONG
 - **Purpose:** guardar/listar/borrar documentos del proyecto bajo `RECURSOS/[nombre_proyecto]/`
@@ -342,6 +402,15 @@ Job
   `SourceRef`, `unresolved`, `failed_sources`; `report_to_markdown` incluye fuente y estado.
 - **`report_view`**: `sort_opportunities` respeta el orden canónico de `VerificationStatus`;
   `filter_opportunities` por estado/fecha/importe, con manejo correcto de `value is None`.
+- **`report_serde` (R14/R15):** `opportunity_numbers` numera 1..N solo las convocatorias
+  accionables, en el orden de `report.opportunities`, sin numerar `documento_informativo`;
+  `report_to_markdown` y `report_to_markdown_summary` usan los mismos números entre sí; el
+  detallado separa "Material informativo" igual que la resumida; `format_verification_date`
+  da "DD-MM-AAAA"; la línea "URL" incluye "(verificada el ...)" cuando `Claim.sources` no está
+  vacío, y se omite sin inventar fecha cuando está vacío.
+- **`report_view` (R14):** `render_report` muestra el número de cada expander; el número NO
+  cambia al aplicar `sort_opportunities`/`filter_opportunities` (se calcula antes, sobre
+  `report.opportunities`).
 - **`uploads`**: rechazo de path traversal (`../`, rutas absolutas), tipo/tamaño, colisión de
   nombres; escritura dentro de `RECURSOS/[proyecto]/` (con `tmp_path`).
 - **`project_store`**: CRUD de `projects`/`research_runs`, `UNIQUE(name)`, cascade, persistencia
@@ -361,4 +430,6 @@ Job
 - **`streamlit.testing.v1.AppTest`** (smoke): arrancar `app.py`, crear proyecto, ver que aparece
   en la lista; lanzar investigación con fuentes fake inyectadas y comprobar el render del informe
   ordenado/filtrado. La lógica pesada se prueba en los unit tests; el E2E valida el cableado.
+- **R14/R15:** la etiqueta del expander de la convocatoria empieza por "1. "; el render incluye
+  "verificada el" con una fecha en formato DD-MM-AAAA junto a la URL.
 ```
