@@ -360,3 +360,32 @@ especifica los archivos exactos.
   - _Leverage: src/agente_ong/research/models.py (SourceRef.retrieved_at, ya existente y
     poblado por defecto en cada hit por `_classified`)_
   - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5_
+
+### Extensión post-v1 — Ajustes de claridad visual pre-demo (UI-36)
+
+- [x] 36. Color de acento verde y título "Datos por confirmar" (UI-36, R4.3/R5)
+  - Files: .streamlit/config.toml, src/agente_ong/ui/report_view.py,
+    src/agente_ong/ui/report_serde.py
+  - Dos correcciones de presentación detectadas antes de la prueba con usuarios externos,
+    sin cambio funcional ni de lógica:
+    (1) COLOR: la app no tenía `.streamlit/config.toml`, por lo que Streamlit usaba su
+    `primaryColor` por defecto (#FF4B4B, rojo) como color de acento; las pastillas del
+    multiselect "Fuentes activas" salían en rojo y se leían como "desactivadas/error".
+    Crear `.streamlit/config.toml` con `[theme]` y SOLO `primaryColor = "#2E7D32"`
+    (verde Material 800, contraste ~7:1 sobre texto blanco, supera WCAG AA 4.5:1). Decisión
+    semántica: verde = activo/correcto; el rojo queda reservado a errores y prohibidos.
+    Afecta a todo elemento que use primaryColor (botones, sliders, checkboxes, enlaces).
+    (2) TÍTULO: la sección de datos no confirmados (generada por el nodo ask_user del grafo
+    a partir de `report.unresolved`) se titulaba "Necesito tu ayuda", que alarmaba y no
+    describía su contenido. Renombrada a "Datos por confirmar" en los tres puntos donde
+    aparecía: `report_view.py` (st.subheader, UI), `report_serde.py` (Markdown detallado y
+    Markdown resumido, antes "## Información no resuelta"). Solo se cambian los strings de
+    título; ni la lógica, ni los textos internos de cada ítem, ni el bloque de
+    "Fuentes con problemas" (R4.4) se tocan.
+  - Tests: sin tests de tema/estilos en el proyecto (el cambio de primaryColor no afecta
+    ninguno). El renombrado del título obligó a actualizar un assert:
+    tests/ui/test_report_serde.py:159 ("Información no resuelta" -> "Datos por confirmar").
+    Resto de la suite en verde.
+  - _Leverage: src/agente_ong/ui/report_view.py (render_report),
+    src/agente_ong/ui/report_serde.py (report_to_markdown, report_to_markdown_summary)_
+  - _Requirements: 4.3, 5_
