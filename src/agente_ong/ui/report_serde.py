@@ -251,7 +251,7 @@ def report_to_markdown(report: ResearchReport) -> str:
         lines.append("")
 
     if report.unresolved:
-        lines.append("## Información no resuelta")
+        lines.append("## Datos por confirmar")
         lines.append("")
         for u in report.unresolved:
             lines.append(f"- **{u.topic}**: {u.reason} Ayuda necesaria: {u.help_needed}")
@@ -307,7 +307,7 @@ def report_to_markdown_summary(report: ResearchReport) -> str:
         lines.append("")
 
     if report.unresolved:
-        lines.append("## Información no resuelta")
+        lines.append("## Datos por confirmar")
         lines.append("")
         for u in report.unresolved:
             lines.append(f"- **{u.topic}**: {u.reason}")

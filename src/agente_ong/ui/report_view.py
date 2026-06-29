@@ -191,7 +191,7 @@ def render_report(report: ResearchReport, *, key: str = "report") -> None:
             st.markdown(f"- [{title}]({url})" if url else f"- {title}")
 
     if report.unresolved:
-        st.subheader("Necesito tu ayuda")
+        st.subheader("Datos por confirmar")
         for u in report.unresolved:
             st.warning(f"**{u.topic}**: {u.reason}\n\n{u.help_needed}")
 

@@ -156,7 +156,7 @@ def test_markdown_includes_value_status_and_source_url_per_claim() -> None:
 
 def test_markdown_includes_unresolved_and_failed_sources_sections() -> None:
     md = report_to_markdown(_sample_report())
-    assert "Información no resuelta" in md and "importe" in md
+    assert "Datos por confirmar" in md and "importe" in md
     assert "Fuentes con problemas" in md and "ted" in md
 
 
