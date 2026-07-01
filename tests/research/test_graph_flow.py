@@ -29,6 +29,12 @@ def _calls_request(**kw) -> ResearchRequest:
     return ResearchRequest(**kw)
 
 
+def _training_request(**kw) -> ResearchRequest:
+    kw.setdefault("mode", "training")
+    kw.setdefault("query_terms", ["cultura"])
+    return ResearchRequest(**kw)
+
+
 @pytest.fixture
 def db_path(tmp_path: Path) -> Path:
     return tmp_path / "agente_ong.db"
@@ -395,6 +401,37 @@ def test_read_deep_only_fetches_convocatoria_probable_hits(db_path: Path) -> Non
     by_url = {opp.url.value: opp for opp in report.opportunities}
     assert by_url["https://bo.es/c1"].result_type == "convocatoria_probable"
     assert by_url["https://web.example/info"].result_type == "documento_informativo"
+
+
+def test_read_deep_in_training_mode_fetches_all_hits(db_path: Path) -> None:
+    # En modo "training" el gating de R23.3 se desactiva a propósito: TODOS los hits
+    # siembran la frontera (no solo "convocatoria_probable"), porque el material
+    # informativo es justo lo que se quiere capturar como ejemplo de entrenamiento.
+    # A diferencia del modo "calls", training no construye report.opportunities
+    # (verify() recolecta resources vía TrainingCollector), así que el test comprueba
+    # el gating por lo único que lo refleja aquí: qué URLs se leyeron en profundidad.
+    bdns = FakeSearchSource(
+        name="bdns",
+        is_official=True,
+        hits=[make_hit("https://bo.es/c1", source_name="bdns", title="C1", is_official=True)],
+    )
+    tavily = FakeSearchSource(
+        name="tavily",
+        hits=[make_hit("https://web.example/info", source_name="tavily", title="Articulo")],
+    )
+    fetch = FakeFetchSource(
+        documents={
+            "https://bo.es/c1": make_document("https://bo.es/c1", text="detalle c1"),
+            "https://web.example/info": make_document("https://web.example/info", text="info"),
+        }
+    )
+
+    with _investigador([bdns, tavily, fetch], db_path) as inv:
+        inv.run(_training_request())
+
+    # El gating NO aplica en training: ambos hits se leen en profundidad,
+    # incluido el "documento_informativo" (que en modo "calls" quedaría fuera).
+    assert set(fetch.fetch_calls) == {"https://bo.es/c1", "https://web.example/info"}
 
 
 def test_primary_failure_without_fallback_keeps_hit_and_reports_failure(db_path: Path) -> None:
