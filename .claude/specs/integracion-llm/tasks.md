@@ -36,7 +36,7 @@ testeable y especifica los archivos exactos.
 
 ### R4 — Errores propios y reintentos
 
-- [ ] 2. Jerarquía de errores propios + reintentos en llm/errors.py
+- [x] 2. Jerarquía de errores propios + reintentos en llm/errors.py
   - Files: src/agente_ong/llm/errors.py, tests/llm/test_errors.py
   - `LLMError` (base), `LLMConnectionError`, `LLMAuthError`, `LLMNoResponseError`.
     Reutilizar (importar o extraer a módulo compartido, decisión de esta tarea) el
