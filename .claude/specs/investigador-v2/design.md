@@ -224,10 +224,13 @@ cambios de interfaz (23.1).
   vacío) y quedan llamadas de fallback (`firecrawl_max_calls`, contador POR investigación)
   → fallback. Con `firecrawl_max_calls=0` (default) el fallback nunca se invoca: coste
   cero garantizado (23.4).
-- **Gating por result_type (23.3):** la frontera de `read_deep` solo se siembra con hits
-  `result_type == "convocatoria_probable"`. Las `direct_urls` del usuario SIEMPRE se leen
-  (petición explícita, R9). Los enlaces salientes de páginas ya leídas heredan la
-  elegibilidad de su página origen (vienen de una convocatoria probable).
+- **Gating por result_type (23.3), solo en modo "calls":** en modo "calls" la frontera de
+  `read_deep` solo se siembra con hits `result_type == "convocatoria_probable"`. Las
+  `direct_urls` del usuario SIEMPRE se leen (petición explícita, R9). Los enlaces salientes
+  de páginas ya leídas heredan la elegibilidad de su página origen (vienen de una
+  convocatoria probable). En modo "training" el gating se desactiva a propósito: todos los
+  hits siembran la frontera (el material informativo/desconocido es el objetivo de ese
+  modo). Cubierto por test_read_deep_in_training_mode_fetches_all_hits.
 - **Límites (23.4):** `reader_max_pages: int = 15` (propuesta; máximo de páginas leídas
   en profundidad por búsqueda, env RESEARCH_READER_MAX_PAGES — coexiste con `max_pages`:
   gana el menor) y `firecrawl_max_calls: int = 0` (env RESEARCH_FIRECRAWL_MAX_CALLS).

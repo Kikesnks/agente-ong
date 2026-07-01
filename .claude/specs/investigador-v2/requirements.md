@@ -165,9 +165,12 @@ Criterios de aceptación:
 - 23.2 El lector propio será la opción POR DEFECTO para la lectura profunda. Firecrawl
   pasa a fallback opcional: solo se invoca si el lector propio falla en una URL (error de
   red tras reintentos o extracción vacía) Y hay créditos configurados.
-- 23.3 La lectura profunda solo se aplicará a hits con result_type =
+- 23.3 En modo "calls", la lectura profunda solo se aplicará a hits con result_type =
   "convocatoria_probable" (usa la clasificación de R20), independientemente del lector.
-  Los documento_informativo y desconocido no consumen lectura profunda.
+  Los documento_informativo y desconocido no consumen lectura profunda. En modo
+  "training" este gating NO aplica: todos los hits siembran la lectura profunda, porque
+  el material informativo y desconocido es justo lo que se busca capturar como ejemplo
+  de entrenamiento (coherente con la reserva de esos tipos en R20).
 - 23.4 Límites configurables en ResearchConfig (+ env): reader_max_pages (máximo de
   páginas leídas en profundidad por búsqueda, default a proponer en design) y
   firecrawl_max_calls (máximo de llamadas al fallback por búsqueda, default 0 = fallback
