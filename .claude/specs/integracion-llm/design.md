@@ -152,15 +152,24 @@ investigador, y en particular no altera `R20` de `investigador-v2` (`result_type
   Literal["si", "no", "no_clasificado"]`: arma system (piezas 1-5, prompt cargado) + user
   (pieza 6, título + extracto), llama a `provider.complete(...)`, interpreta la respuesta
   (R6.3/R6.4).
-- **T8 (integración, aditiva):** una función en `llm/semantic_filter.py` (o un módulo
-  `llm/filter_report.py` si conviene separarlo) recorre `SearchHit`/`GrantOpportunity` de
-  un `ResearchReport` ya construido por el investigador y anota el resultado de
-  `classify_result` en cada uno — sin modificar `result_type` (R6.5) ni ningún otro campo
-  existente. Al ser aditivo, no requiere cambios en `graph.py` ni en el modelo de datos de
-  `research/models.py` más allá de un campo nuevo opcional para guardar la marca del
-  filtro (nombre exacto y ubicación del campo se deciden en T8, retrocompatible con
-  default "no_clasificado" o `None`, siguiendo el mismo patrón retrocompatible que
-  `result_type` en R20 de `investigador-v2`).
+- **T8 (integración, aditiva, Opción B — la marca vive en `llm/`):** una función en
+  `llm/semantic_filter.py` (o un módulo `llm/filter_report.py` si conviene separarlo)
+  recorre `report.opportunities` (las oportunidades ya construidas por el investigador en
+  modo "calls") y aplica `classify_result` a **todas** ellas (Opción 1, sin enrutado por
+  `result_type`). La función **devuelve una estructura nueva propia de la capa `llm/`**
+  (p.ej. un `dataclass` o `dict` que mapea el identificador estable de cada `opportunity` a
+  `"si"`/`"no"`/`"no_clasificado"`) — la forma exacta se decide al implementar T8. **NO
+  muta `GrantOpportunity`, NO añade campos a `research/models.py`, NO toca `research/` en
+  absoluto**: `result_type` (R6.5) y el resto de campos existentes quedan intactos, y
+  tampoco hay cambios en `graph.py` ni `triage.py`. `research/models.py` se **lee**
+  (`ResearchReport`, `GrantOpportunity`) pero no se modifica — el investigador sigue siendo
+  un módulo portable ajeno al concepto de clasificación semántica LLM.
+- **Modo "training" — no-op natural:** en modo "training", `report.opportunities` queda
+  `[]` por diseño (`verify()` recolecta `resources` vía `TrainingCollector` y no construye
+  `opportunities`; hallazgo documentado al cerrar la decisión #4/R23.3 en
+  `investigador-v2`). El filtro, al recorrer `report.opportunities`, no tiene nada que
+  clasificar en ese modo y devuelve la estructura vacía correspondiente — es el
+  comportamiento correcto, no un fallo.
 
 ## Estrategia de tests con mock
 
@@ -229,5 +238,8 @@ prompt cargado) → Integración con los resultados del investigador (R6, aditiv
   expone sin transformarlos.
 - **R6:** carga del prompt desde archivo (T6, contenido no vacío); `classify_result` con el
   fake devolviendo "SI"/"NO"/basura → `"si"`/`"no"`/`"no_clasificado"` (T7); integración
-  (T8) con una lista de resultados simulados (`SearchHit`/`GrantOpportunity` de prueba) →
-  cada uno queda marcado, sin que `result_type` (R20 de `investigador-v2`) cambie de valor.
+  (T8) recorriendo una lista de `GrantOpportunity` de prueba (`report.opportunities`
+  simulado) → la estructura devuelta clasifica cada una, sin que `result_type` (R20 de
+  `investigador-v2`) cambie de valor ni `research/models.py` se modifique; con
+  `opportunities=[]` (caso modo "training") la función no falla y devuelve una estructura
+  vacía.

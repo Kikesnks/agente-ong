@@ -141,24 +141,29 @@ testeable y especifica los archivos exactos.
     (load_prompt, tarea 6), tests/llm/fakes.py (FakeLLMProvider)_
   - _Requirements: 6.1, 6.3, 6.4_
 
-- [ ] 8. Integración del filtro con los resultados del investigador
+- [ ] 8. Integración del filtro con los resultados del investigador (Opción B: marca en `llm/`)
   - Files: src/agente_ong/llm/semantic_filter.py (continúa de la tarea 7),
     tests/llm/test_semantic_filter.py
-  - Función que recorre los resultados de un `ResearchReport` (o una lista de
-    `SearchHit`/`GrantOpportunity` de prueba) y aplica `classify_result` a **todos** ellos
-    (Opción 1, sin enrutado por `result_type`), anotando el resultado en un campo nuevo
-    (nombre y ubicación exactos a decidir en esta tarea, retrocompatible/opcional, mismo
-    patrón que `result_type` de R20 de `investigador-v2`). NO se modifica `result_type` ni
-    ningún otro campo existente; NO se toca `graph.py` ni `triage.py`. Un fallo de
-    clasificación en un resultado no aborta el resto (aislamiento, coherente con
+  - Función que recorre `report.opportunities` (las oportunidades ya construidas por el
+    investigador en modo "calls") y aplica `classify_result` a **todas** ellas (Opción 1,
+    sin enrutado por `result_type`), devolviendo una **estructura nueva propia de `llm/`**
+    (p.ej. `dataclass`/`dict` que mapea el identificador estable de cada `opportunity` a
+    `"si"`/`"no"`/`"no_clasificado"`; forma exacta a decidir en esta tarea). NO muta
+    `GrantOpportunity`, NO añade campos a `research/models.py`, NO se toca `research/` en
+    absoluto: `result_type` queda intacto y `graph.py`/`triage.py` no se tocan. En modo
+    "training", `report.opportunities` es `[]` por diseño (ver R23.3/decisión #4 de
+    `investigador-v2`): el filtro es un no-op natural en ese modo. Un fallo de
+    clasificación en una oportunidad no aborta el resto (aislamiento, coherente con
     `failed_sources`)
-  - Tests: con `FakeLLMProvider` y una lista de resultados simulados con distintas
-    respuestas fijas por resultado: cada uno queda marcado según su clasificación (si/no/
+  - Tests: con `FakeLLMProvider` y una lista de `GrantOpportunity` de prueba con distintas
+    respuestas fijas por resultado: la estructura devuelta clasifica cada una (si/no/
     no_clasificado); `result_type` de cada resultado permanece intacto tras el filtrado; un
-    resultado cuya clasificación falla (excepción del fake) no impide clasificar el resto
+    resultado cuya clasificación falla (excepción del fake) no impide clasificar el resto;
+    con `opportunities=[]` (caso modo "training") el filtro no falla y devuelve una
+    estructura vacía
   - Purpose: primer consumidor real de la infraestructura LLM, aditivo sobre el
-    investigador, sin tocar R20
+    investigador, sin tocar R20 ni `research/`
   - _Leverage: src/agente_ong/llm/semantic_filter.py (classify_result, tarea 7),
-    src/agente_ong/research/models.py (ResearchReport, SearchHit, GrantOpportunity, sin
-    modificarlos salvo el campo nuevo opcional)_
+    src/agente_ong/research/models.py (ResearchReport, GrantOpportunity — se LEEN, no se
+    modifican)_
   - _Requirements: 6.2, 6.5_
