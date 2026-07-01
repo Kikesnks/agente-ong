@@ -346,7 +346,7 @@ especifica los archivos exactos.
   - Files: src/agente_ong/ui/report_serde.py, src/agente_ong/ui/report_view.py,
     tests/ui/test_report_serde.py, tests/ui/test_app_smoke.py
   - `format_verification_date(retrieved_at: datetime) -> str` (`"%d-%m-%Y"`, 15.5) y
-    `_url_verification_suffix(claim: Claim) -> str` (privada) en report_serde.py: `""` si
+    `url_verification_suffix(claim: Claim) -> str` (pública) en report_serde.py: `""` si
     `claim.sources` está vacío (15.3); si no, `" (verificada el DD-MM-AAAA[, DD-MM-AAAA...])"`
     con una fecha por `SourceRef.retrieved_at` (una por fuente, sin deduplicar — 15.2). Aplicar
     SOLO al campo "url" (no al resto de Claims): en `report_to_markdown_summary` (línea "URL"),

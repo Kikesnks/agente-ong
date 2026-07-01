@@ -233,10 +233,11 @@ reasigna.
 **Trazabilidad de URL (R15):**
 - **`format_verification_date(retrieved_at: datetime) -> str`** (nueva, en `report_serde.py`):
   `retrieved_at.strftime("%d-%m-%Y")`.
-- **`_url_verification_suffix(claim: Claim) -> str`** (nueva, privada de `report_serde.py`): si
-  `claim.sources` está vacío devuelve `""`; si no, devuelve `" (verificada el
+- **`url_verification_suffix(claim: Claim) -> str`** (nueva, en `report_serde.py`, **pública**):
+  si `claim.sources` está vacío devuelve `""`; si no, devuelve `" (verificada el
   DD-MM-AAAA[, DD-MM-AAAA...])"` con una fecha por cada `SourceRef` (sin deduplicar fechas
-  iguales: tras R14 lo habitual es una sola fuente → una sola fecha).
+  iguales: tras R14 lo habitual es una sola fuente → una sola fecha). Pública porque
+  `report_view.py` (UI) la importa para mostrar la fecha de verificación junto a la URL (R15).
 - Se aplica SOLO al campo `url` (no al resto de `Claim` de la convocatoria): en
   `report_to_markdown_summary` (línea "URL"), en `_claim_line` del detallado (cuando
   `claim.field == "url"`), y en `render_report` (fila "URL" de `_CLAIM_ROWS`).
