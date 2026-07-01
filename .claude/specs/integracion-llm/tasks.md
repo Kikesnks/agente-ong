@@ -20,7 +20,7 @@ testeable y especifica los archivos exactos.
 
 ### R1 — Puerto LLMProvider
 
-- [ ] 1. Puerto `LLMProvider` + `LLMResponse` en llm/provider.py
+- [x] 1. Puerto `LLMProvider` + `LLMResponse` en llm/provider.py
   - Files: src/agente_ong/llm/provider.py, tests/llm/fakes.py, tests/llm/test_provider.py
   - `LLMProvider(ABC)` con el método abstracto `complete(system: str, user: str) ->
     LLMResponse` (Firma B: system/user separados); `LLMResponse` (`dataclass`): `text: str`,
