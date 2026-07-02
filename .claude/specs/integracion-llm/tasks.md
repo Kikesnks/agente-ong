@@ -109,14 +109,14 @@ testeable y especifica los archivos exactos.
 ### R6 — Filtro semántico (Opción 1)
 
 - [x] 6. Prompt del filtro en archivo + cargador en llm/prompts/
-  - Files: src/agente_ong/llm/prompts/semantic_filter.md, src/agente_ong/llm/prompts.py,
-    tests/llm/test_prompts.py
+  - Files: src/agente_ong/llm/prompts/semantic_filter.md, src/agente_ong/llm/prompt_loader.py,
+    tests/llm/test_prompt_loader.py
   - Redactar `semantic_filter.md` con las 5 primeras piezas del prompt (rol, pregunta
     exacta, qué cuenta como SÍ, qué cuenta como NO —con los falsos positivos verificados:
     noticias/estudios/páginas de ONGs, licitaciones, proyectos ya financiados, resultados
     que casan solo por nombre propio/lugar, subvenciones nacionales ajenas a cooperación
     internacional, convocatorias cerradas—, formato de salida SI/NO estricto). `load_prompt
-    (name: str) -> str` en `prompts.py`: lee el `.md` correspondiente de `llm/prompts/`
+    (name: str) -> str` en `prompt_loader.py`: lee el `.md` correspondiente de `llm/prompts/`
   - Tests: `load_prompt("semantic_filter")` devuelve contenido no vacío que incluye la
     pregunta SI/NO y las instrucciones de formato de salida
   - Purpose: el prompt es editable sin tocar código Python (patrón "skill", reutilizado por
@@ -137,7 +137,7 @@ testeable y especifica los archivos exactos.
     resultado de prueba
   - Purpose: traducción fiable de la respuesta del LLM a un booleano (o "no clasificado"),
     válida para los tres proveedores por igual
-  - _Leverage: src/agente_ong/llm/provider.py (LLMProvider), src/agente_ong/llm/prompts.py
+  - _Leverage: src/agente_ong/llm/provider.py (LLMProvider), src/agente_ong/llm/prompt_loader.py
     (load_prompt, tarea 6), tests/llm/fakes.py (FakeLLMProvider)_
   - _Requirements: 6.1, 6.3, 6.4_
 
