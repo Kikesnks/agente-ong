@@ -141,7 +141,7 @@ testeable y especifica los archivos exactos.
     (load_prompt, tarea 6), tests/llm/fakes.py (FakeLLMProvider)_
   - _Requirements: 6.1, 6.3, 6.4_
 
-- [ ] 8. Integración del filtro con los resultados del investigador (Opción B: marca en `llm/`)
+- [x] 8. Integración del filtro con los resultados del investigador (Opción B: marca en `llm/`)
   - Files: src/agente_ong/llm/semantic_filter.py (continúa de la tarea 7),
     tests/llm/test_semantic_filter.py
   - Función que recorre `report.opportunities` (las oportunidades ya construidas por el
