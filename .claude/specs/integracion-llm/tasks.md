@@ -108,7 +108,7 @@ testeable y especifica los archivos exactos.
 
 ### R6 — Filtro semántico (Opción 1)
 
-- [ ] 6. Prompt del filtro en archivo + cargador en llm/prompts/
+- [x] 6. Prompt del filtro en archivo + cargador en llm/prompts/
   - Files: src/agente_ong/llm/prompts/semantic_filter.md, src/agente_ong/llm/prompts.py,
     tests/llm/test_prompts.py
   - Redactar `semantic_filter.md` con las 5 primeras piezas del prompt (rol, pregunta
