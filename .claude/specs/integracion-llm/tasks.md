@@ -53,7 +53,7 @@ testeable y especifica los archivos exactos.
 
 ### R2 — Adaptadores Claude, OpenAI y Ollama
 
-- [ ] 3. Adaptador Ollama en llm/adapters/ollama.py
+- [x] 3. Adaptador Ollama en llm/adapters/ollama.py
   - Files: src/agente_ong/llm/adapters/ollama.py, tests/llm/test_adapters.py,
     requirements.txt
   - PRIMERO: verificar EN VIVO (una llamada a un modelo Ollama local) el formato de
