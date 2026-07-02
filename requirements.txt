@@ -1,13 +1,17 @@
 # Dependencias de EJECUCIÓN (runtime) — lo que la app necesita para funcionar.
 # Stack definido en .claude/steering/tech.md.
 #
-# Nota: los proveedores de LLM (Anthropic/OpenAI) se añadirán cuando se construya
-# esa capa; aquí lo que usan el módulo investigador (src/agente_ong/research/) y
-# la interfaz (src/agente_ong/ui/).
+# Nota: los adaptadores Claude/OpenAI (langchain-anthropic/langchain-openai) se añaden en
+# T4 de SPEC 2; aquí ya está lo que usan el módulo investigador
+# (src/agente_ong/research/), la interfaz (src/agente_ong/ui/) y el adaptador Ollama de
+# la capa LLM (src/agente_ong/llm/).
 
 # --- Orquestación multi-agente ---
 langgraph>=0.2
 langchain>=0.3
+
+# --- Adaptadores LLM (src/agente_ong/llm/adapters/) ---
+langchain-ollama>=0.2
 
 # --- Cliente HTTP para fuentes oficiales (BDNS, TED), con reintentos ---
 httpx>=0.27
