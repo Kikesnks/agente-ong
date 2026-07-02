@@ -123,7 +123,7 @@ testeable y especifica los archivos exactos.
     el agente redactor de SPEC 4)
   - _Requirements: 6.1_
 
-- [ ] 7. classify_result en llm/semantic_filter.py
+- [x] 7. classify_result en llm/semantic_filter.py
   - Files: src/agente_ong/llm/semantic_filter.py, tests/llm/test_semantic_filter.py
   - `classify_result(provider: LLMProvider, title: str, snippet: str) -> Literal["si",
     "no", "no_clasificado"]`: arma el system prompt (cargado con `load_prompt`, tarea 6) y
