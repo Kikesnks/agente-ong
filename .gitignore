@@ -3,6 +3,9 @@
 # (Prompts.docx, descripcion_proyecto.docx, glosario, etc.). Uso interno, NO es parte del producto.
 Contexto_para_mi/
 
+# Carpeta local de archivos antiguos del desarrollador (Kike), fuera del producto.
+OLD/
+
 # --- Locks temporales de LibreOffice/OpenOffice ---
 .~lock.*#
 
