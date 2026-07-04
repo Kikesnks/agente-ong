@@ -70,7 +70,7 @@ testeable y especifica los archivos exactos.
     src/agente_ong/llm/errors.py (tarea 2)_
   - _Requirements: 2.1, 2.3_
 
-- [ ] 4. Adaptadores Claude y OpenAI en llm/adapters/claude.py y openai.py
+- [ ] 4. [APLAZADA — pendiente de claves API] Adaptadores Claude y OpenAI en llm/adapters/claude.py y openai.py
   - Files: src/agente_ong/llm/adapters/claude.py, src/agente_ong/llm/adapters/openai.py,
     tests/llm/test_adapters.py (continúa de la tarea 3), requirements.txt
   - PRIMERO: verificar EN VIVO el formato de `usage_metadata`/tokens de
@@ -88,7 +88,7 @@ testeable y especifica los archivos exactos.
 
 ### R3 — Configuración
 
-- [ ] 5. LLMConfig + build_provider en llm/config.py
+- [ ] 5. [APLAZADA — pendiente de claves API] LLMConfig + build_provider en llm/config.py
   - Files: src/agente_ong/llm/config.py, tests/llm/test_config.py
   - `LLMConfig` (`dataclass`): `provider: Literal["claude", "openai", "ollama"]`, `model:
     str`, `temperature: float = 0.0`, `anthropic_api_key`/`openai_api_key: str | None`.

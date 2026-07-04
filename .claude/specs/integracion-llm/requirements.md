@@ -20,6 +20,9 @@ posteriores (redactor, chat) una vez validada la infraestructura LLM en producci
 - Streaming de respuesta (lo necesitará el chat de SPEC 3; se diseña allí).
 - Presupuesto/límite de tokens (contador sí, control de coste no — backlog v1.1).
 - UI de gestión de claves API (SPEC 6; aquí las claves solo se leen del entorno).
+- Adaptadores Claude y OpenAI de pago (R2.1, R2.2): implementados a nivel de tarea
+  (T4/T5) pero aplazados hasta disponer de claves API. Ver
+  Contexto_para_mi/decisiones_pendientes.md #11.
 - Adaptador genérico OpenAI-compatible (Grok, DeepSeek, etc.) — candidato de BACKLOG,
   fuera de esta spec.
 - Enrutado heurístico o extracción estructurada de campos vía LLM — posterior a validar
