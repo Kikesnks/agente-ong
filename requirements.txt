@@ -23,6 +23,9 @@ firecrawl-py>=1.0
 # --- Lectura profunda propia (R23): extracción del texto principal sin créditos ---
 trafilatura>=2.0
 
+# --- Vocabulario ODS (R24): carga de configuración YAML con fallback ---
+PyYAML>=6.0
+
 # --- Interfaz (src/agente_ong/ui/) ---
 streamlit>=1.37
 streamlit-autorefresh>=1.0  # sondeo del estado de los jobs mientras hay investigaciones activas
