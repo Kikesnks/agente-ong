@@ -1,5 +1,21 @@
 # Spec investigador-v2 — requirements.md (APROBADO por Kike el 12-06-2026)
 
+## Reapertura temporal — 05-07-2026
+
+**Motivo:** ampliar el vocabulario de búsqueda del investigador (R16) con
+términos alineados con los Objetivos de Desarrollo Sostenible (ODS) y la
+Agenda 2030, para captar convocatorias anunciadas con lenguaje de cooperación
+internacional.
+
+**Origen del pendiente:** `Contexto_para_mi/pendientes_ods_investigador.md`
+sección 1.
+
+**Alcance de la reapertura:** solo retoques al vocabulario (R24). Fuentes
+nuevas y campos ODS en el modelo `Opportunity` quedan fuera (ver "Fuera de
+alcance").
+
+**Fecha prevista de cierre:** al terminar T-nueva (código + tests + docs).
+
 *Fecha: 12-06-2026. Origen: diagnóstico de los informes de producción del 12-06-2026
 (búsqueda rápida, 104 resultados; búsqueda exhaustiva, 108 resultados; 0 convocatorias
 útiles en ambos).*
@@ -186,9 +202,82 @@ Dependencias: R23 requiere R20 (result_type) implementado. No bloquea las tareas
 
 ---
 
+### R24 — Vocabulario ODS en queries del investigador
+
+El investigador ampliará su vocabulario de búsqueda con términos alineados con
+los Objetivos de Desarrollo Sostenible (ODS) y la Agenda 2030, para captar
+convocatorias que se anuncien con lenguaje de cooperación internacional.
+
+**R24.1** El vocabulario ODS se carga desde un archivo YAML ubicado en
+`src/agente_ong/research/` (nombre exacto definido en `tasks.md`).
+
+**R24.2** Los términos ODS se combinan con el vocabulario base de convocatoria
+de R16. No se lanzan como queries independientes sin contexto de convocatoria.
+
+**R24.3** El archivo YAML se estructura en tres categorías para facilitar
+mantenimiento: `ods_generales`, `cooperacion_espanola`, `enfoques_transversales`.
+
+**R24.4** Si el archivo YAML falta o está mal formado, el investigador registra
+el fallo en el log y continúa con un vocabulario de reserva embebido en código
+(los 5 términos ODS más generales). El sistema no debe detenerse por un error de
+configuración de vocabulario.
+
+**Tope operativo:** máximo 5 queries ODS adicionales por ciclo del investigador.
+Cada una combina un término ODS con vocabulario base de convocatoria.
+
+**Fallback en código (activado solo si el YAML falla):**
+1. "Agenda 2030"
+2. "ODS"
+3. "Objetivos de Desarrollo Sostenible"
+4. "Plan Director cooperación española"
+5. "subvenciones 0,7%"
+
+---
+
 ## Decisiones tomadas (12-06-2026, Kike)
 
 - **P1 — opción (b):** Tavily fuente secundaria para subvenciones (ver 16.5). Se conserva
   activable por su valor como material RAG futuro (proyectos redactados).
 - **P2 — dos informes:** resumido para el usuario + detallado para análisis (R22).
 - **P3 — confirmada** la promoción del detalle BDNS (R19) desde v1.1 a esta spec.
+
+---
+
+## Fuera de alcance de la reapertura 05-07-2026
+
+Omisiones conscientes, no olvidos. Registradas para futuras lecturas del código.
+
+### R24.5 — Edición del vocabulario ODS por el usuario final
+
+Ofrecer a la ONG usuaria una interfaz en Streamlit para editar el archivo YAML
+desde la aplicación, sin tocar código ni repositorio.
+
+**Estado:** aplazado a spec futura (candidato SPEC 5 o SPEC 6).
+
+**Motivo del aplazamiento:**
+1. Requiere trabajo de UI (edición, guardado, feedback).
+2. Requiere validación del contenido editado (YAML mal formado, vocabulario vacío).
+3. Requiere persistencia real: en Streamlit Cloud el sistema de archivos es
+   efímero; habría que usar SQLite u otro almacenamiento persistente.
+4. Requiere decisiones de multi-usuario (¿comparten vocabulario o cada ONG el
+   suyo?).
+5. La ONG usuaria no puede editar bien lo que aún no funciona. Primero verificar
+   que el vocabulario ODS fijo trae resultados de calidad; sin esa base no se
+   sabe qué necesita editar el usuario.
+
+**Consecuencia:** en esta reapertura el YAML es editable solo por el
+desarrollador, con cambios versionados en Git.
+
+### Fuentes nuevas de convocatorias
+
+`pendientes_ods_investigador.md` sección 3 lista candidatas (Ministerio Derechos
+Sociales, ACNUDH, ONU Mujeres). Quedan fuera: añadir fuentes es cambio
+estructural, no retoque de vocabulario.
+
+### Campos ODS en el modelo `Opportunity`
+
+`pendientes_ods_investigador.md` sección 2 propone `ods_principal`,
+`ods_secundarios`, `prioridad_geografica`, `enfoques_transversales`,
+`plan_director_alineacion`. Quedan fuera: requieren decisión de diseño previa
+(extracción automática con LLM vs. metadata manual) que no procede resolver en
+esta reapertura.
