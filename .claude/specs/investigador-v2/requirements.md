@@ -14,7 +14,8 @@ sección 1.
 nuevas y campos ODS en el modelo `Opportunity` quedan fuera (ver "Fuera de
 alcance").
 
-**Fecha prevista de cierre:** al terminar T-nueva (código + tests + docs).
+**Fecha de cierre:** 05-07-2026. Reapertura completada: T20-T23 implementadas,
+315 tests en verde (309 previos + 6 nuevos).
 
 *Fecha: 12-06-2026. Origen: diagnóstico de los informes de producción del 12-06-2026
 (búsqueda rápida, 104 resultados; búsqueda exhaustiva, 108 resultados; 0 convocatorias

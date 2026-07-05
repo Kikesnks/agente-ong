@@ -230,7 +230,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
 
 *Añadido en la reapertura del 05-07-2026. Ver nota de reapertura en `requirements.md`.*
 
-- [ ] **20. Crear archivo YAML con vocabulario ODS inicial.**
+- [x] **20. Crear archivo YAML con vocabulario ODS inicial.**
   - Ubicación: `src/agente_ong/research/` (nombre exacto: definir en esta tarea,
     propuesta: `ods_vocabulary.yaml`).
   - Estructura: 3 categorías `ods_generales`, `cooperacion_espanola`,
@@ -240,7 +240,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
   - Comentarios `#` en el YAML explicando la finalidad de cada categoría.
   - Sin cambios de código en esta tarea (solo el archivo YAML).
 
-- [ ] **21. Implementar carga del YAML con fallback en código.**
+- [x] **21. Implementar carga del YAML con fallback en código.**
   - Función/módulo de carga en `src/agente_ong/research/` (ubicación exacta: 
     decidir durante la tarea, coherente con el patrón del módulo).
   - Si el archivo falta o está mal formado: registrar en log + devolver los 5
@@ -255,14 +255,14 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
     (R24.1).
   - Ejecutar `pytest -q` al terminar. Suite debe seguir verde (309 tests).
 
-- [ ] **22. Integrar términos ODS en la generación de queries del investigador.**
+- [x] **22. Integrar términos ODS en la generación de queries del investigador.**
   - Combinar términos ODS con vocabulario base de convocatoria de R16 (R24.2).
   - Aplicar tope operativo: máximo 5 queries ODS adicionales por ciclo.
   - Cada query ODS adicional = 1 término ODS + vocabulario base de convocatoria.
   - No lanzar términos ODS como queries independientes sin contexto (R24.2).
   - Ejecutar `pytest -q` al terminar. Suite debe seguir verde (309 tests).
 
-- [ ] **23. Añadir 6 tests para R24.**
+- [x] **23. Añadir 6 tests para R24.**
   - Todos con mock (no llaman a Tavily real), consistente con los 309 tests
     actuales.
   - Ubicación: `tests/research/` (mismo espejo del código).
