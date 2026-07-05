@@ -17,6 +17,7 @@ añaden en las tareas 26-27.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -40,6 +41,7 @@ from agente_ong.research.models import (
     Unresolved,
     VerificationStatus,
 )
+from agente_ong.research.ods_vocabulary import load_ods_vocabulary
 from agente_ong.research.sources.base import SearchSource
 from agente_ong.research.textclean import clean_text, snippet
 from agente_ong.research.triage import best_result_type, classify_hit
@@ -48,6 +50,11 @@ from agente_ong.research.verification import VerificationPolicy, dedupe_refs
 
 # Longitud máxima del resumen que se guarda en el ledger por cada documento leído.
 _SUMMARY_MAX_CHARS = 280
+
+# --- Vocabulario ODS (R24) ---
+_ODS_YAML_PATH = Path(__file__).parent / "ods_vocabulary.yaml"
+_MAX_ODS_QUERIES = 5  # tope operativo de R24: máximo 5 queries ODS por ciclo
+_ODS_BASE_TERM = "convocatoria"  # término base de R16 que ancla cada query ODS
 
 
 class ResearchState(TypedDict, total=False):
@@ -125,6 +132,32 @@ class ResearchGraph:
                     if len(term.split()) > 1:
                         add(term)  # consultas individuales solo si el término es multi-palabra
                     # los términos de una sola palabra ya van en la consulta combinada
+
+        # R24: añadir hasta 5 queries ODS combinadas con vocabulario base de
+        # convocatoria. Se aplanan las 3 categorías del YAML en una única lista
+        # respetando el orden: ods_generales, cooperacion_espanola,
+        # enfoques_transversales. Se toman los 5 primeros términos que no
+        # produzcan duplicado en el dedupe existente.
+        ods_vocab = load_ods_vocabulary(_ODS_YAML_PATH)
+        ods_terms_flat = (
+            ods_vocab["ods_generales"]
+            + ods_vocab["cooperacion_espanola"]
+            + ods_vocab["enfoques_transversales"]
+        )
+        ods_count = 0
+        for term in ods_terms_flat:
+            if ods_count >= _MAX_ODS_QUERIES:
+                break
+            text = f"{_ODS_BASE_TERM} {term}"
+            key = text.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            queries.append(
+                SearchQuery(text=text, search_context=request.search_context)
+            )
+            ods_count += 1
+
         return queries
 
     # --- Nodo: recall_ledger ---

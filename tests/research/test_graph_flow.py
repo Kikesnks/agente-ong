@@ -194,15 +194,19 @@ def test_missing_critical_fields_become_unresolved(db_path: Path) -> None:
 def test_derive_queries_skips_single_word_individual_terms() -> None:
     # Combinada + solo el término multi-palabra como consulta individual;
     # "agua" (una palabra) ya queda cubierto por la combinada y no se lanza suelto.
+    # Tras las queries base, _derive_queries añade hasta 5 queries ODS (R24);
+    # este test solo garantiza el prefijo de queries base.
     request = ResearchRequest(mode="calls", query_terms=["agua", "salud mental"])
     texts = [q.text for q in ResearchGraph._derive_queries(request)]
-    assert texts == ["agua salud mental", "salud mental"]
+    assert texts[:2] == ["agua salud mental", "salud mental"]
 
 
 def test_derive_queries_only_combined_when_all_terms_single_word() -> None:
+    # Tras la query base, _derive_queries añade hasta 5 queries ODS (R24);
+    # este test solo garantiza el prefijo de queries base.
     request = ResearchRequest(mode="calls", query_terms=["agua", "cultura"])
     texts = [q.text for q in ResearchGraph._derive_queries(request)]
-    assert texts == ["agua cultura"]
+    assert texts[:1] == ["agua cultura"]
 
 
 # --- Detalle BDNS: importe y plazo trazables en el informe (R19, investigador-v2) ---
