@@ -225,3 +225,58 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
     como material de portafolio (21.2); dejar constancia de que la validación de criterio
     fino queda para testers expertos (21.3)
   - _Requirements: 21.1, 21.2, 21.3_
+
+### R24 — Vocabulario ODS en queries del investigador
+
+*Añadido en la reapertura del 05-07-2026. Ver nota de reapertura en `requirements.md`.*
+
+- [ ] **20. Crear archivo YAML con vocabulario ODS inicial.**
+  - Ubicación: `src/agente_ong/research/` (nombre exacto: definir en esta tarea,
+    propuesta: `ods_vocabulary.yaml`).
+  - Estructura: 3 categorías `ods_generales`, `cooperacion_espanola`,
+    `enfoques_transversales` (R24.3).
+  - Contenido inicial mínimo: incluir los 5 términos del fallback en las
+    categorías que corresponda + términos específicos por categoría.
+  - Comentarios `#` en el YAML explicando la finalidad de cada categoría.
+  - Sin cambios de código en esta tarea (solo el archivo YAML).
+
+- [ ] **21. Implementar carga del YAML con fallback en código.**
+  - Función/módulo de carga en `src/agente_ong/research/` (ubicación exacta: 
+    decidir durante la tarea, coherente con el patrón del módulo).
+  - Si el archivo falta o está mal formado: registrar en log + devolver los 5
+    términos del fallback embebidos en código (R24.4).
+  - Fallback embebido (literal):
+    1. "Agenda 2030"
+    2. "ODS"
+    3. "Objetivos de Desarrollo Sostenible"
+    4. "Plan Director cooperación española"
+    5. "subvenciones 0,7%"
+  - Los términos cargados quedan disponibles en memoria para el investigador
+    (R24.1).
+  - Ejecutar `pytest -q` al terminar. Suite debe seguir verde (309 tests).
+
+- [ ] **22. Integrar términos ODS en la generación de queries del investigador.**
+  - Combinar términos ODS con vocabulario base de convocatoria de R16 (R24.2).
+  - Aplicar tope operativo: máximo 5 queries ODS adicionales por ciclo.
+  - Cada query ODS adicional = 1 término ODS + vocabulario base de convocatoria.
+  - No lanzar términos ODS como queries independientes sin contexto (R24.2).
+  - Ejecutar `pytest -q` al terminar. Suite debe seguir verde (309 tests).
+
+- [ ] **23. Añadir 6 tests para R24.**
+  - Todos con mock (no llaman a Tavily real), consistente con los 309 tests
+    actuales.
+  - Ubicación: `tests/research/` (mismo espejo del código).
+  - Los 6 tests:
+    1. R24.1 — Al arrancar el investigador, los términos del YAML están
+       disponibles en el vocabulario en memoria.
+    2. R24.2 — Las queries generadas contienen término ODS + vocabulario base
+       de convocatoria.
+    3. R24.3 — El parser lee correctamente las 3 categorías del YAML.
+    4. R24.4 — YAML ausente → usa fallback + log registrado.
+    5. R24.4 — YAML mal formado → usa fallback + log registrado.
+    6. Tope operativo — El investigador no genera más de 5 queries ODS por
+       ciclo.
+  - Tests de regresión: NO se añaden ahora. Se añadirán reactivamente si
+    aparece un caso concreto (registrado en la nota de reapertura).
+  - Ejecutar `pytest -q` al terminar. Suite debe estar en 315 tests verdes
+    (309 + 6 nuevos).
