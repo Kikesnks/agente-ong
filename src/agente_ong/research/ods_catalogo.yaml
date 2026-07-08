@@ -1,0 +1,43 @@
+# Catálogo oficial de los 17 Objetivos de Desarrollo Sostenible (ODS) de la ONU.
+# Fuente: Naciones Unidas, portal oficial en español
+# (un.org/sustainabledevelopment/es). Fecha de verificación: 08-07-2026.
+# Nota: se usan los nombres cortos oficiales de comunicación pública. Los
+# nombres largos de la Resolución A/RES/70/1 no se incluyen en R25 (fuera de
+# alcance).
+# Usado por la UI (T26) para la multiselección obligatoria del usuario (R25.1).
+
+ods:
+  - numero: 1
+    nombre: "Fin de la pobreza"
+  - numero: 2
+    nombre: "Hambre cero"
+  - numero: 3
+    nombre: "Salud y bienestar"
+  - numero: 4
+    nombre: "Educación de calidad"
+  - numero: 5
+    nombre: "Igualdad de género"
+  - numero: 6
+    nombre: "Agua limpia y saneamiento"
+  - numero: 7
+    nombre: "Energía asequible y no contaminante"
+  - numero: 8
+    nombre: "Trabajo decente y crecimiento económico"
+  - numero: 9
+    nombre: "Industria, innovación e infraestructuras"
+  - numero: 10
+    nombre: "Reducción de las desigualdades"
+  - numero: 11
+    nombre: "Ciudades y comunidades sostenibles"
+  - numero: 12
+    nombre: "Producción y consumo responsables"
+  - numero: 13
+    nombre: "Acción por el clima"
+  - numero: 14
+    nombre: "Vida submarina"
+  - numero: 15
+    nombre: "Vida de ecosistemas terrestres"
+  - numero: 16
+    nombre: "Paz, justicia e instituciones sólidas"
+  - numero: 17
+    nombre: "Alianzas para lograr los objetivos"
