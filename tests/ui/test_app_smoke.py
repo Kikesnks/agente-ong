@@ -30,9 +30,11 @@ sys.path.insert(0, str(_ROOT / "tests" / "research"))
 from fakes import FakeFetchSource, FakeSearchSource, make_hit  # noqa: E402
 
 from agente_ong.research.investigador import Investigador  # noqa: E402
+from agente_ong.research.ods_catalogo import load_ods_catalogo  # noqa: E402
 from agente_ong.ui import app as app_module  # noqa: E402
 from agente_ong.ui.project_store import ProjectStore  # noqa: E402
 
+_ODS_CATALOGO_PATH = _ROOT / "src" / "agente_ong" / "research" / "ods_catalogo.yaml"
 _TIMEOUT = 30  # segundos (las fakes terminan en milisegundos; margen para CI lentas)
 
 # El form_submit_button no admite key explícita: Streamlit la deriva del form y la label.
@@ -117,12 +119,13 @@ def test_create_project_appears_in_sidebar_and_creates_folder(app: AppTest, tmp_
 # --- Investigación E2E con fakes: informe ordenado y descargable (R2.1, R4.1, R11.1) ---
 
 
-@pytest.mark.xfail(
-    reason="T26 pendiente: UI aún no propaga selected_ods, ver decisión #18", strict=True
-)
 def test_research_flow_renders_sorted_report(app: AppTest, fake_sources: list) -> None:
     app.run()
     _create_project(app)
+
+    # R25.1: multiselección obligatoria de ODS antes de poder enviar el formulario.
+    ods_choice = load_ods_catalogo(_ODS_CATALOGO_PATH)[0]
+    app.multiselect(key="research-ods").select(ods_choice).run()
 
     # Lanzar con los defaults del formulario (términos prellenados del proyecto).
     app.button(key=_BTN_RESEARCH).click().run()
@@ -132,6 +135,15 @@ def test_research_flow_renders_sorted_report(app: AppTest, fake_sources: list) -
     assert status == "done"
     # Las fuentes consultadas fueron las FAKE (ninguna API real).
     assert fake_sources[0].search_calls, "la fuente fake oficial debe haberse consultado"
+
+    # R25.2: la selección de ODS de la UI debe llegar hasta _derive_queries() y generar una
+    # query real "convocatoria ODS N ..." contra las fuentes (cierra el bucle end-to-end;
+    # el report/ledger no sirve para esto: el texto de la query se hashea, ver ledger.py).
+    all_search_calls = fake_sources[0].search_calls + fake_sources[1].search_calls
+    ods_query_prefix = f"convocatoria ODS {ods_choice['numero']} "
+    assert any(c.startswith(ods_query_prefix) for c in all_search_calls), (
+        f"debe haber una query {ods_query_prefix!r} generada desde el ODS elegido en la UI"
+    )
 
     app.run()  # rerun: la UI recoge el run persistido y renderiza el informe
     assert not app.exception, app.exception[0].value

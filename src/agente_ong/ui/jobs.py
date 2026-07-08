@@ -36,14 +36,11 @@ _DEFAULT_MAX_WORKERS = 2
 class _RunsInvestigation(Protocol):
     """Contrato mínimo del investigador que ejecuta un job (lo cumple `Investigador`).
 
-    `selected_ods=None` es deuda transitoria (R25) mientras T26 (UI de multiselección de
-    ODS) no exista: sin ella, `run()` falla con `ValueError` explícito dentro del grafo
-    (decisión B1, R25.3) en vez de simular una selección. Ver decisión pendiente #18.
+    `selected_ods` es obligatorio (R25, decisión B1): la UI exige multiselección de al
+    menos 1 ODS (T26) antes de poder lanzar una investigación.
     """
 
-    def run(
-        self, request: ResearchRequest, selected_ods: list[OdsEntry] | None = None
-    ) -> ResearchReport: ...
+    def run(self, request: ResearchRequest, selected_ods: list[OdsEntry]) -> ResearchReport: ...
 
 
 # La factoría recibe la config del job y devuelve un investigador usable como context
@@ -82,18 +79,27 @@ class JobManager:
 
     # --- API del hilo de script (UI) ---
 
-    def submit(self, project_id: int, config: ResearchConfig, request: ResearchRequest) -> str:
+    def submit(
+        self,
+        project_id: int,
+        config: ResearchConfig,
+        request: ResearchRequest,
+        selected_ods: list[OdsEntry],
+    ) -> str:
         """Encola una investigación y devuelve su `job_id` DE INMEDIATO (R2.1).
 
         El trabajo corre en un hilo de fondo con su propio `Investigador`; el estado se
-        sigue con `status()`/`active_jobs()`.
+        sigue con `status()`/`active_jobs()`. `selected_ods` (R25): ODS elegidos por el
+        usuario en la UI, obligatorios (decisión B1, R25.3).
         """
         job_id = uuid.uuid4().hex
         job = Job(id=job_id, project_id=project_id, status="running")
         with self._lock:
             self._jobs[job_id] = job
         # El future se asigna tras registrar el job: el worker ya puede encontrarlo.
-        job.future = self._executor.submit(self._run_job, job_id, config, request)
+        job.future = self._executor.submit(
+            self._run_job, job_id, config, request, selected_ods
+        )
         return job_id
 
     def status(self, job_id: str) -> JobStatus:
@@ -128,14 +134,24 @@ class JobManager:
 
     # --- Trabajo en el hilo de fondo (PROHIBIDO st.* aquí) ---
 
-    def _run_job(self, job_id: str, config: ResearchConfig, request: ResearchRequest) -> None:
+    def _run_job(
+        self,
+        job_id: str,
+        config: ResearchConfig,
+        request: ResearchRequest,
+        selected_ods: list[OdsEntry],
+    ) -> None:
         try:
-            self._run_job_inner(job_id, config, request)
+            self._run_job_inner(job_id, config, request, selected_ods)
         except Exception:  # noqa: BLE001 - fallo del propio store: el job no queda colgado
             self._finish_job(job_id, "error")
 
     def _run_job_inner(
-        self, job_id: str, config: ResearchConfig, request: ResearchRequest
+        self,
+        job_id: str,
+        config: ResearchConfig,
+        request: ResearchRequest,
+        selected_ods: list[OdsEntry],
     ) -> None:
         # Store PROPIO de este hilo (conexión SQLite por hilo), cerrado al salir.
         with ProjectStore(self._db_path) as store:
@@ -147,7 +163,7 @@ class JobManager:
                 self._jobs[job_id].run_id = run_id
             try:
                 with self._factory(config) as investigador:
-                    report = investigador.run(request)
+                    report = investigador.run(request, selected_ods)
             except Exception as exc:  # noqa: BLE001 - aislar el fallo, no tumbar otros jobs
                 store.update_run_status(run_id, "error", error=str(exc))
                 self._finish_job(job_id, "error")

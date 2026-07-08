@@ -77,20 +77,16 @@ class Investigador:
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
         self.close()
 
-    def run(
-        self, request: ResearchRequest, selected_ods: list[OdsEntry] | None = None
-    ) -> ResearchReport:
+    def run(self, request: ResearchRequest, selected_ods: list[OdsEntry]) -> ResearchReport:
         """Ejecuta una investigación completa y devuelve su informe.
 
         Usa un ledger nuevo (vista en memoria limpia) sobre el store compartido, construye el
         grafo y lo invoca. El `compile_report` final persiste el ledger en el store.
 
         `selected_ods` (R25): ODS elegidos por el usuario para las queries ODS del
-        investigador. `selected_ods=None` es una deuda transitoria mientras T26 (UI de
-        multiselección) no exista; ver decisión pendiente #18 en
-        `Contexto_para_mi/decisiones_pendientes.md`. Con `None`/`[]`, `plan()` propaga el
-        vacío hasta `_derive_queries()`, que lanza `ValueError` explícito (decisión B1,
-        R25.3) en vez de fallar en silencio.
+        investigador. Obligatorio (decisión B1, R25.3, deuda #18 cerrada con T26): con
+        `[]`, `plan()` propaga el vacío hasta `_derive_queries()`, que lanza `ValueError`
+        explícito en vez de fallar en silencio.
         """
         ledger = SourceLedger(self._store)
         graph = ResearchGraph(

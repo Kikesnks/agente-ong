@@ -285,7 +285,7 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
 
 *Añadido en la reapertura del 08-07-2026. Ver nota de reapertura en `requirements.md`.*
 
-- [ ] **24. Crear archivo YAML con el catálogo de los 17 ODS oficiales de ONU.**
+- [x] **24. Crear archivo YAML con el catálogo de los 17 ODS oficiales de ONU.**
   - Ubicación: `src/agente_ong/research/` (nombre propuesto: `ods_catalogo.yaml`,
     distinto de `ods_vocabulary.yaml` de R24, que se conserva como fallback).
   - Contenido: los 17 ODS oficiales en español con nombre completo (ej. "ODS 1
@@ -293,46 +293,42 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
   - Sin cambios de código en esta tarea (solo el archivo YAML).
   - _Requirements: 25.1_
 
-- [ ] **25. Crear módulo `ods_catalogo.py` que cargue el catálogo.**
+- [x] **25. Crear módulo `ods_catalogo.py` que cargue el catálogo.**
   - Ubicación: `src/agente_ong/research/ods_catalogo.py`, mismo patrón que
     `ods_vocabulary.py` (T21).
   - Expone la lista de los 17 ODS al resto del sistema (UI y `graph.py`).
   - _Requirements: 25.1_
 
-- [ ] **26. Componente de multiselección obligatoria de ODS en la UI de Streamlit.**
+- [x] **26. Componente de multiselección obligatoria de ODS en la UI de Streamlit.**
   - Ubicación: módulo(s) de UI existentes (Streamlit).
   - Multiselección con mínimo 1 ODS elegido (no permite continuar con 0).
   - Usa el catálogo de la tarea 25 como fuente de opciones.
   - _Requirements: 25.1_
 
-*Nota de ejecución (08-07-2026): T27 y T28 se fusionan en una sola unidad de
+*Nota de ejecución (08-07-2026): T27 y T28 se fusionaron en una sola unidad de
 trabajo, porque cambiar el contrato de `_derive_queries()` (T28) y propagarlo
-hasta `Investigador.run()` (parte de T27) son cambios inseparables — no se
-puede tocar uno sin el otro. T26 (UI real) queda aparte, después. La
-descripción de "fallback" en T28 queda superada por la decisión B1 de R25.3
-(fallo explícito, sin fallback); ver `requirements.md`.*
+hasta `Investigador.run()` (parte de T27) eran cambios inseparables — no se
+podía tocar uno sin el otro. La descripción de "fallback" original de T28
+quedó superada por la decisión B1 de R25.3 (fallo explícito, sin fallback);
+ver `requirements.md`.*
 
-*Deuda transitoria: `Investigador.run()` mantiene `selected_ods=None` como
-default hasta el cierre de T26 (multiselección obligatoria en UI). Al cerrar
-T26, el default se elimina y el parámetro pasa a ser obligatorio.*
-
-- [ ] **27. Propagar la selección de ODS desde la UI hasta `_derive_queries()`.**
+- [x] **27. Propagar la selección de ODS desde la UI hasta `_derive_queries()`.**
   - Ubicación: capa de UI + `src/agente_ong/research/graph.py` (y `ResearchRequest`
     o estructura equivalente, si hace falta ampliarla).
   - La lista de ODS elegidos por el usuario llega intacta a `_derive_queries()`.
   - _Requirements: 25.2_
 
-- [ ] **28. Modificar `_derive_queries()` para usar los ODS elegidos.**
+- [x] **28. Modificar `_derive_queries()` para usar los ODS elegidos.**
   - Files: `src/agente_ong/research/graph.py`.
   - N ODS elegidos → N queries ODS (sin el tope fijo de 5 de R24).
-  - Si la lista de ODS elegidos llega vacía (bug de UI): fallback al
-    vocabulario fijo de `ods_vocabulary.yaml` (comportamiento de R24, tope 5).
+  - Si la lista de ODS elegidos llega vacía: `ValueError` explícito (decisión
+    B1, R25.3) — sin fallback al vocabulario de R24.
   - _Requirements: 25.2, 25.3_
 
-- [ ] **29. Tests para T25, T27, T28.**
-  - Ubicación: `tests/research/` (mismo espejo del código).
+- [x] **29. Tests para T25, T27, T28.**
+  - Ubicación: `tests/research/` (mismo espejo del código) y `tests/ui/`.
   - Todos con mock (no llaman a Tavily/BDNS real).
-  - Cobertura mínima: carga del catálogo de 17 ODS (T25); propagación de la
-    selección hasta `_derive_queries()` (T27); N ODS elegidos → N queries
-    (T28); lista vacía → fallback a R24 (T28).
-  - Ejecutar `pytest -q` al terminar. Suite debe seguir verde.
+  - Cobertura: carga del catálogo de 17 ODS y sus fallos (T25); propagación de
+    la selección hasta `_derive_queries()` end-to-end desde la UI (T27); N ODS
+    elegidos → N queries, lista vacía → `ValueError` (T28).
+  - `pytest -q` en verde: 321 passed, 0 xfailed.

@@ -21,6 +21,7 @@ import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 
 from agente_ong.research.config import DEFAULT_DB_PATH, ResearchConfig
+from agente_ong.research.ods_catalogo import load_ods_catalogo
 from agente_ong.ui import request_builder, uploads
 from agente_ong.ui.jobs import JobManager
 from agente_ong.ui.models import Project
@@ -32,6 +33,10 @@ _SELECTED_KEY = "selected_project_id"
 
 # Intervalo de sondeo del estado de los jobs mientras hay investigaciones activas (R2.2).
 _POLL_MS = 2000
+
+# Catálogo oficial de los 17 ODS (R25/T24), ruta absoluta desde este archivo: la UI puede
+# arrancar desde cualquier directorio de trabajo (no depende del cwd).
+_ODS_CATALOGO_PATH = Path(__file__).resolve().parent.parent / "research" / "ods_catalogo.yaml"
 
 # Fuentes que la UI ofrece activar/desactivar (R9.2). Espeja las que construye
 # Investigador._default_sources; la UI solo conoce el NOMBRE y una etiqueta legible.
@@ -150,7 +155,18 @@ def _project_view(store: ProjectStore, config: ResearchConfig, project: Project)
 
 
 def _research_form(config: ResearchConfig, project: Project, manager: JobManager) -> None:
-    """Controles de lanzamiento: términos, nivel (R8), fuentes y URLs (R9), año (R10)."""
+    """Controles de lanzamiento: términos, nivel (R8), fuentes y URLs (R9), año (R10), ODS (R25)."""
+    # R25.1: multiselección obligatoria de ODS. FUERA del form a propósito: los widgets
+    # dentro de un st.form no re-ejecutan el script al cambiar (solo al enviarlo), así que
+    # `disabled=` del botón de envío no podría reaccionar en vivo a esta selección si
+    # viviera dentro del mismo form.
+    ods_catalogo = load_ods_catalogo(_ODS_CATALOGO_PATH)
+    ods_selected = st.multiselect(
+        "ODS relacionados con la búsqueda (obligatorio, mínimo 1)",
+        ods_catalogo,
+        format_func=lambda e: f"ODS {e['numero']} - {e['nombre']}",
+        key="research-ods",
+    )
     with st.form("research-form"):
         st.subheader("Nueva investigación")
         terms_raw = st.text_input(
@@ -183,7 +199,7 @@ def _research_form(config: ResearchConfig, project: Project, manager: JobManager
             step=1,
             key="research-min-year",
         )
-        if st.form_submit_button("Investigar"):
+        if st.form_submit_button("Investigar", disabled=len(ods_selected) == 0):
             terms = [t.strip() for t in terms_raw.split(",") if t.strip()]
             direct_urls = [u.strip() for u in urls_raw.splitlines() if u.strip()]
             try:
@@ -200,7 +216,7 @@ def _research_form(config: ResearchConfig, project: Project, manager: JobManager
             except ValueError as exc:  # p.ej. sin fuentes ni URLs (R9.5)
                 st.error(str(exc))
             else:
-                manager.submit(project.id, job_config, request)
+                manager.submit(project.id, job_config, request, ods_selected)
                 st.rerun()
 
 

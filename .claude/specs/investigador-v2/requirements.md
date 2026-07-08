@@ -31,7 +31,10 @@ ODS fijas no reflejan la intención real del usuario en cada búsqueda.
 selección explícita del usuario desde la UI (R25). Persistencia de ODS en el
 modelo `Opportunity` queda fuera (ver "Fuera de alcance", R25.4).
 
-**Fecha de cierre:** pendiente.
+**Fecha de cierre:** 08-07-2026. Reapertura completada: T24-T29 implementadas
+(catálogo de 17 ODS, carga sin fallback, multiselección obligatoria en la UI,
+propagación end-to-end hasta `_derive_queries()`, decisión B1 sin default en
+toda la cadena).
 
 *Fecha: 12-06-2026. Origen: diagnóstico de los informes de producción del 12-06-2026
 (búsqueda rápida, 104 resultados; búsqueda exhaustiva, 108 resultados; 0 convocatorias

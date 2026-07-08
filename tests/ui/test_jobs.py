@@ -14,11 +14,15 @@ import pytest
 
 from agente_ong.research.config import ResearchConfig
 from agente_ong.research.models import ResearchReport, ResearchRequest
+from agente_ong.research.ods_catalogo import OdsEntry
 from agente_ong.ui.jobs import JobManager
 from agente_ong.ui.project_store import ProjectStore
 from agente_ong.ui.report_serde import report_from_dict
 
 _TIMEOUT = 10  # segundos; los fakes terminan en milisegundos
+
+# ODS de ejemplo para pasar a JobManager.submit (R25): obligatorio desde T26.
+_SELECTED_ODS: list[OdsEntry] = [{"numero": 1, "nombre": "Fin de la pobreza"}]
 
 
 class FakeInvestigador:
@@ -42,7 +46,7 @@ class FakeInvestigador:
     def __exit__(self, *args: object) -> None:
         pass
 
-    def run(self, request: ResearchRequest) -> ResearchReport:
+    def run(self, request: ResearchRequest, selected_ods: list[OdsEntry]) -> ResearchReport:
         self.ran_in_thread = threading.current_thread().name
         if self._release is not None:
             assert self._release.wait(_TIMEOUT), "el test no liberó el job"
@@ -84,7 +88,7 @@ def test_submit_returns_immediately_and_persists_done_run(db_path: Path, project
     manager = JobManager(db_path, investigador_factory=lambda cfg: fake)
     try:
         job_id = manager.submit(
-            project_id, _config(), _request(query_terms=["cultura"], max_depth=1)
+            project_id, _config(), _request(query_terms=["cultura"], max_depth=1), _SELECTED_ODS
         )
         # submit no bloquea: el job sigue corriendo hasta que el test lo libere.
         assert manager.status(job_id) == "running"
@@ -124,9 +128,9 @@ def test_failing_job_persists_error_and_does_not_affect_others(
         db_path, investigador_factory=lambda cfg: fakes[order.pop(0)]
     )
     try:
-        bad_id = manager.submit(project_id, _config(), _request())
+        bad_id = manager.submit(project_id, _config(), _request(), _SELECTED_ODS)
         _wait(manager, bad_id)
-        good_id = manager.submit(project_id, _config(), _request())
+        good_id = manager.submit(project_id, _config(), _request(), _SELECTED_ODS)
         _wait(manager, good_id)
 
         assert manager.status(bad_id) == "error"
@@ -151,9 +155,9 @@ def test_pop_finished_removes_only_completed_jobs(db_path: Path, project_id: int
     fakes = [FakeInvestigador(), FakeInvestigador(release=release)]
     manager = JobManager(db_path, investigador_factory=lambda cfg: fakes.pop(0))
     try:
-        done_id = manager.submit(project_id, _config(), _request())
+        done_id = manager.submit(project_id, _config(), _request(), _SELECTED_ODS)
         _wait(manager, done_id)
-        slow_id = manager.submit(project_id, _config(), _request())
+        slow_id = manager.submit(project_id, _config(), _request(), _SELECTED_ODS)
 
         finished = manager.pop_finished()
         assert [j.id for j in finished] == [done_id]
