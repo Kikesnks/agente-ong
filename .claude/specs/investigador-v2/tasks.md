@@ -280,3 +280,48 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
     aparece un caso concreto (registrado en la nota de reapertura).
   - Ejecutar `pytest -q` al terminar. Suite debe estar en 315 tests verdes
     (309 + 6 nuevos).
+
+### R25 — Selección de ODS por el usuario
+
+*Añadido en la reapertura del 08-07-2026. Ver nota de reapertura en `requirements.md`.*
+
+- [ ] **24. Crear archivo YAML con el catálogo de los 17 ODS oficiales de ONU.**
+  - Ubicación: `src/agente_ong/research/` (nombre propuesto: `ods_catalogo.yaml`,
+    distinto de `ods_vocabulary.yaml` de R24, que se conserva como fallback).
+  - Contenido: los 17 ODS oficiales en español con nombre completo (ej. "ODS 1
+    - Fin de la pobreza").
+  - Sin cambios de código en esta tarea (solo el archivo YAML).
+  - _Requirements: 25.1_
+
+- [ ] **25. Crear módulo `ods_catalogo.py` que cargue el catálogo.**
+  - Ubicación: `src/agente_ong/research/ods_catalogo.py`, mismo patrón que
+    `ods_vocabulary.py` (T21).
+  - Expone la lista de los 17 ODS al resto del sistema (UI y `graph.py`).
+  - _Requirements: 25.1_
+
+- [ ] **26. Componente de multiselección obligatoria de ODS en la UI de Streamlit.**
+  - Ubicación: módulo(s) de UI existentes (Streamlit).
+  - Multiselección con mínimo 1 ODS elegido (no permite continuar con 0).
+  - Usa el catálogo de la tarea 25 como fuente de opciones.
+  - _Requirements: 25.1_
+
+- [ ] **27. Propagar la selección de ODS desde la UI hasta `_derive_queries()`.**
+  - Ubicación: capa de UI + `src/agente_ong/research/graph.py` (y `ResearchRequest`
+    o estructura equivalente, si hace falta ampliarla).
+  - La lista de ODS elegidos por el usuario llega intacta a `_derive_queries()`.
+  - _Requirements: 25.2_
+
+- [ ] **28. Modificar `_derive_queries()` para usar los ODS elegidos.**
+  - Files: `src/agente_ong/research/graph.py`.
+  - N ODS elegidos → N queries ODS (sin el tope fijo de 5 de R24).
+  - Si la lista de ODS elegidos llega vacía (bug de UI): fallback al
+    vocabulario fijo de `ods_vocabulary.yaml` (comportamiento de R24, tope 5).
+  - _Requirements: 25.2, 25.3_
+
+- [ ] **29. Tests para T25, T27, T28.**
+  - Ubicación: `tests/research/` (mismo espejo del código).
+  - Todos con mock (no llaman a Tavily/BDNS real).
+  - Cobertura mínima: carga del catálogo de 17 ODS (T25); propagación de la
+    selección hasta `_derive_queries()` (T27); N ODS elegidos → N queries
+    (T28); lista vacía → fallback a R24 (T28).
+  - Ejecutar `pytest -q` al terminar. Suite debe seguir verde.

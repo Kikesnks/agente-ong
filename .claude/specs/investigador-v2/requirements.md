@@ -1,6 +1,8 @@
 # Spec investigador-v2 — requirements.md (APROBADO por Kike el 12-06-2026)
 
-## Reapertura temporal — 05-07-2026
+## Reaperturas — 05-07-2026 (R24) y 08-07-2026 (R25)
+
+### Reapertura R24 — 05-07-2026
 
 **Motivo:** ampliar el vocabulario de búsqueda del investigador (R16) con
 términos alineados con los Objetivos de Desarrollo Sostenible (ODS) y la
@@ -16,6 +18,20 @@ alcance").
 
 **Fecha de cierre:** 05-07-2026. Reapertura completada: T20-T23 implementadas,
 315 tests en verde (309 previos + 6 nuevos).
+
+### Reapertura R25 — 08-07-2026
+
+**Motivo:** hallazgo abierto de la prueba humana del 05-07-2026 (desaparición
+de resultados Tavily por saturación del pool de hits con las 5 queries ODS
+genéricas fijas de R24 — ver decisión pendiente #13 en
+`Contexto_para_mi/decisiones_pendientes.md`) y problema de fondo: las queries
+ODS fijas no reflejan la intención real del usuario en cada búsqueda.
+
+**Alcance de la reapertura:** sustituir el vocabulario ODS fijo de R24 por
+selección explícita del usuario desde la UI (R25). Persistencia de ODS en el
+modelo `Opportunity` queda fuera (ver "Fuera de alcance", R25.4).
+
+**Fecha de cierre:** pendiente.
 
 *Fecha: 12-06-2026. Origen: diagnóstico de los informes de producción del 12-06-2026
 (búsqueda rápida, 104 resultados; búsqueda exhaustiva, 108 resultados; 0 convocatorias
@@ -235,6 +251,33 @@ Cada una combina un término ODS con vocabulario base de convocatoria.
 
 ---
 
+### R25 — Selección de ODS por el usuario en la generación de queries
+
+El investigador sustituye el vocabulario ODS fijo de R24 por una selección
+explícita del usuario, para que las queries ODS reflejen la intención real de
+cada búsqueda.
+
+**R25.1** El usuario selecciona los ODS relevantes para su búsqueda desde la
+UI, mediante un componente de multiselección obligatoria (mínimo 1 ODS
+elegido), a partir de los 17 ODS oficiales de la ONU con su nombre completo
+(ej. "ODS 1 - Fin de la pobreza").
+
+**R25.2** Las queries ODS se generan solo a partir de los ODS elegidos por el
+usuario: N ODS elegidos producen N queries ODS. Esta selección reemplaza al
+vocabulario fijo del YAML de R24 como fuente de términos ODS.
+
+**R25.3** El archivo `ods_vocabulary.yaml` (R24) se mantiene como fallback
+defensivo: si la UI enviara una lista de ODS vacía por un bug, el investigador
+recurre al vocabulario fijo de R24 en vez de omitir las queries ODS.
+
+**Motivo de la reapertura:** hallazgo abierto de la prueba humana del
+05-07-2026 (desaparición de resultados Tavily por saturación del pool de hits
+con las 5 queries ODS genéricas fijas de R24 — ver decisión pendiente #13 en
+`Contexto_para_mi/decisiones_pendientes.md`) y problema de fondo: las queries
+ODS fijas no reflejan la intención real del usuario en cada búsqueda.
+
+---
+
 ## Decisiones tomadas (12-06-2026, Kike)
 
 - **P1 — opción (b):** Tavily fuente secundaria para subvenciones (ver 16.5). Se conserva
@@ -268,6 +311,18 @@ desde la aplicación, sin tocar código ni repositorio.
 
 **Consecuencia:** en esta reapertura el YAML es editable solo por el
 desarrollador, con cambios versionados en Git.
+
+### R25.4 — Persistencia de ODS en el modelo Opportunity
+
+Guardar los ODS elegidos por el usuario (o detectados) como campos del
+modelo `Opportunity` (p.ej. `ods_principal`, `ods_secundarios`).
+
+**Estado:** aplazado a spec futura. Ver decisión pendiente #16 en
+`Contexto_para_mi/decisiones_pendientes.md`.
+
+**Motivo del aplazamiento:** requiere una decisión de diseño previa (¿un ODS
+principal + lista de secundarios, o lista plana?) que puede depender de las
+necesidades de SPEC 4 (redactor con Marco Lógico).
 
 ### Fuentes nuevas de convocatorias
 
