@@ -14,10 +14,12 @@ los hilos de fondo del `JobManager` abren las suyas propias (ver jobs.py).
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from pathlib import Path
 
 import streamlit as st
+from streamlit.runtime.secrets import StreamlitSecretNotFoundError
 from streamlit_autorefresh import st_autorefresh
 
 from agente_ong.research.config import DEFAULT_DB_PATH, ResearchConfig
@@ -63,12 +65,56 @@ def _job_manager(db_path: str) -> JobManager:
     return JobManager(db_path)
 
 
+def _sync_streamlit_secrets_to_env() -> None:
+    """Copia `st.secrets` a `os.environ` (solo claves ausentes) antes de construir la config.
+
+    `st.secrets` (panel Settings → Secrets de Streamlit Cloud) solo existe dentro del
+    proceso Streamlit; copiarlo a `os.environ` deja `ResearchConfig.from_env()` ajeno a
+    Streamlit (funciona igual si se llama fuera de la UI). Debe ejecutarse ANTES de la
+    primera llamada a `_base_config()` (ver `main()`).
+
+    En local, sin `.streamlit/secrets.toml`, acceder al contenido de `st.secrets` lanza
+    `StreamlitSecretNotFoundError` — es el caso normal en desarrollo con solo `.env`, se
+    ignora sin más.
+    """
+    try:
+        secrets = st.secrets
+        if not secrets:
+            return
+        for key in secrets.keys():
+            if key not in os.environ:
+                os.environ[key] = str(secrets[key])
+    except StreamlitSecretNotFoundError:
+        pass
+
+
 def _base_config() -> ResearchConfig:
     """Config base desde el entorno; la UI exige persistencia (db_path nunca None)."""
     config = ResearchConfig.from_env()
     if config.db_path is None:
         config.db_path = DEFAULT_DB_PATH
     return config
+
+
+def _warn_missing_keys(config: ResearchConfig) -> None:
+    """Avisa en la sidebar (un warning por clave) si Tavily/Firecrawl no están configuradas.
+
+    Ninguna de las dos es obligatoria (BDNS/TED, oficiales, siguen funcionando sin clave;
+    ver `Investigador._default_sources`), pero el usuario debe saber por qué una fuente no
+    está operativa en vez de descubrirlo por ausencia silenciosa de resultados (bug de
+    carga de claves, diagnosticado 09-07-2026).
+    """
+    if not config.tavily_api_key:
+        st.sidebar.warning(
+            "⚠️ Tavily no configurada — la investigación usará solo BDNS/TED. "
+            "Añade TAVILY_API_KEY a tu .env o a los Secrets de Streamlit Cloud."
+        )
+    if not config.firecrawl_api_key:
+        st.sidebar.warning(
+            "⚠️ Firecrawl no configurada — la lectura profunda usará solo el lector interno. "
+            "Añade FIRECRAWL_API_KEY a tu .env o a los Secrets de Streamlit Cloud si quieres "
+            "ese fallback."
+        )
 
 
 def _create_project(
@@ -295,7 +341,11 @@ def _documents_panel(project: Project) -> None:
 
 def main() -> None:
     st.set_page_config(page_title="Agente ONG", layout="wide")
+    # Antes de la PRIMERA llamada a _base_config()/from_env(): st.secrets (si existe) debe
+    # llegar a os.environ para que ResearchConfig lo vea igual que una variable exportada.
+    _sync_streamlit_secrets_to_env()
     config = _base_config()
+    _warn_missing_keys(config)
     with ProjectStore(Path(config.db_path)) as store:
         project = _sidebar(store)
         if project is None:

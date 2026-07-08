@@ -26,6 +26,11 @@ trafilatura>=2.0
 # --- Vocabulario ODS (R24): carga de configuración YAML con fallback ---
 PyYAML>=6.0
 
+# --- Carga de claves desde .env (ResearchConfig.from_env()) ---
+# Declarada aquí como directa: antes solo llegaba como transitiva de firecrawl-py, lo que
+# no está garantizado (bug de carga de claves, diagnosticado 09-07-2026).
+python-dotenv>=1.0
+
 # --- Interfaz (src/agente_ong/ui/) ---
 streamlit>=1.37
 streamlit-autorefresh>=1.0  # sondeo del estado de los jobs mientras hay investigaciones activas

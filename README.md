@@ -108,14 +108,21 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-Configura tus claves en `.env`:
+Copia `.env.example` a `.env` y rellena tus claves:
+
+```bash
+cp .env.example .env      # macOS/Linux
+copy .env.example .env    # Windows
+```
 
 ```
 TAVILY_API_KEY=tvly-...
 FIRECRAWL_API_KEY=fc-...
 ```
 
-BDNS y TED son APIs públicas — no necesitan clave.
+BDNS y TED son APIs públicas — no necesitan clave. `.env.example` documenta también el
+resto de variables opcionales (límites de la investigación, vocabulario de convocatoria,
+rutas de persistencia — ver `ResearchConfig.from_env()` en `research/config.py`).
 
 ## Lanzar la interfaz
 
@@ -125,6 +132,12 @@ Con el entorno virtual activado:
 streamlit run src/agente_ong/ui/app.py
 ```
 
-La base de datos se crea automáticamente en `.data/agente_ong.db`. Sin claves de API,
-la búsqueda web (Tavily) y la lectura profunda (Firecrawl) no estarán operativas, pero
-las fuentes oficiales (BDNS y TED) funcionan igualmente.
+La app carga `.env` automáticamente al arrancar — no hace falta exportar las variables a
+mano en el shell. La base de datos se crea automáticamente en `.data/agente_ong.db`. Sin
+claves de API, la búsqueda web (Tavily) y la lectura profunda (Firecrawl) no estarán
+operativas, pero las fuentes oficiales (BDNS y TED) funcionan igualmente; la propia app
+avisa en la barra lateral si detecta alguna clave opcional ausente.
+
+**Streamlit Community Cloud**: `.env` no se despliega (está en `.gitignore`). Configura
+las mismas variables en el panel de la app → *Settings → Secrets*, con el mismo formato
+`CLAVE=valor`; la app las copia automáticamente a su entorno al arrancar.

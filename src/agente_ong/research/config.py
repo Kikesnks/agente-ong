@@ -136,7 +136,24 @@ class ResearchConfig:
           - RESEARCH_BDNS_MAX_DETAIL_CALLS (nº máx. de llamadas al detalle de BDNS)
           - RESEARCH_READER_MAX_PAGES (nº máx. de páginas leídas en profundidad)
           - RESEARCH_FIRECRAWL_MAX_CALLS (nº máx. de llamadas al fallback Firecrawl)
+
+        Antes de leer nada carga `.env` (si existe): `from_env()` significa "constrúyeme
+        desde el entorno", y en desarrollo local `.env` es parte de ese entorno. Import
+        perezoso: solo hace falta al construir la config, no al importar este módulo (bug
+        de carga de claves, diagnosticado 09-07-2026 — antes nada en `src/` cargaba `.env`).
         """
+        from dotenv import load_dotenv
+
+        # Ruta absoluta, no la búsqueda ascendente por defecto de python-dotenv: la app
+        # (`streamlit run ...`) puede lanzarse desde cualquier cwd y no debe depender de
+        # dónde esté. Sube desde src/agente_ong/research/config.py hasta la raíz del
+        # repo — si la estructura del paquete cambia, actualizar el número de `parents[...]`.
+        env_path = Path(__file__).resolve().parents[3] / ".env"
+        # override=False: una variable YA presente en el proceso (exportada a mano, o
+        # copiada desde `st.secrets` por la UI antes de llegar aquí) gana siempre sobre el
+        # valor del `.env`. Si el archivo no existe, `load_dotenv` no hace nada ni lanza error.
+        load_dotenv(env_path, override=False)
+
         entrenamiento = os.environ.get("RECURSOS_ENTRENAMIENTO_PATH")
         db_path = os.environ.get("RESEARCH_DB_PATH")
         vocabulary_raw = os.environ.get("RESEARCH_CALL_VOCABULARY")
