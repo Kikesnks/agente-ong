@@ -1,9 +1,13 @@
 """
-Tests de R24: vocabulario ODS del investigador.
+Tests de R24: vocabulario ODS del investigador (carga desde YAML).
 
-Cubre R24.1 (carga desde YAML), R24.2 (queries combinan término ODS con
-vocabulario base de convocatoria), R24.3 (3 categorías), R24.4 (fallback si
-el YAML falla) y el tope operativo de 5 queries ODS por ciclo.
+Cubre R24.1 (carga desde YAML), R24.3 (3 categorías) y R24.4 (fallback si el
+YAML falla). Los tests que probaban la integración con `_derive_queries()`
+(anclaje "convocatoria " y tope de 5 por ciclo) se eliminaron en R25: ese
+comportamiento automático ya no existe, sustituido por la selección explícita
+del usuario (ver `test_graph_flow.py` y decisión B1 en `requirements.md`,
+R25.3). `load_ods_vocabulary` en sí sigue vigente como fallback documentado
+en R25.3 (candidato a limpieza, decisión pendiente #17).
 """
 from __future__ import annotations
 
@@ -17,8 +21,6 @@ from agente_ong.research.ods_vocabulary import (
     REQUIRED_CATEGORIES,
     load_ods_vocabulary,
 )
-from agente_ong.research.graph import ResearchGraph
-from agente_ong.research.models import ResearchRequest
 
 
 # --- R24.1: los términos del YAML quedan disponibles en memoria ---
@@ -42,21 +44,6 @@ enfoques_transversales:
     assert result["ods_generales"] == ["termino uno"]
     assert result["cooperacion_espanola"] == ["termino dos"]
     assert result["enfoques_transversales"] == ["termino tres"]
-
-
-# --- R24.2: queries combinan término ODS con vocabulario base de convocatoria ---
-
-
-def test_derive_queries_ods_are_anchored_with_convocatoria() -> None:
-    request = ResearchRequest(mode="calls", query_terms=["agua", "salud mental"])
-    texts = [q.text for q in ResearchGraph._derive_queries(request)]
-
-    # Todas las queries que NO son base deben empezar por "convocatoria "
-    # (ancla obligatoria de R24.2). Las 2 primeras son base; el resto son ODS.
-    ods_queries = texts[2:]
-    assert len(ods_queries) > 0, "Debe generar al menos una query ODS"
-    for q in ods_queries:
-        assert q.startswith("convocatoria "), f"Query ODS sin ancla: {q!r}"
 
 
 # --- R24.3: el parser lee las 3 categorías correctamente ---
@@ -105,17 +92,3 @@ def test_load_ods_vocabulary_malformed_uses_fallback(
 
     assert result == FALLBACK_VOCABULARY
     assert any("mal formado" in rec.message for rec in caplog.records)
-
-
-# --- Tope operativo: máximo 5 queries ODS por ciclo ---
-
-
-def test_derive_queries_ods_are_capped_at_five() -> None:
-    request = ResearchRequest(mode="calls", query_terms=["agua", "salud mental"])
-    texts = [q.text for q in ResearchGraph._derive_queries(request)]
-
-    ods_queries = [t for t in texts if t.startswith("convocatoria ")]
-    # "convocatoria" también podría aparecer como prefijo casual en queries
-    # base si el usuario lo pusiera en query_terms; aquí query_terms no lo
-    # incluye, así que todas las que empiecen por "convocatoria " son ODS.
-    assert len(ods_queries) <= 5, f"Se generaron {len(ods_queries)} queries ODS, máximo 5"

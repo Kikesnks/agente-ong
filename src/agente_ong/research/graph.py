@@ -17,7 +17,6 @@ añaden en las tareas 26-27.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -41,7 +40,7 @@ from agente_ong.research.models import (
     Unresolved,
     VerificationStatus,
 )
-from agente_ong.research.ods_vocabulary import load_ods_vocabulary
+from agente_ong.research.ods_catalogo import OdsEntry
 from agente_ong.research.sources.base import SearchSource
 from agente_ong.research.textclean import clean_text, snippet
 from agente_ong.research.triage import best_result_type, classify_hit
@@ -51,9 +50,7 @@ from agente_ong.research.verification import VerificationPolicy, dedupe_refs
 # Longitud máxima del resumen que se guarda en el ledger por cada documento leído.
 _SUMMARY_MAX_CHARS = 280
 
-# --- Vocabulario ODS (R24) ---
-_ODS_YAML_PATH = Path(__file__).parent / "ods_vocabulary.yaml"
-_MAX_ODS_QUERIES = 5  # tope operativo de R24: máximo 5 queries ODS por ciclo
+# --- ODS elegidos por el usuario (R25) ---
 _ODS_BASE_TERM = "convocatoria"  # término base de R16 que ancla cada query ODS
 
 
@@ -61,6 +58,8 @@ class ResearchState(TypedDict, total=False):
     """Estado compartido que fluye por los nodos del grafo de investigación."""
 
     request: ResearchRequest
+    # ODS elegidos por el usuario desde la UI (R25). None/ausente hasta que exista T26.
+    selected_ods: list[OdsEntry]
     queries: list[SearchQuery]
     reused_from_ledger: list[LedgerEntry]
     hits: list[SearchHit]
@@ -101,19 +100,32 @@ class ResearchGraph:
     def plan(self, state: ResearchState) -> dict:
         """Deriva las consultas de búsqueda e inicializa los contadores de la investigación."""
         request = state["request"]
+        selected_ods = state.get("selected_ods")
         return {
-            "queries": self._derive_queries(request),
+            "queries": self._derive_queries(request, selected_ods),
             "depth": 0,
             "pages_fetched": 0,
             "queries_made": 0,
         }
 
     @staticmethod
-    def _derive_queries(request: ResearchRequest) -> list[SearchQuery]:
-        """Genera consultas a partir de los términos: una combinada y, si hay varios, cada una.
+    def _derive_queries(
+        request: ResearchRequest, selected_ods: list[OdsEntry] | None = None
+    ) -> list[SearchQuery]:
+        """Genera consultas a partir de los términos y de los ODS elegidos por el usuario.
 
         Deduplica de forma insensible a mayúsculas para no lanzar la misma consulta dos veces.
+
+        R25: cada ODS elegido por el usuario genera una query ODS (N elegidos → N queries).
+        Decisión B1 (R25.3): si `selected_ods` es `None` o vacío, se lanza `ValueError`
+        explícito; no hay fallback silencioso al vocabulario fijo de R24.
         """
+        if not selected_ods:
+            raise ValueError(
+                "No se pueden derivar las queries: selected_ods está vacío o es None "
+                "(decisión B1, R25.3 — sin fallback al vocabulario fijo de R24)"
+            )
+
         terms = [t.strip() for t in request.query_terms if t and t.strip()]
         queries: list[SearchQuery] = []
         seen: set[str] = set()
@@ -133,30 +145,9 @@ class ResearchGraph:
                         add(term)  # consultas individuales solo si el término es multi-palabra
                     # los términos de una sola palabra ya van en la consulta combinada
 
-        # R24: añadir hasta 5 queries ODS combinadas con vocabulario base de
-        # convocatoria. Se aplanan las 3 categorías del YAML en una única lista
-        # respetando el orden: ods_generales, cooperacion_espanola,
-        # enfoques_transversales. Se toman los 5 primeros términos que no
-        # produzcan duplicado en el dedupe existente.
-        ods_vocab = load_ods_vocabulary(_ODS_YAML_PATH)
-        ods_terms_flat = (
-            ods_vocab["ods_generales"]
-            + ods_vocab["cooperacion_espanola"]
-            + ods_vocab["enfoques_transversales"]
-        )
-        ods_count = 0
-        for term in ods_terms_flat:
-            if ods_count >= _MAX_ODS_QUERIES:
-                break
-            text = f"{_ODS_BASE_TERM} {term}"
-            key = text.lower()
-            if key in seen:
-                continue
-            seen.add(key)
-            queries.append(
-                SearchQuery(text=text, search_context=request.search_context)
-            )
-            ods_count += 1
+        # R25: una query por cada ODS elegido por el usuario (N elegidos → N queries).
+        for entry in selected_ods:
+            add(f"{_ODS_BASE_TERM} ODS {entry['numero']} {entry['nombre']}")
 
         return queries
 

@@ -14,6 +14,7 @@ import pytest
 from agente_ong.research.config import ResearchConfig
 from agente_ong.research.investigador import Investigador
 from agente_ong.research.models import ResearchRequest
+from agente_ong.research.ods_catalogo import OdsEntry
 from agente_ong.research.store.sqlite import SqliteStore
 from agente_ong.research.urlnorm import normalize_url
 from fakes import FakeFetchSource, FakeSearchSource, make_document, make_hit
@@ -51,10 +52,12 @@ def _training_request() -> ResearchRequest:
 # --- Captura bajo RECURSOS/ENTRENAMIENTO con sidecar e índice (Req 2.2, 2.4) ---
 
 
-def test_training_captures_file_with_sidecar_and_index(config: ResearchConfig) -> None:
+def test_training_captures_file_with_sidecar_and_index(
+    config: ResearchConfig, selected_ods: list[OdsEntry]
+) -> None:
     search, fetch = _sources()
     with Investigador(config, sources=[search, fetch]) as inv:
-        report = inv.run(_training_request())
+        report = inv.run(_training_request(), selected_ods)
 
     assert report.mode == "training"
     assert len(report.resources) == 1
@@ -85,10 +88,12 @@ def test_training_captures_file_with_sidecar_and_index(config: ResearchConfig) -
 # --- No se re-descarga en una segunda investigación (Req 2.5) ---
 
 
-def test_training_does_not_redownload_known_resource(config: ResearchConfig) -> None:
+def test_training_does_not_redownload_known_resource(
+    config: ResearchConfig, selected_ods: list[OdsEntry]
+) -> None:
     search1, fetch1 = _sources()
     with Investigador(config, sources=[search1, fetch1]) as inv1:
-        report1 = inv1.run(_training_request())
+        report1 = inv1.run(_training_request(), selected_ods)
     captured = Path(report1.resources[0].path)
 
     # Marcamos el archivo capturado con un centinela: si NO se re-descarga, se conserva.
@@ -97,7 +102,7 @@ def test_training_does_not_redownload_known_resource(config: ResearchConfig) -> 
     # Segunda investigación: instancia nueva, mismo .db y misma carpeta de entrenamiento.
     search2, fetch2 = _sources()
     with Investigador(config, sources=[search2, fetch2]) as inv2:
-        report2 = inv2.run(_training_request())
+        report2 = inv2.run(_training_request(), selected_ods)
 
     # El recurso ya estaba en el índice -> no se re-descarga ni se sobrescribe.
     assert captured.read_bytes() == b"CENTINELA"

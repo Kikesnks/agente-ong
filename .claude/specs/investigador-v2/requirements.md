@@ -266,9 +266,13 @@ elegido), a partir de los 17 ODS oficiales de la ONU con su nombre completo
 usuario: N ODS elegidos producen N queries ODS. Esta selección reemplaza al
 vocabulario fijo del YAML de R24 como fuente de términos ODS.
 
-**R25.3** El archivo `ods_vocabulary.yaml` (R24) se mantiene como fallback
-defensivo: si la UI enviara una lista de ODS vacía por un bug, el investigador
-recurre al vocabulario fijo de R24 en vez de omitir las queries ODS.
+**R25.3** Decisión B1 (08-07-2026): si la lista de ODS elegidos llega vacía o
+`None` a `_derive_queries()` (p.ej. por un bug de la UI), el investigador
+lanza un error explícito (`ValueError`) en vez de recurrir a un fallback
+silencioso. El archivo `ods_vocabulary.yaml` (R24) se conserva en el
+repositorio, pero deja de usarse como fallback en el código; es candidato a
+limpieza (ver decisión pendiente #17 en
+`Contexto_para_mi/decisiones_pendientes.md`).
 
 **Motivo de la reapertura:** hallazgo abierto de la prueba humana del
 05-07-2026 (desaparición de resultados Tavily por saturación del pool de hits

@@ -15,6 +15,7 @@ from agente_ong.research.config import ResearchConfig
 from agente_ong.research.graph import ResearchGraph
 from agente_ong.research.investigador import Investigador
 from agente_ong.research.models import ResearchReport, ResearchRequest, VerificationStatus
+from agente_ong.research.ods_catalogo import OdsEntry
 from fakes import FakeFetchSource, FakeSearchSource, make_document, make_hit
 
 
@@ -43,7 +44,7 @@ def db_path(tmp_path: Path) -> Path:
 # --- Flujo completo y estructura del informe ---
 
 
-def test_full_flow_produces_report_with_traceable_opportunities(db_path: Path) -> None:
+def test_full_flow_produces_report_with_traceable_opportunities(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     bdns = FakeSearchSource(
         name="bdns",
         is_official=True,
@@ -60,7 +61,7 @@ def test_full_flow_produces_report_with_traceable_opportunities(db_path: Path) -
     )
 
     with _investigador([bdns, fetch], db_path) as inv:
-        report = inv.run(_calls_request())
+        report = inv.run(_calls_request(), selected_ods)
 
     assert isinstance(report, ResearchReport)
     assert report.mode == "calls"
@@ -83,7 +84,7 @@ def test_full_flow_produces_report_with_traceable_opportunities(db_path: Path) -
 # --- Verificación cruzada (Requirement 4.4; regla R14 de investigador-v2) ---
 
 
-def test_cross_verification_statuses(db_path: Path) -> None:
+def test_cross_verification_statuses(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     # REGLA v2 (R14): la misma URL cuenta UNA sola vez aunque la devuelvan fuentes
     # distintas. c1 (bdns + tavily, misma URL normalizada) ya NO es VERIFIED: una URL =
     # una fuente, y al colapsar sobrevive la oficial -> OFFICIAL_UNCROSSED. VERIFIED exige
@@ -107,7 +108,7 @@ def test_cross_verification_statuses(db_path: Path) -> None:
     )
 
     with _investigador([bdns, tavily, FakeFetchSource()], db_path) as inv:
-        report = inv.run(_calls_request())
+        report = inv.run(_calls_request(), selected_ods)
 
     by_url = {opp.url.value: opp for opp in report.opportunities}
     assert by_url["https://bo.es/c1"].title.status == VerificationStatus.OFFICIAL_UNCROSSED
@@ -115,7 +116,7 @@ def test_cross_verification_statuses(db_path: Path) -> None:
     assert by_url["https://bo.es/c3"].title.status == VerificationStatus.UNCROSSED_UNVERIFIED
 
 
-def test_repeated_url_is_never_verified_and_sources_are_deduped(db_path: Path) -> None:
+def test_repeated_url_is_never_verified_and_sources_are_deduped(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     # Regresión del caso real del diagnóstico (12-06-2026): la misma URL devuelta varias
     # veces (varias queries de la misma fuente) se marcaba "Verificado (2+ fuentes)" con
     # la URL repetida en la lista de fuentes (R14.4).
@@ -123,7 +124,7 @@ def test_repeated_url_is_never_verified_and_sources_are_deduped(db_path: Path) -
     tavily = FakeSearchSource(name="tavily", hits=[repetida, repetida, repetida])
 
     with _investigador([tavily, FakeFetchSource()], db_path) as inv:
-        report = inv.run(_calls_request(query_terms=["agua limpia", "salud mental"]))
+        report = inv.run(_calls_request(query_terms=["agua limpia", "salud mental"]), selected_ods)
 
     assert len(report.opportunities) == 1
     opp = report.opportunities[0]
@@ -136,7 +137,7 @@ def test_repeated_url_is_never_verified_and_sources_are_deduped(db_path: Path) -
 # --- Fiabilidad: una fuente caída no aborta la investigación ---
 
 
-def test_failed_source_is_reported_without_aborting(db_path: Path) -> None:
+def test_failed_source_is_reported_without_aborting(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     caida = FakeSearchSource(name="ted", fail=ConnectionError("ted down"))
     ok = FakeSearchSource(
         name="bdns",
@@ -145,7 +146,7 @@ def test_failed_source_is_reported_without_aborting(db_path: Path) -> None:
     )
 
     with _investigador([caida, ok, FakeFetchSource()], db_path) as inv:
-        report = inv.run(_calls_request())
+        report = inv.run(_calls_request(), selected_ods)
 
     # La fuente caída se reporta...
     assert any(f.source_name == "ted" for f in report.failed_sources)
@@ -157,11 +158,11 @@ def test_failed_source_is_reported_without_aborting(db_path: Path) -> None:
 # --- Veracidad: "no encontrado" pide ayuda al usuario (Requirement 3.1) ---
 
 
-def test_no_results_yields_unresolved(db_path: Path) -> None:
+def test_no_results_yields_unresolved(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     vacia = FakeSearchSource(name="bdns", is_official=True, hits=[])
 
     with _investigador([vacia, FakeFetchSource()], db_path) as inv:
-        report = inv.run(_calls_request())
+        report = inv.run(_calls_request(), selected_ods)
 
     assert report.opportunities == []
     assert any(u.topic == "convocatorias" for u in report.unresolved)
@@ -170,7 +171,7 @@ def test_no_results_yields_unresolved(db_path: Path) -> None:
     assert convocatorias.help_needed
 
 
-def test_missing_critical_fields_become_unresolved(db_path: Path) -> None:
+def test_missing_critical_fields_become_unresolved(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     # El importe y el plazo no vienen en la búsqueda -> NOT_FOUND -> unresolved.
     bdns = FakeSearchSource(
         name="bdns",
@@ -179,7 +180,7 @@ def test_missing_critical_fields_become_unresolved(db_path: Path) -> None:
     )
 
     with _investigador([bdns, FakeFetchSource()], db_path) as inv:
-        report = inv.run(_calls_request())
+        report = inv.run(_calls_request(), selected_ods)
 
     opp = report.opportunities[0]
     assert opp.amount.status == VerificationStatus.NOT_FOUND
@@ -191,28 +192,28 @@ def test_missing_critical_fields_become_unresolved(db_path: Path) -> None:
 # --- Derivación de consultas (_derive_queries) ---
 
 
-def test_derive_queries_skips_single_word_individual_terms() -> None:
+def test_derive_queries_skips_single_word_individual_terms(selected_ods: list[OdsEntry]) -> None:
     # Combinada + solo el término multi-palabra como consulta individual;
     # "agua" (una palabra) ya queda cubierto por la combinada y no se lanza suelto.
-    # Tras las queries base, _derive_queries añade hasta 5 queries ODS (R24);
-    # este test solo garantiza el prefijo de queries base.
+    # Tras las queries base, _derive_queries añade una query ODS por cada ODS elegido
+    # (R25, N->N); este test solo garantiza el prefijo de queries base.
     request = ResearchRequest(mode="calls", query_terms=["agua", "salud mental"])
-    texts = [q.text for q in ResearchGraph._derive_queries(request)]
+    texts = [q.text for q in ResearchGraph._derive_queries(request, selected_ods)]
     assert texts[:2] == ["agua salud mental", "salud mental"]
 
 
-def test_derive_queries_only_combined_when_all_terms_single_word() -> None:
-    # Tras la query base, _derive_queries añade hasta 5 queries ODS (R24);
-    # este test solo garantiza el prefijo de queries base.
+def test_derive_queries_only_combined_when_all_terms_single_word(selected_ods: list[OdsEntry]) -> None:
+    # Tras la query base, _derive_queries añade una query ODS por cada ODS elegido
+    # (R25, N->N); este test solo garantiza el prefijo de queries base.
     request = ResearchRequest(mode="calls", query_terms=["agua", "cultura"])
-    texts = [q.text for q in ResearchGraph._derive_queries(request)]
+    texts = [q.text for q in ResearchGraph._derive_queries(request, selected_ods)]
     assert texts[:1] == ["agua cultura"]
 
 
 # --- Detalle BDNS: importe y plazo trazables en el informe (R19, investigador-v2) ---
 
 
-def test_bdns_amount_and_deadline_reach_the_report(db_path: Path) -> None:
+def test_bdns_amount_and_deadline_reach_the_report(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     # Una fuente fake que ya trae amount/deadline en el hit (como hará BdnsSource tras el
     # detalle): el informe debe mostrarlos como OFFICIAL_UNCROSSED y trazables a su URL.
     hit = make_hit(
@@ -223,7 +224,7 @@ def test_bdns_amount_and_deadline_reach_the_report(db_path: Path) -> None:
     bdns = FakeSearchSource(name="bdns", is_official=True, hits=[hit])
 
     with _investigador([bdns, FakeFetchSource()], db_path) as inv:
-        report = inv.run(_calls_request())
+        report = inv.run(_calls_request(), selected_ods)
 
     opp = report.opportunities[0]
     assert opp.amount.value == "307.600 €"
@@ -233,7 +234,7 @@ def test_bdns_amount_and_deadline_reach_the_report(db_path: Path) -> None:
     assert opp.deadline.sources[0].is_official is True
 
 
-def test_missing_amount_deadline_stay_not_found(db_path: Path) -> None:
+def test_missing_amount_deadline_stay_not_found(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     # Sin datos de detalle (hit sin amount/deadline): se mantiene NOT_FOUND, nunca inventa.
     bdns = FakeSearchSource(
         name="bdns",
@@ -241,7 +242,7 @@ def test_missing_amount_deadline_stay_not_found(db_path: Path) -> None:
         hits=[make_hit("https://bo.es/c2", source_name="bdns", title="C2", is_official=True)],
     )
     with _investigador([bdns, FakeFetchSource()], db_path) as inv:
-        report = inv.run(_calls_request())
+        report = inv.run(_calls_request(), selected_ods)
     opp = report.opportunities[0]
     assert opp.amount.value is None and opp.amount.status == VerificationStatus.NOT_FOUND
     assert opp.deadline.value is None
@@ -250,7 +251,7 @@ def test_missing_amount_deadline_stay_not_found(db_path: Path) -> None:
 # --- Limpieza y acotado del contenido en el informe (R18, investigador-v2) ---
 
 
-def test_organism_is_cleaned_and_bounded(db_path: Path) -> None:
+def test_organism_is_cleaned_and_bounded(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     # El snippet del organismo llega con plantilla web y muy largo; en el informe debe
     # salir sin cookies/navegación y dentro del límite (organism_max_chars).
     sucio = (
@@ -269,7 +270,7 @@ def test_organism_is_cleaned_and_bounded(db_path: Path) -> None:
     )
     config = ResearchConfig(max_depth=1, db_path=db_path, organism_max_chars=80)
     with Investigador(config, sources=[bdns, FakeFetchSource()]) as inv:
-        report = inv.run(_calls_request())
+        report = inv.run(_calls_request(), selected_ods)
 
     organism = report.opportunities[0].organism.value
     assert organism is not None
@@ -280,7 +281,7 @@ def test_organism_is_cleaned_and_bounded(db_path: Path) -> None:
 # --- Exclusión de fuentes por modo (R15, investigador-v2) ---
 
 
-def test_source_with_excluded_mode_is_not_consulted_in_that_mode(db_path: Path) -> None:
+def test_source_with_excluded_mode_is_not_consulted_in_that_mode(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     # El caso real es TED (excluded_modes={"calls"}); aquí con una fake equivalente.
     licitaciones = FakeSearchSource(
         name="ted",
@@ -295,24 +296,24 @@ def test_source_with_excluded_mode_is_not_consulted_in_that_mode(db_path: Path) 
     )
 
     with _investigador([licitaciones, bdns, FakeFetchSource()], db_path) as inv:
-        report = inv.run(_calls_request())
+        report = inv.run(_calls_request(), selected_ods)
 
     assert licitaciones.search_calls == [], "la fuente excluida del modo no se consulta"
     assert bdns.search_calls, "las demás fuentes siguen consultándose"
     assert [o.url.value for o in report.opportunities] == ["https://bo.es/c1"]
 
 
-def test_source_without_excluded_modes_behaves_as_before(db_path: Path) -> None:
+def test_source_without_excluded_modes_behaves_as_before(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     fuente = FakeSearchSource(name="bdns", is_official=True, hits=[])
     with _investigador([fuente, FakeFetchSource()], db_path) as inv:
-        inv.run(_calls_request())
+        inv.run(_calls_request(), selected_ods)
     assert fuente.search_calls, "default excluded_modes vacío => sin cambios"
 
 
 # --- Selección de fuentes y URLs directas (Requirements 9.1-9.4) ---
 
 
-def test_enabled_sources_restricts_search_to_subset(db_path: Path) -> None:
+def test_enabled_sources_restricts_search_to_subset(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     bdns = FakeSearchSource(
         name="bdns",
         is_official=True,
@@ -325,7 +326,7 @@ def test_enabled_sources_restricts_search_to_subset(db_path: Path) -> None:
     fetch = FakeFetchSource()
 
     with _investigador([bdns, tavily, fetch], db_path) as inv:
-        report = inv.run(_calls_request(enabled_sources={"bdns", "fake-fetch"}))
+        report = inv.run(_calls_request(enabled_sources={"bdns", "fake-fetch"}), selected_ods)
 
     # Solo la fuente activa fue consultada; la desactivada ni se llamó ni aportó hits.
     assert bdns.search_calls, "la fuente activa debe consultarse"
@@ -333,17 +334,17 @@ def test_enabled_sources_restricts_search_to_subset(db_path: Path) -> None:
     assert [o.url.value for o in report.opportunities] == ["https://bo.es/c1"]
 
 
-def test_enabled_sources_none_uses_all_sources(db_path: Path) -> None:
+def test_enabled_sources_none_uses_all_sources(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     bdns = FakeSearchSource(name="bdns", is_official=True, hits=[])
     tavily = FakeSearchSource(name="tavily", hits=[])
 
     with _investigador([bdns, tavily, FakeFetchSource()], db_path) as inv:
-        inv.run(_calls_request())  # enabled_sources=None (default)
+        inv.run(_calls_request(), selected_ods)  # enabled_sources=None (default)
 
     assert bdns.search_calls and tavily.search_calls
 
 
-def test_direct_url_is_read_even_without_search_hits(db_path: Path) -> None:
+def test_direct_url_is_read_even_without_search_hits(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     vacia = FakeSearchSource(name="bdns", is_official=True, hits=[])
     fetch = FakeFetchSource(
         documents={
@@ -354,14 +355,14 @@ def test_direct_url_is_read_even_without_search_hits(db_path: Path) -> None:
     )
 
     with _investigador([vacia, fetch], db_path) as inv:
-        report = inv.run(_calls_request(direct_urls=["https://ong.example/conv"]))
+        report = inv.run(_calls_request(direct_urls=["https://ong.example/conv"]), selected_ods)
 
     assert fetch.fetch_calls == ["https://ong.example/conv"]
     # La lectura queda registrada en el ledger del informe (trazabilidad).
     assert any(e.key == "https://ong.example/conv" for e in report.ledger)
 
 
-def test_direct_url_is_read_with_all_search_sources_disabled(db_path: Path) -> None:
+def test_direct_url_is_read_with_all_search_sources_disabled(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     bdns = FakeSearchSource(name="bdns", is_official=True, hits=[])
     tavily = FakeSearchSource(name="tavily", hits=[])
     fetch = FakeFetchSource()
@@ -371,7 +372,8 @@ def test_direct_url_is_read_with_all_search_sources_disabled(db_path: Path) -> N
             _calls_request(
                 enabled_sources={"fake-fetch"},  # ambas fuentes de búsqueda desactivadas
                 direct_urls=["https://ong.example/directa"],
-            )
+            ),
+            selected_ods,
         )
 
     assert bdns.search_calls == [] and tavily.search_calls == []
@@ -381,7 +383,7 @@ def test_direct_url_is_read_with_all_search_sources_disabled(db_path: Path) -> N
 # --- Lectura profunda v2: gating por result_type, fallback y límites (R23) ---
 
 
-def test_read_deep_only_fetches_convocatoria_probable_hits(db_path: Path) -> None:
+def test_read_deep_only_fetches_convocatoria_probable_hits(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     # bdns -> convocatoria_probable (R20); tavily sin señales -> documento_informativo.
     # Solo el primero consume lectura profunda (23.3); el segundo igualmente aparece en
     # el informe (agrupación por URL no depende del gating de lectura).
@@ -399,7 +401,7 @@ def test_read_deep_only_fetches_convocatoria_probable_hits(db_path: Path) -> Non
     )
 
     with _investigador([bdns, tavily, fetch], db_path) as inv:
-        report = inv.run(_calls_request())
+        report = inv.run(_calls_request(), selected_ods)
 
     assert fetch.fetch_calls == ["https://bo.es/c1"]
     by_url = {opp.url.value: opp for opp in report.opportunities}
@@ -407,7 +409,7 @@ def test_read_deep_only_fetches_convocatoria_probable_hits(db_path: Path) -> Non
     assert by_url["https://web.example/info"].result_type == "documento_informativo"
 
 
-def test_read_deep_in_training_mode_fetches_all_hits(db_path: Path) -> None:
+def test_read_deep_in_training_mode_fetches_all_hits(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     # En modo "training" el gating de R23.3 se desactiva a propósito: TODOS los hits
     # siembran la frontera (no solo "convocatoria_probable"), porque el material
     # informativo es justo lo que se quiere capturar como ejemplo de entrenamiento.
@@ -431,14 +433,14 @@ def test_read_deep_in_training_mode_fetches_all_hits(db_path: Path) -> None:
     )
 
     with _investigador([bdns, tavily, fetch], db_path) as inv:
-        inv.run(_training_request())
+        inv.run(_training_request(), selected_ods)
 
     # El gating NO aplica en training: ambos hits se leen en profundidad,
     # incluido el "documento_informativo" (que en modo "calls" quedaría fuera).
     assert set(fetch.fetch_calls) == {"https://bo.es/c1", "https://web.example/info"}
 
 
-def test_primary_failure_without_fallback_keeps_hit_and_reports_failure(db_path: Path) -> None:
+def test_primary_failure_without_fallback_keeps_hit_and_reports_failure(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     # firecrawl_max_calls=0 (default, 23.4): el fallback nunca se invoca; el fallo del
     # primario se refleja en failed_sources y el hit conserva sus datos (23.5).
     bdns = FakeSearchSource(
@@ -451,7 +453,7 @@ def test_primary_failure_without_fallback_keeps_hit_and_reports_failure(db_path:
 
     config = ResearchConfig(max_depth=1, db_path=db_path)
     with Investigador(config, sources=[bdns, reader, firecrawl]) as inv:
-        report = inv.run(_calls_request())
+        report = inv.run(_calls_request(), selected_ods)
 
     assert reader.fetch_calls == ["https://bo.es/c1"]
     assert firecrawl.fetch_calls == []
@@ -459,7 +461,7 @@ def test_primary_failure_without_fallback_keeps_hit_and_reports_failure(db_path:
     assert report.opportunities[0].url.value == "https://bo.es/c1"
 
 
-def test_fallback_invoked_up_to_firecrawl_max_calls(db_path: Path) -> None:
+def test_fallback_invoked_up_to_firecrawl_max_calls(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     # firecrawl_max_calls=1 (23.2/23.4): el fallback se invoca como máximo N veces, una
     # por investigación, no por URL.
     bdns = FakeSearchSource(
@@ -478,14 +480,14 @@ def test_fallback_invoked_up_to_firecrawl_max_calls(db_path: Path) -> None:
 
     config = ResearchConfig(max_depth=1, db_path=db_path, firecrawl_max_calls=1)
     with Investigador(config, sources=[bdns, reader, firecrawl]) as inv:
-        report = inv.run(_calls_request())
+        report = inv.run(_calls_request(), selected_ods)
 
     assert reader.fetch_calls == ["https://bo.es/c1", "https://bo.es/c2"]
     assert firecrawl.fetch_calls == ["https://bo.es/c1"]  # cupo agotado tras la primera
     assert sum(1 for f in report.failed_sources if f.source_name == "reader") == 2
 
 
-def test_reader_max_pages_limits_pages_fetched(db_path: Path) -> None:
+def test_reader_max_pages_limits_pages_fetched(db_path: Path, selected_ods: list[OdsEntry]) -> None:
     # reader_max_pages (23.4) gana frente a max_pages (50 por defecto con max_depth=1).
     bdns = FakeSearchSource(
         name="bdns",
@@ -504,6 +506,6 @@ def test_reader_max_pages_limits_pages_fetched(db_path: Path) -> None:
 
     config = ResearchConfig(max_depth=1, db_path=db_path, reader_max_pages=1)
     with Investigador(config, sources=[bdns, fetch]) as inv:
-        inv.run(_calls_request())
+        inv.run(_calls_request(), selected_ods)
 
     assert fetch.fetch_calls == ["https://bo.es/c1"]

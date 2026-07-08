@@ -305,6 +305,17 @@ testeable y especifica los archivos exactos. La tarea 15 es MANUAL (conjunta con
   - Usa el catálogo de la tarea 25 como fuente de opciones.
   - _Requirements: 25.1_
 
+*Nota de ejecución (08-07-2026): T27 y T28 se fusionan en una sola unidad de
+trabajo, porque cambiar el contrato de `_derive_queries()` (T28) y propagarlo
+hasta `Investigador.run()` (parte de T27) son cambios inseparables — no se
+puede tocar uno sin el otro. T26 (UI real) queda aparte, después. La
+descripción de "fallback" en T28 queda superada por la decisión B1 de R25.3
+(fallo explícito, sin fallback); ver `requirements.md`.*
+
+*Deuda transitoria: `Investigador.run()` mantiene `selected_ods=None` como
+default hasta el cierre de T26 (multiselección obligatoria en UI). Al cerrar
+T26, el default se elimina y el parámetro pasa a ser obligatorio.*
+
 - [ ] **27. Propagar la selección de ODS desde la UI hasta `_derive_queries()`.**
   - Ubicación: capa de UI + `src/agente_ong/research/graph.py` (y `ResearchRequest`
     o estructura equivalente, si hace falta ampliarla).

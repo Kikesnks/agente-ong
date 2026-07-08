@@ -24,6 +24,7 @@ from typing import Callable, ContextManager, Protocol
 
 from agente_ong.research.config import ResearchConfig
 from agente_ong.research.models import ResearchReport, ResearchRequest
+from agente_ong.research.ods_catalogo import OdsEntry
 from agente_ong.ui.models import Job, JobStatus, ResearchRun
 from agente_ong.ui.project_store import ProjectStore
 from agente_ong.ui.report_serde import report_to_dict
@@ -33,9 +34,16 @@ _DEFAULT_MAX_WORKERS = 2
 
 
 class _RunsInvestigation(Protocol):
-    """Contrato mínimo del investigador que ejecuta un job (lo cumple `Investigador`)."""
+    """Contrato mínimo del investigador que ejecuta un job (lo cumple `Investigador`).
 
-    def run(self, request: ResearchRequest) -> ResearchReport: ...
+    `selected_ods=None` es deuda transitoria (R25) mientras T26 (UI de multiselección de
+    ODS) no exista: sin ella, `run()` falla con `ValueError` explícito dentro del grafo
+    (decisión B1, R25.3) en vez de simular una selección. Ver decisión pendiente #18.
+    """
+
+    def run(
+        self, request: ResearchRequest, selected_ods: list[OdsEntry] | None = None
+    ) -> ResearchReport: ...
 
 
 # La factoría recibe la config del job y devuelve un investigador usable como context

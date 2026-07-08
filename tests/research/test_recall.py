@@ -15,6 +15,7 @@ import pytest
 from agente_ong.research.config import ResearchConfig
 from agente_ong.research.investigador import Investigador
 from agente_ong.research.models import Claim, LedgerEntry, ResearchRequest, SourceRef
+from agente_ong.research.ods_catalogo import OdsEntry
 from agente_ong.research.store.sqlite import SqliteStore
 from agente_ong.research.urlnorm import normalize_url
 from agente_ong.research.verification import VerificationPolicy
@@ -46,19 +47,21 @@ def _request() -> ResearchRequest:
 # --- Recall entre investigaciones (Requirement 5.3) ---
 
 
-def test_ledger_persists_and_is_recalled_in_next_investigation(db_path: Path) -> None:
+def test_ledger_persists_and_is_recalled_in_next_investigation(
+    db_path: Path, selected_ods: list[OdsEntry]
+) -> None:
     config = ResearchConfig(max_depth=1, db_path=db_path)
 
     # Investigación 1: no hay pistas previas; persiste el ledger al cerrar.
     bdns1, fetch1 = _sources()
     with Investigador(config, sources=[bdns1, fetch1]) as inv1:
-        report1 = inv1.run(_request())
+        report1 = inv1.run(_request(), selected_ods)
     assert report1.reused_from_ledger == []
 
     # Investigación 2: instancia nueva sobre el MISMO .db -> recall de la pista previa.
     bdns2, fetch2 = _sources()
     with Investigador(config, sources=[bdns2, fetch2]) as inv2:
-        report2 = inv2.run(_request())
+        report2 = inv2.run(_request(), selected_ods)
 
     keys = [e.key for e in report2.reused_from_ledger]
     assert normalize_url(C1) in keys
@@ -67,17 +70,19 @@ def test_ledger_persists_and_is_recalled_in_next_investigation(db_path: Path) ->
     assert hint.content_summary  # resumen no vacío, recuperado del .db
 
 
-def test_recalled_hint_is_revisited_not_skipped(db_path: Path) -> None:
+def test_recalled_hint_is_revisited_not_skipped(
+    db_path: Path, selected_ods: list[OdsEntry]
+) -> None:
     config = ResearchConfig(max_depth=1, db_path=db_path)
 
     bdns1, fetch1 = _sources()
     with Investigador(config, sources=[bdns1, fetch1]) as inv1:
-        inv1.run(_request())
+        inv1.run(_request(), selected_ods)
 
     # En la segunda investigación la pista NO se marca como vista: se vuelve a leer la URL.
     bdns2, fetch2 = _sources()
     with Investigador(config, sources=[bdns2, fetch2]) as inv2:
-        report2 = inv2.run(_request())
+        report2 = inv2.run(_request(), selected_ods)
 
     assert C1 in fetch2.fetch_calls  # se revisitó (revalidable), no se omitió
     assert len(report2.opportunities) == 1
@@ -86,11 +91,13 @@ def test_recalled_hint_is_revisited_not_skipped(db_path: Path) -> None:
 # --- Persistencia real del store entre instancias ---
 
 
-def test_ledger_entry_survives_close_and_reopen(db_path: Path) -> None:
+def test_ledger_entry_survives_close_and_reopen(
+    db_path: Path, selected_ods: list[OdsEntry]
+) -> None:
     config = ResearchConfig(max_depth=1, db_path=db_path)
     bdns1, fetch1 = _sources()
     with Investigador(config, sources=[bdns1, fetch1]) as inv1:
-        inv1.run(_request())
+        inv1.run(_request(), selected_ods)
 
     # Reabrir el store directamente y comprobar que la entrada del ledger sigue ahí.
     store = SqliteStore(db_path)

@@ -25,6 +25,7 @@ from agente_ong.research.depth import DepthLimiter
 from agente_ong.research.graph import ResearchGraph
 from agente_ong.research.ledger import SourceLedger
 from agente_ong.research.models import ResearchReport, ResearchRequest
+from agente_ong.research.ods_catalogo import OdsEntry
 from agente_ong.research.sources.base import SearchSource
 from agente_ong.research.store.base import ResearchStore
 from agente_ong.research.store.memory import InMemoryStore
@@ -76,11 +77,20 @@ class Investigador:
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
         self.close()
 
-    def run(self, request: ResearchRequest) -> ResearchReport:
+    def run(
+        self, request: ResearchRequest, selected_ods: list[OdsEntry] | None = None
+    ) -> ResearchReport:
         """Ejecuta una investigación completa y devuelve su informe.
 
         Usa un ledger nuevo (vista en memoria limpia) sobre el store compartido, construye el
         grafo y lo invoca. El `compile_report` final persiste el ledger en el store.
+
+        `selected_ods` (R25): ODS elegidos por el usuario para las queries ODS del
+        investigador. `selected_ods=None` es una deuda transitoria mientras T26 (UI de
+        multiselección) no exista; ver decisión pendiente #18 en
+        `Contexto_para_mi/decisiones_pendientes.md`. Con `None`/`[]`, `plan()` propaga el
+        vacío hasta `_derive_queries()`, que lanza `ValueError` explícito (decisión B1,
+        R25.3) en vez de fallar en silencio.
         """
         ledger = SourceLedger(self._store)
         graph = ResearchGraph(
@@ -92,7 +102,7 @@ class Investigador:
             config=self._config,
         )
         app = graph.build()
-        final = app.invoke({"request": request})
+        final = app.invoke({"request": request, "selected_ods": selected_ods})
         return final["report"]
 
     @staticmethod

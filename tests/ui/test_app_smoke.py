@@ -117,6 +117,9 @@ def test_create_project_appears_in_sidebar_and_creates_folder(app: AppTest, tmp_
 # --- Investigación E2E con fakes: informe ordenado y descargable (R2.1, R4.1, R11.1) ---
 
 
+@pytest.mark.xfail(
+    reason="T26 pendiente: UI aún no propaga selected_ods, ver decisión #18", strict=True
+)
 def test_research_flow_renders_sorted_report(app: AppTest, fake_sources: list) -> None:
     app.run()
     _create_project(app)
