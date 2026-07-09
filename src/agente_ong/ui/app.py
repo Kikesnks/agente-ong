@@ -22,6 +22,7 @@ import streamlit as st
 from streamlit.runtime.secrets import StreamlitSecretNotFoundError
 from streamlit_autorefresh import st_autorefresh
 
+from agente_ong.llm.health import is_ollama_available
 from agente_ong.research.config import DEFAULT_DB_PATH, ResearchConfig
 from agente_ong.research.ods_catalogo import load_ods_catalogo
 from agente_ong.ui import request_builder, uploads
@@ -114,6 +115,32 @@ def _warn_missing_keys(config: ResearchConfig) -> None:
             "⚠️ Firecrawl no configurada — la lectura profunda usará solo el lector interno. "
             "Añade FIRECRAWL_API_KEY a tu .env o a los Secrets de Streamlit Cloud si quieres "
             "ese fallback."
+        )
+
+
+@st.cache_data(ttl=30)
+def _cached_ollama_available() -> bool:
+    """Cachea el ping a Ollama para no gastar 1s de HTTP en cada rerun de Streamlit (los
+    reruns son frecuentes: cada input, cada polling de st_autorefresh). TTL 30s: si Kk
+    arranca/para Ollama durante la sesión, el estado se refresca en menos de un minuto sin
+    necesidad de F5."""
+    return is_ollama_available()
+
+
+def _warn_llm_unavailable() -> None:
+    """Avisa en la sidebar (R7.6) si no hay Ollama disponible al arrancar/refrescar.
+
+    La investigación sigue funcionando sin filtro semántico (degradación silenciosa en
+    `enrich_report`, R7.3) — este warning es la contraparte visible: el usuario sabe por qué
+    no hay clasificación, en vez de descubrirlo por ausencia silenciosa (mismo principio que
+    `_warn_missing_keys`, commit 60c820b).
+    """
+    if not _cached_ollama_available():
+        st.sidebar.warning(
+            "⚠️ Ollama no está disponible. La investigación funcionará "
+            "sin filtro semántico: los resultados no se clasificarán "
+            "como relevantes/descartados. Arranca `ollama serve` para "
+            "activar el filtro."
         )
 
 
@@ -346,6 +373,7 @@ def main() -> None:
     _sync_streamlit_secrets_to_env()
     config = _base_config()
     _warn_missing_keys(config)
+    _warn_llm_unavailable()
     with ProjectStore(Path(config.db_path)) as store:
         project = _sidebar(store)
         if project is None:

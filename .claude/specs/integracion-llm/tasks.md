@@ -226,12 +226,13 @@ tocar); la orquestación vive entera en `llm/`. Orden de ejecución estricto: 9 
     (tarea 10), src/agente_ong/llm/adapters/ollama.py (OllamaProvider)_
   - _Requirements: 7.1, 7.2, 7.3_
 
-- [ ] 12. Warning en sidebar si no hay LLM disponible
+- [x] 12. Warning en sidebar si no hay LLM disponible
   - Files: src/agente_ong/ui/app.py
   - Mismo patrón que `_warn_missing_keys()` (commit `60c820b`): si
     `is_ollama_available()` es `False` al arrancar `main()`, `st.sidebar.warning(...)`
     persistente explicando que la investigación seguirá funcionando sin clasificar
-  - Tests: manual (captura de pantalla)
+  - Tests: manual (captura de pantalla) + automatizados en tests/ui/test_app_smoke.py
+    (con/sin Ollama disponible, mockeando `agente_ong.llm.health.is_ollama_available`)
   - Purpose: visibilidad — el usuario sabe por qué no hay clasificación semántica, en vez
     de descubrirlo por ausencia silenciosa (mismo principio que motivó el arreglo del bug
     de `.env`, commit `60c820b`)

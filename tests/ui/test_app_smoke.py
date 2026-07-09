@@ -8,12 +8,18 @@ circuito completo. _Requirements: 1.1, 2.1, 4.1, 11.1_
 Inyección de fakes (DECISIONES_PENDIENTES.md #2, opción b): `AppTest` ejecuta la app EN
 ESTE MISMO proceso, así que se monkeypatchea `Investigador._default_sources` para que el
 JobManager real construya un Investigador real con FUENTES FAKE (tests/research/fakes.py).
-Cero llamadas a Tavily/Firecrawl/BDNS/TED. `is_ollama_available` (R7, T11) también se
-monkeypatchea a `False`: sin esto, en una máquina con Ollama local corriendo (como esta),
-`jobs.py` dispararía una clasificación LLM real dentro del test — no determinista y ajena a
-lo que este smoke test valida. Sin residuos: `RESEARCH_DB_PATH` y el cwd van a `tmp_path`
-(la carpeta `RECURSOS/` del proyecto se crea allí) y el singleton del JobManager se limpia
-antes y después de cada test.
+Cero llamadas a Tavily/Firecrawl/BDNS/TED. `is_ollama_available` (R7, T11/T12) también se
+monkeypatchea, pero en DOS PUNTOS DISTINTOS por una razón no obvia: `jobs.py` (módulo
+persistente, importado una sola vez) se parchea directamente en
+`agente_ong.ui.jobs.is_ollama_available`; en cambio `app.py` lo re-importa en CADA
+`AppTest.run()` (AppTest ejecuta el script como "fresco", no reutiliza el módulo
+`agente_ong.ui.app` ya importado por este test), así que solo parcheando la FUENTE
+(`agente_ong.llm.health.is_ollama_available`) el mock sobrevive a esa re-ejecución. Sin
+esto, en una máquina con Ollama local corriendo (como esta), se dispararían tanto una
+clasificación LLM real como un warning de sidebar dependiente del entorno, ajenos a lo que
+este smoke test valida. Sin residuos: `RESEARCH_DB_PATH` y el cwd van a `tmp_path` (la
+carpeta `RECURSOS/` del proyecto se crea allí) y el singleton del JobManager se limpia antes
+y después de cada test.
 """
 
 from __future__ import annotations
@@ -23,6 +29,7 @@ import time
 from pathlib import Path
 
 import pytest
+import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -73,6 +80,17 @@ def app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, fake_sources: list) -> 
         Investigador, "_default_sources", staticmethod(lambda config: fake_sources)
     )
     monkeypatch.setattr("agente_ong.ui.jobs.is_ollama_available", lambda *a, **kw: False)
+    # AppTest re-ejecuta app.py como script "fresco" en cada run (no reutiliza el módulo ya
+    # importado agente_ong.ui.app): parchear agente_ong.ui.app.* no tiene efecto, porque
+    # AppTest trabaja sobre su PROPIA copia del namespace del script, no sobre la de este
+    # test. Hay que parchear la FUENTE (agente_ong.llm.health.is_ollama_available) para que
+    # el `from ... import` de app.py, reevaluado en cada ejecución, recoja el mock.
+    monkeypatch.setattr("agente_ong.llm.health.is_ollama_available", lambda *a, **kw: False)
+    # _cached_ollama_available (T12) usa @st.cache_data: es una caché GLOBAL de proceso
+    # (TTL 30s) que sobrevive entre AppTest.run() de tests distintos dentro de esta misma
+    # sesión de pytest. Sin limpiarla, el resultado de un test anterior puede "filtrarse" a
+    # este, ignorando el monkeypatch de arriba.
+    st.cache_data.clear()
     app_module._job_manager.clear()
 
     at = AppTest.from_file(str(_APP_FILE), default_timeout=_TIMEOUT)
@@ -168,3 +186,27 @@ def test_research_flow_renders_sorted_report(app: AppTest, fake_sources: list) -
 
     # Descargas disponibles (R22.3): resumen + detallado.
     assert len(app.get("download_button")) == 2
+
+
+# --- Warning de sidebar cuando Ollama no está disponible (R7.6, T12) ---
+
+
+def test_sidebar_warns_when_ollama_unavailable(app: AppTest) -> None:
+    """El fixture `app` ya mockea `agente_ong.llm.health.is_ollama_available` a False."""
+    app.run()
+    assert not app.exception
+
+    warnings = " ".join(str(w.value) for w in app.warning)
+    assert "Ollama" in warnings
+
+
+def test_sidebar_does_not_warn_when_ollama_available(
+    app: AppTest, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("agente_ong.llm.health.is_ollama_available", lambda *a, **kw: True)
+
+    app.run()
+    assert not app.exception
+
+    warnings = " ".join(str(w.value) for w in app.warning)
+    assert "Ollama" not in warnings
