@@ -167,3 +167,86 @@ testeable y especifica los archivos exactos.
     src/agente_ong/research/models.py (ResearchReport, GrantOpportunity — se LEEN, no se
     modifican)_
   - _Requirements: 6.2, 6.5_
+
+### R7 — Orquestación del filtro semántico (cableado al pipeline)
+
+*Reapertura 09-07-2026. Opción C: `research/` queda intacto (Opción B/decisión #8 de T8 sin
+tocar); la orquestación vive entera en `llm/`. Orden de ejecución estricto: 9 → 10 → 11 →
+12 → 13. Cada tarea, commit + push.*
+
+- [ ] 9. `is_ollama_available()` en llm/health.py
+  - Files: src/agente_ong/llm/health.py, tests/llm/test_health.py
+  - `is_ollama_available(base_url: str = DEFAULT_BASE_URL, timeout: float = 1.0) -> bool`:
+    intenta un ping mínimo contra el servidor Ollama; captura CUALQUIER excepción de
+    red/timeout y devuelve `False` — nunca propaga. Sustituye a `_preflight_ollama` de
+    `scripts/prueba_filtro_semantico.py` (mismo propósito, ahora reutilizable en código de
+    producción)
+  - Tests: con Ollama mockeado respondiendo OK → `True`; con conexión rechazada/timeout →
+    `False`, sin excepción
+  - Purpose: saber si hay LLM disponible sin arriesgar una excepción cruda en el arranque
+    de la UI ni en el cableado de `jobs.py`
+  - _Leverage: src/agente_ong/llm/adapters/ollama.py (DEFAULT_BASE_URL)_
+  - _Requirements: 7.1_
+
+- [ ] 10. `EnrichedReport` + `enrich_report()` en llm/enrichment.py
+  - Files: src/agente_ong/llm/enrichment.py, tests/llm/test_enrichment.py
+  - `EnrichedReport` (`dataclass`): `base: ResearchReport`, `discarded:
+    list[GrantOpportunity]`, `unclassified: list[GrantOpportunity]`,
+    `semantic_filter_applied: bool`. `enrich_report(report: ResearchReport, provider:
+    LLMProvider | None) -> EnrichedReport`: sin provider, pasa `report` intacto como
+    `base` con buckets vacíos y `semantic_filter_applied=False`; con provider, usa
+    `classify_report` (T8, ya existe) para separar kept/discarded/unclassified y construye
+    `base` con `dataclasses.replace(report, opportunities=kept)` — el `report` de entrada
+    nunca se muta
+  - Tests: (a) provider=None → `base` es el mismo report, buckets vacíos,
+    `semantic_filter_applied=False`; (b) provider mock con 3 oportunidades
+    ("si"/"no"/"no_clasificado") → buckets correctos, `base.opportunities` contiene solo
+    la "si"; (c) provider mock que lanza `LLMError` en una oportunidad → esa entrada
+    termina en `unclassified`
+  - Purpose: capa de orquestación aditiva que enriquece un `ResearchReport` sin que
+    `research/` conozca la existencia del filtro semántico (Opción B, decisión #8 de T8,
+    intacta)
+  - _Leverage: src/agente_ong/llm/filter_report.py (classify_report, T8),
+    src/agente_ong/research/models.py (ResearchReport, GrantOpportunity — se LEEN, no se
+    modifican)_
+  - _Requirements: 7.2, 7.3, 7.4, 7.5_
+
+- [ ] 11. Cableado en ui/jobs.py
+  - Files: src/agente_ong/ui/jobs.py, tests/ui/test_jobs.py
+  - En `_run_job_inner`, tras `investigador.run(...)` y antes de persistir: resolver
+    `provider` (construir `OllamaProvider` solo si `is_ollama_available()` es `True`, si
+    no `None`) y llamar `enrich_report(report, provider)`. Decidir en esta tarea qué se
+    persiste (ver "Decisiones pendientes" de `design.md`: solo `base`, o los 3 campos
+    nuevos también)
+  - Tests: con Ollama disponible (mock) y con Ollama no disponible — ambos casos no rompen
+    el flujo existente de jobs
+  - Purpose: primer punto real donde el filtro semántico se ejecuta dentro del pipeline de
+    producción
+  - _Leverage: src/agente_ong/llm/health.py (tarea 9), src/agente_ong/llm/enrichment.py
+    (tarea 10), src/agente_ong/llm/adapters/ollama.py (OllamaProvider)_
+  - _Requirements: 7.1, 7.2, 7.3_
+
+- [ ] 12. Warning en sidebar si no hay LLM disponible
+  - Files: src/agente_ong/ui/app.py
+  - Mismo patrón que `_warn_missing_keys()` (commit `60c820b`): si
+    `is_ollama_available()` es `False` al arrancar `main()`, `st.sidebar.warning(...)`
+    persistente explicando que la investigación seguirá funcionando sin clasificar
+  - Tests: manual (captura de pantalla)
+  - Purpose: visibilidad — el usuario sabe por qué no hay clasificación semántica, en vez
+    de descubrirlo por ausencia silenciosa (mismo principio que motivó el arreglo del bug
+    de `.env`, commit `60c820b`)
+  - _Leverage: src/agente_ong/ui/app.py (_warn_missing_keys, commit 60c820b)_
+  - _Requirements: 7.6_
+
+- [ ] 13. Verificación empírica end-to-end (caso de prueba del 05-07)
+  - Files: ninguno (prueba manual)
+  - Sin Ollama corriendo: mismo resultado que antes de esta reapertura (74 convocatorias,
+    22 documentos informativos) + warning visible en sidebar; `EnrichedReport` con buckets
+    vacíos y `semantic_filter_applied=False`. Con Ollama corriendo: N kept en
+    `base.opportunities`, M discarded (validar que incluye el ruido de Canarias de la
+    decisión #14 y ruido identificable de Tavily — linguee/instagram/flickr) + K
+    unclassified
+  - Tests: manual; anexar resultado al checkpoint de la próxima sesión
+  - Purpose: cerrar la reapertura con evidencia empírica, no solo con tests unitarios —
+    mismo principio que el cierre de R25 de `investigador-v2`
+  - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_

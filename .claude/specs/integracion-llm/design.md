@@ -171,6 +171,50 @@ investigador, y en particular no altera `R20` de `investigador-v2` (`result_type
   clasificar en ese modo y devuelve la estructura vacía correspondiente — es el
   comportamiento correcto, no un fallo.
 
+### R7 — Orquestación del filtro semántico (cableado al pipeline)
+
+**Dónde:** `src/agente_ong/llm/health.py` (detección de disponibilidad) y
+`src/agente_ong/llm/enrichment.py` (envoltorio `EnrichedReport`/`enrich_report`);
+cableado en `src/agente_ong/ui/jobs.py` y aviso en `src/agente_ong/ui/app.py`.
+
+- **Detección de LLM (`health.py`):** `is_ollama_available(base_url: str, timeout: float
+  = 1.0) -> bool`. Sin excepciones: cualquier fallo de red al intentar contactar Ollama se
+  traduce a `False`, nunca se propaga. Sustituye a `_preflight_ollama` de
+  `scripts/prueba_filtro_semantico.py` (mismo propósito, ahora en código de producción
+  reutilizable en vez de un script suelto).
+- **`EnrichedReport` (`dataclass`, `enrichment.py`):** `base: ResearchReport` (el informe
+  original, sin modificar — tipo importado de `research/models.py`),
+  `discarded: list[GrantOpportunity]`, `unclassified: list[GrantOpportunity]`,
+  `semantic_filter_applied: bool`. Dirección de la dependencia: `llm/` → `research/` (solo
+  lectura de tipos), igual que ya hace hoy `filter_report.py` — no viola la Opción B (T8):
+  `research/` sigue sin conocer la existencia del filtro semántico.
+- **`enrich_report(report: ResearchReport, provider: LLMProvider | None) ->
+  EnrichedReport`:**
+  - `provider is None` (Ollama no disponible): devuelve `EnrichedReport(base=report,
+    discarded=[], unclassified=[], semantic_filter_applied=False)`. `report` NO se clona
+    en este camino — no hace falta, no se le quita nada. Degradación 100% silenciosa: el
+    pipeline se comporta exactamente igual que antes de esta reapertura (R7.3).
+  - `provider` disponible: llama a `classify_report(provider, report)` (T8, ya existe, no
+    se toca) para obtener el `dict[id(opportunity), "si"|"no"|"no_clasificado"]`; separa
+    `report.opportunities` en 3 listas según esa clasificación; construye un NUEVO
+    `ResearchReport` con `dataclasses.replace(report, opportunities=kept)` (los demás
+    campos — `ledger`, `failed_sources`, etc. — se preservan tal cual) y lo asigna a
+    `base`; `discarded`/`unclassified` son las otras dos listas. El `report` de entrada
+    nunca se muta (R7.2).
+  - Un fallo de clasificación (`LLMError`) en una oportunidad concreta ya queda como
+    `"no_clasificado"` en el dict que devuelve `classify_report` (comportamiento existente
+    de T8, con `logger.warning` — se verifica y se reusa, no se reimplementa):
+    `enrich_report` solo rutea esa entrada a `unclassified` como cualquier otra
+    `"no_clasificado"` (R7.5).
+- **Cableado (`ui/jobs.py`):** en `_run_job_inner`, tras `report =
+  investigador.run(request, selected_ods)` y antes de persistir el resultado, se resuelve
+  `provider` (construcción condicional de `OllamaProvider` según `is_ollama_available()`)
+  y se llama `enrich_report(report, provider)`. Qué se persiste exactamente
+  (`ProjectStore`/`report_to_dict` hoy solo conocen `ResearchReport`, no `EnrichedReport`)
+  se decide en T11 — ver "Decisiones pendientes".
+- **Aviso UI (`ui/app.py`):** mismo patrón que `_warn_missing_keys()` (commit `60c820b`):
+  un `st.sidebar.warning(...)` si `is_ollama_available()` es `False` al arrancar `main()`.
+
 ## Estrategia de tests con mock
 
 Igual que `InMemoryStore` (`research/store/memory.py`) permite testear el investigador sin
@@ -243,3 +287,24 @@ prompt cargado) → Integración con los resultados del investigador (R6, aditiv
   `investigador-v2`) cambie de valor ni `research/models.py` se modifique; con
   `opportunities=[]` (caso modo "training") la función no falla y devuelve una estructura
   vacía.
+- **R7:** `is_ollama_available` con Ollama mockeado (ping OK / conexión rechazada) → `True`/
+  `False`, nunca excepción (T9); `enrich_report` sin provider → `base` intacto, buckets
+  vacíos (T10); `enrich_report` con provider mock (3 oportunidades: "si"/"no"/
+  "no_clasificado") → buckets correctos y `base.opportunities` solo con la "si" (T10);
+  `enrich_report` con provider que lanza `LLMError` en una oportunidad → esa entrada en
+  `unclassified` (T10); cableado en `jobs.py` con Ollama disponible/no disponible no rompe
+  el flujo existente (T11).
+
+## Decisiones pendientes (R7, abiertas)
+
+- **Renderizado de `discarded`/`unclassified` en la UI (Markdown/HTML):** cómo pintar las
+  2 secciones nuevas del `EnrichedReport` en `ui/report_view.py`/`ui/report_serde.py`.
+  Fuera de alcance de esta reapertura (T9-T13 no tocan la UI de renderizado del informe,
+  solo el aviso de disponibilidad de LLM).
+- **Persistencia de `EnrichedReport`:** `ProjectStore.update_run_status` y
+  `report_to_dict`/`report_from_dict` (`ui/report_serde.py`) hoy solo conocen
+  `ResearchReport`. T11 (cableado en `jobs.py`) debe decidir: ¿se persiste solo `base`
+  (comportamiento actual — `discarded`/`unclassified` se pierden al recargar la página) o
+  se extiende la persistencia para guardar los 3 campos nuevos? No estaba en el alcance
+  original de T9-T13 tal como se describieron; queda como decisión a tomar AL EMPEZAR T11,
+  no al terminar.

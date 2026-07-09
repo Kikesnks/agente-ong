@@ -1,5 +1,25 @@
 # Spec integracion-llm — requirements.md (SPEC 2)
 
+## Reapertura — 09-07-2026 (R7)
+
+**Motivo:** T7 y T8 implementaron el filtro semántico (`classify_result`,
+`classify_report`) pero quedaron como librería suelta, sin invocación desde
+el pipeline: ni la UI ni `jobs.py` los llaman. Esta reapertura añade la capa
+de orquestación que los cablea a la UI, respetando la Opción B (decisión #8
+de T8: `research/` queda intacto, la clasificación vive enteramente en
+`llm/`).
+
+**Alcance de la reapertura:** detección de disponibilidad de Ollama
+(`llm/health.py`), una capa de enriquecimiento (`EnrichedReport`/
+`enrich_report` en `llm/enrichment.py`) que envuelve un `ResearchReport` ya
+construido sin tocar `research/`, su cableado en `ui/jobs.py`, y un aviso en
+la UI si no hay LLM disponible. Degradación silenciosa: sin Ollama, el
+pipeline se comporta exactamente igual que hoy (informe sin clasificar).
+Renderizado a Markdown/HTML de las secciones nuevas (`discarded`/
+`unclassified`) queda fuera — ver "Decisiones pendientes" en `design.md`.
+
+**Fecha de cierre:** pendiente.
+
 *Fecha: 01-07-2026. Origen: roadmap `Contexto_para_mi/roadmap_specs_agente-ong_v4_22-06-2026.md`
 ("SPEC 2: Integración LLM") + evidencia de falsos positivos del diagnóstico del 12-06-2026
 (`investigador-v2`) y de la re-validación T19/R21 del 28-06-2026.*
@@ -31,6 +51,12 @@ posteriores (redactor, chat) una vez validada la infraestructura LLM en producci
 **No se modifica investigador-v2:** el filtro es una capa NUEVA por encima del módulo
 `research/`. En particular, `R20` (pre-clasificación heurística `result_type`) de
 `investigador-v2` no se toca — el filtro semántico es aditivo, no la sustituye.
+
+**Reapertura R7 (09-07-2026):** la capa de orquestación que cablea el filtro al pipeline
+(T9-T13) sigue exactamente este mismo principio — vive entera en `llm/`, consume un
+`ResearchReport` ya construido como entrada de solo lectura (nunca lo muta; produce una
+copia vía `dataclasses.replace` cuando hay que quitar oportunidades) y no añade ni un
+campo a `research/models.py` ni a `research/graph.py`. Ver R7.
 
 ### Nota de numeración
 
@@ -143,6 +169,37 @@ Criterios de aceptación:
 - 6.5 El filtro no modifica ni sustituye `result_type` (`R20` de `investigador-v2`): es una
   clasificación adicional, independiente y por encima de la heurística existente.
 
+## R7 — Orquestación del filtro semántico (cableado al pipeline)
+
+**Evidencia:** T7/T8 (esta spec) implementaron `classify_result` y `classify_report`, pero
+ningún punto de la aplicación real los invoca — confirmado por `grep` de
+`semantic_filter`/`filter_report` en `src/agente_ong/research/` y `src/agente_ong/ui/`:
+cero resultados (diagnóstico 09-07-2026). El filtro existe y está testeado, pero es
+inalcanzable para el usuario final.
+
+Criterios de aceptación:
+- 7.1 Existe una función de detección de disponibilidad de Ollama
+  (`is_ollama_available`) que nunca lanza una excepción — solo devuelve `True`/`False`.
+- 7.2 Una capa nueva en `llm/` (`EnrichedReport`/`enrich_report`) envuelve un
+  `ResearchReport` ya construido y produce una versión clasificada
+  (kept/discarded/unclassified) sin mutar el original ni ningún tipo de
+  `research/models.py`.
+- 7.3 Sin un proveedor LLM disponible, `enrich_report` degrada en silencio: el
+  `ResearchReport` original queda intacto en `base`, los buckets
+  `discarded`/`unclassified` quedan vacíos, y `semantic_filter_applied` es `False` — el
+  usuario obtiene el mismo resultado que antes de esta reapertura.
+- 7.4 Con un proveedor LLM disponible, cada oportunidad descartada o no clasificada por el
+  filtro sale de `base.opportunities` pero **no desaparece**: queda accesible en
+  `discarded`/`unclassified` del `EnrichedReport` — nunca se oculta ni se descarta
+  silenciosamente.
+- 7.5 Un fallo de clasificación (`LLMError`) en una oportunidad concreta la manda a
+  `unclassified` con aviso registrado (`logger.warning`), sin abortar la clasificación del
+  resto — mismo principio de aislamiento que R6.5/T8 y que `failed_sources` del
+  investigador.
+- 7.6 La UI muestra un aviso persistente si no hay LLM disponible al arrancar, con la
+  misma mecánica que los avisos de claves ausentes (`_warn_missing_keys`, commit
+  `60c820b`).
+
 ---
 
 ## Decisiones tomadas (01-07-2026, Kike)
@@ -153,3 +210,12 @@ Criterios de aceptación:
   razón (alineación con el futuro chat de SPEC 3) en `design.md`.
 - **Adaptador genérico OpenAI-compatible:** aplazado a BACKLOG v1.1 (R2.4).
 - **Numeración de requisitos:** independiente por spec, ver "Nota de numeración" arriba.
+
+## Decisiones tomadas (09-07-2026, Kike — reapertura R7)
+
+- **Opción C confirmada:** el filtro semántico NO se integra en `research/`. La decisión
+  #8 (Opción B, T8) queda intacta. Se añade una capa nueva de orquestación EXTERNA a
+  `research/` (`llm/enrichment.py`) que envuelve el `ResearchReport` con clasificación
+  semántica opcional, en vez del nodo `semantic_filter` dentro de `research/graph.py`
+  propuesto inicialmente.
+- **Nombre del módulo:** `src/agente_ong/llm/enrichment.py` (cerrado, no queda abierto).
