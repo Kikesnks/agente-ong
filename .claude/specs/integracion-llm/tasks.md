@@ -174,7 +174,7 @@ testeable y especifica los archivos exactos.
 tocar); la orquestación vive entera en `llm/`. Orden de ejecución estricto: 9 → 10 → 11 →
 12 → 13. Cada tarea, commit + push.*
 
-- [ ] 9. `is_ollama_available()` en llm/health.py
+- [x] 9. `is_ollama_available()` en llm/health.py
   - Files: src/agente_ong/llm/health.py, tests/llm/test_health.py
   - `is_ollama_available(base_url: str = DEFAULT_BASE_URL, timeout: float = 1.0) -> bool`:
     intenta un ping mínimo contra el servidor Ollama; captura CUALQUIER excepción de

@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from agente_ong.llm.adapters.ollama import OllamaProvider  # noqa: E402
 from agente_ong.llm.errors import LLMConnectionError, LLMError  # noqa: E402
 from agente_ong.llm.filter_report import classify_report  # noqa: E402
+from agente_ong.llm.health import is_ollama_available  # noqa: E402
 from agente_ong.llm.provider import LLMProvider, LLMResponse  # noqa: E402
 from agente_ong.research.config import ResearchConfig  # noqa: E402
 from agente_ong.research.investigador import Investigador  # noqa: E402
@@ -98,8 +99,16 @@ def _parse_user_prompt(user: str) -> tuple[str, str]:
 
 
 def _preflight_ollama(provider: OllamaProvider) -> bool:
-    """Comprobación rápida: ¿responde Ollama? Evita lanzar la investigación completa
-    (varios minutos) si el servidor local está caído."""
+    """Comprobación rápida: ¿responde Ollama, y responde el modelo concreto de esta prueba?
+
+    Dos niveles (T9, R7): primero `is_ollama_available()` (ping ligero a `/api/tags`, no
+    arranca ningún modelo) para descartar temprano un servidor caído sin gastar tiempo en
+    una inferencia real; solo si eso pasa, se hace la inferencia real de este script contra
+    `MODEL` — sigue teniendo sentido aquí porque esta prueba manual valida ESE modelo
+    concreto, no solo que el servidor esté vivo.
+    """
+    if not is_ollama_available():
+        return False
     try:
         provider.complete("Responde solo OK.", "ping")
     except LLMConnectionError:
