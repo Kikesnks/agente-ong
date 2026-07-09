@@ -188,7 +188,7 @@ tocar); la orquestación vive entera en `llm/`. Orden de ejecución estricto: 9 
   - _Leverage: src/agente_ong/llm/adapters/ollama.py (DEFAULT_BASE_URL)_
   - _Requirements: 7.1_
 
-- [ ] 10. `EnrichedReport` + `enrich_report()` en llm/enrichment.py
+- [x] 10. `EnrichedReport` + `enrich_report()` en llm/enrichment.py
   - Files: src/agente_ong/llm/enrichment.py, tests/llm/test_enrichment.py
   - `EnrichedReport` (`dataclass`): `base: ResearchReport`, `discarded:
     list[GrantOpportunity]`, `unclassified: list[GrantOpportunity]`,
