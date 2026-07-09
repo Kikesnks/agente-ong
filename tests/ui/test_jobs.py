@@ -12,8 +12,9 @@ from pathlib import Path
 
 import pytest
 
+from agente_ong.llm.enrichment import EnrichedReport
 from agente_ong.research.config import ResearchConfig
-from agente_ong.research.models import ResearchReport, ResearchRequest
+from agente_ong.research.models import Claim, GrantOpportunity, ResearchReport, ResearchRequest
 from agente_ong.research.ods_catalogo import OdsEntry
 from agente_ong.ui.jobs import JobManager
 from agente_ong.ui.project_store import ProjectStore
@@ -23,6 +24,28 @@ _TIMEOUT = 10  # segundos; los fakes terminan en milisegundos
 
 # ODS de ejemplo para pasar a JobManager.submit (R25): obligatorio desde T26.
 _SELECTED_ODS: list[OdsEntry] = [{"numero": 1, "nombre": "Fin de la pobreza"}]
+
+
+@pytest.fixture(autouse=True)
+def _no_ollama_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Evita llamadas de red reales a un Ollama local en tests que no las necesitan (R7,
+    T11): por defecto `is_ollama_available()` se mockea a `False`; los tests del filtro
+    semántico la sobrescriben explícitamente."""
+    monkeypatch.setattr("agente_ong.ui.jobs.is_ollama_available", lambda *a, **kw: False)
+
+
+def _opportunity(title_value: str) -> GrantOpportunity:
+    def claim(field_name: str, value: str | None = None) -> Claim:
+        return Claim(field=field_name, value=value)
+
+    return GrantOpportunity(
+        title=claim("titulo", title_value),
+        organism=claim("organismo"),
+        amount=claim("importe"),
+        deadline=claim("plazo"),
+        scope=claim("ambito"),
+        url=claim("url", f"https://example.org/{title_value}"),
+    )
 
 
 class FakeInvestigador:
@@ -168,5 +191,67 @@ def test_pop_finished_removes_only_completed_jobs(db_path: Path, project_id: int
         release.set()
         _wait(manager, slow_id)
         assert [j.id for j in manager.pop_finished()] == [slow_id]
+    finally:
+        manager.shutdown()
+
+
+# --- Cableado del filtro semántico (R7, T11) ---
+
+
+def test_run_job_with_ollama_available_persists_semantic_buckets(
+    db_path: Path, project_id: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    kept = _opportunity("kept")
+    discarded = _opportunity("discarded")
+    unclassified = _opportunity("unclassified")
+    report = ResearchReport(mode="calls", opportunities=[kept, discarded, unclassified])
+    fake = FakeInvestigador(report=report)
+    manager = JobManager(db_path, investigador_factory=lambda cfg: fake)
+
+    monkeypatch.setattr("agente_ong.ui.jobs.is_ollama_available", lambda *a, **kw: True)
+    monkeypatch.setattr("agente_ong.ui.jobs.OllamaProvider", lambda **kw: object())
+    monkeypatch.setattr(
+        "agente_ong.ui.jobs.enrich_report",
+        lambda rep, provider: EnrichedReport(
+            base=ResearchReport(mode=rep.mode, opportunities=[kept]),
+            discarded=[discarded],
+            unclassified=[unclassified],
+            semantic_filter_applied=True,
+        ),
+    )
+    try:
+        job_id = manager.submit(project_id, _config(), _request(), _SELECTED_ODS)
+        _wait(manager, job_id)
+
+        assert manager.status(job_id) == "done"
+        with ProjectStore(db_path) as store:
+            run = store.list_runs(project_id)[0]
+            assert run.report["semantic_filter_applied"] is True
+            assert [o["title"]["value"] for o in run.report["opportunities"]] == ["kept"]
+            assert [o["title"]["value"] for o in run.report["discarded"]] == ["discarded"]
+            assert [o["title"]["value"] for o in run.report["unclassified"]] == ["unclassified"]
+    finally:
+        manager.shutdown()
+
+
+def test_run_job_without_ollama_persists_report_unfiltered(
+    db_path: Path, project_id: int
+) -> None:
+    """`is_ollama_available()` mockeada a False por el fixture autouse: el job debe seguir
+    completando y persistiendo el informe intacto, sin clasificar (degradación silenciosa)."""
+    report = ResearchReport(mode="calls", opportunities=[_opportunity("a")])
+    fake = FakeInvestigador(report=report)
+    manager = JobManager(db_path, investigador_factory=lambda cfg: fake)
+    try:
+        job_id = manager.submit(project_id, _config(), _request(), _SELECTED_ODS)
+        _wait(manager, job_id)
+
+        assert manager.status(job_id) == "done"
+        with ProjectStore(db_path) as store:
+            run = store.list_runs(project_id)[0]
+            assert run.report["semantic_filter_applied"] is False
+            assert run.report["discarded"] == []
+            assert run.report["unclassified"] == []
+            assert [o["title"]["value"] for o in run.report["opportunities"]] == ["a"]
     finally:
         manager.shutdown()

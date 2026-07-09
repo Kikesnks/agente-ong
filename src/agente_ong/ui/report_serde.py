@@ -35,7 +35,7 @@ def report_to_dict(report: ResearchReport) -> dict:
     """Serializa un `ResearchReport` a un dict apto para JSON (tipos primitivos)."""
     return {
         "mode": report.mode,
-        "opportunities": [_opp_to_dict(o) for o in report.opportunities],
+        "opportunities": [opp_to_dict(o) for o in report.opportunities],
         "resources": [_resource_to_dict(r) for r in report.resources],
         "ledger": [_ledger_to_dict(e) for e in report.ledger],
         "reused_from_ledger": [_ledger_to_dict(e) for e in report.reused_from_ledger],
@@ -49,7 +49,9 @@ def report_to_dict(report: ResearchReport) -> dict:
     }
 
 
-def _opp_to_dict(opp: GrantOpportunity) -> dict:
+def opp_to_dict(opp: GrantOpportunity) -> dict:
+    """Serializa una `GrantOpportunity` sola (pública: reutilizada por llm/enrichment_serde.py
+    para serializar discarded/unclassified de un `EnrichedReport`, R7)."""
     data = {name: _claim_to_dict(getattr(opp, name)) for name in _OPP_CLAIM_FIELDS}
     data["overall_status"] = opp.overall_status.value
     data["result_type"] = opp.result_type  # R20
@@ -105,7 +107,7 @@ def report_from_dict(data: dict) -> ResearchReport:
     """Reconstruye un `ResearchReport` desde el dict producido por `report_to_dict`."""
     return ResearchReport(
         mode=data["mode"],
-        opportunities=[_opp_from_dict(o) for o in data.get("opportunities", [])],
+        opportunities=[opp_from_dict(o) for o in data.get("opportunities", [])],
         resources=[_resource_from_dict(r) for r in data.get("resources", [])],
         ledger=[_ledger_from_dict(e) for e in data.get("ledger", [])],
         reused_from_ledger=[_ledger_from_dict(e) for e in data.get("reused_from_ledger", [])],
@@ -120,7 +122,9 @@ def report_from_dict(data: dict) -> ResearchReport:
     )
 
 
-def _opp_from_dict(data: dict) -> GrantOpportunity:
+def opp_from_dict(data: dict) -> GrantOpportunity:
+    """Reconstruye una `GrantOpportunity` sola (pública: contraparte de `opp_to_dict`,
+    reutilizada por llm/enrichment_serde.py, R7)."""
     claims = {name: _claim_from_dict(data[name]) for name in _OPP_CLAIM_FIELDS}
     return GrantOpportunity(
         overall_status=VerificationStatus(data["overall_status"]),

@@ -22,15 +22,26 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable, ContextManager, Protocol
 
+from agente_ong.llm.adapters.ollama import OllamaProvider
+from agente_ong.llm.enrichment import enrich_report
+from agente_ong.llm.enrichment_serde import enriched_report_to_dict
+from agente_ong.llm.health import is_ollama_available
 from agente_ong.research.config import ResearchConfig
 from agente_ong.research.models import ResearchReport, ResearchRequest
 from agente_ong.research.ods_catalogo import OdsEntry
 from agente_ong.ui.models import Job, JobStatus, ResearchRun
 from agente_ong.ui.project_store import ProjectStore
-from agente_ong.ui.report_serde import report_to_dict
 
 # Investigaciones simultáneas máximas (las demás esperan en cola del executor).
 _DEFAULT_MAX_WORKERS = 2
+
+# TODO(T5): mover a LLMConfig.from_env() cuando T5 se desbloquee. Hoy T5
+# está aplazada por falta de claves Claude/OpenAI (ver tasks.md #4-#5);
+# para Ollama ya podría leerse de env, pero se pospone a T5 para no
+# fragmentar la config en dos rondas.
+# Mismo modelo verificado en vivo que usa scripts/prueba_filtro_semantico.py
+# (R17.3/R19.1/R23.6 de investigador-v2).
+_OLLAMA_MODEL = "qwen2.5:7b"
 
 
 class _RunsInvestigation(Protocol):
@@ -168,7 +179,9 @@ class JobManager:
                 store.update_run_status(run_id, "error", error=str(exc))
                 self._finish_job(job_id, "error")
                 return
-            store.update_run_status(run_id, "done", report=report_to_dict(report))
+            provider = OllamaProvider(model=_OLLAMA_MODEL) if is_ollama_available() else None
+            enriched = enrich_report(report, provider)
+            store.update_run_status(run_id, "done", report=enriched_report_to_dict(enriched))
             self._finish_job(job_id, "done")
 
     def _finish_job(self, job_id: str, status: JobStatus) -> None:

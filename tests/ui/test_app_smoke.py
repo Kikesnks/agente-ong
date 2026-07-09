@@ -8,9 +8,12 @@ circuito completo. _Requirements: 1.1, 2.1, 4.1, 11.1_
 Inyección de fakes (DECISIONES_PENDIENTES.md #2, opción b): `AppTest` ejecuta la app EN
 ESTE MISMO proceso, así que se monkeypatchea `Investigador._default_sources` para que el
 JobManager real construya un Investigador real con FUENTES FAKE (tests/research/fakes.py).
-Cero llamadas a Tavily/Firecrawl/BDNS/TED. Sin residuos: `RESEARCH_DB_PATH` y el cwd van a
-`tmp_path` (la carpeta `RECURSOS/` del proyecto se crea allí) y el singleton del JobManager
-se limpia antes y después de cada test.
+Cero llamadas a Tavily/Firecrawl/BDNS/TED. `is_ollama_available` (R7, T11) también se
+monkeypatchea a `False`: sin esto, en una máquina con Ollama local corriendo (como esta),
+`jobs.py` dispararía una clasificación LLM real dentro del test — no determinista y ajena a
+lo que este smoke test valida. Sin residuos: `RESEARCH_DB_PATH` y el cwd van a `tmp_path`
+(la carpeta `RECURSOS/` del proyecto se crea allí) y el singleton del JobManager se limpia
+antes y después de cada test.
 """
 
 from __future__ import annotations
@@ -69,6 +72,7 @@ def app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, fake_sources: list) -> 
     monkeypatch.setattr(
         Investigador, "_default_sources", staticmethod(lambda config: fake_sources)
     )
+    monkeypatch.setattr("agente_ong.ui.jobs.is_ollama_available", lambda *a, **kw: False)
     app_module._job_manager.clear()
 
     at = AppTest.from_file(str(_APP_FILE), default_timeout=_TIMEOUT)

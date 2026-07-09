@@ -211,7 +211,7 @@ tocar); la orquestación vive entera en `llm/`. Orden de ejecución estricto: 9 
     modifican)_
   - _Requirements: 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 11. Cableado en ui/jobs.py
+- [x] 11. Cableado en ui/jobs.py
   - Files: src/agente_ong/ui/jobs.py, tests/ui/test_jobs.py
   - En `_run_job_inner`, tras `investigador.run(...)` y antes de persistir: resolver
     `provider` (construir `OllamaProvider` solo si `is_ollama_available()` es `True`, si
