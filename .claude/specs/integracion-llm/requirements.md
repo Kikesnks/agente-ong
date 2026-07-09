@@ -18,7 +18,7 @@ pipeline se comporta exactamente igual que hoy (informe sin clasificar).
 Renderizado a Markdown/HTML de las secciones nuevas (`discarded`/
 `unclassified`) queda fuera — ver "Decisiones pendientes" en `design.md`.
 
-**Fecha de cierre:** pendiente.
+**Fecha de cierre:** 09-07-2026.
 
 *Fecha: 01-07-2026. Origen: roadmap `Contexto_para_mi/roadmap_specs_agente-ong_v4_22-06-2026.md`
 ("SPEC 2: Integración LLM") + evidencia de falsos positivos del diagnóstico del 12-06-2026

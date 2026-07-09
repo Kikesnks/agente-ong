@@ -239,7 +239,7 @@ tocar); la orquestación vive entera en `llm/`. Orden de ejecución estricto: 9 
   - _Leverage: src/agente_ong/ui/app.py (_warn_missing_keys, commit 60c820b)_
   - _Requirements: 7.6_
 
-- [ ] 13. Verificación empírica end-to-end (caso de prueba del 05-07)
+- [x] 13. Verificación empírica end-to-end (caso de prueba del 05-07)
   - Files: ninguno (prueba manual)
   - Sin Ollama corriendo: mismo resultado que antes de esta reapertura (74 convocatorias,
     22 documentos informativos) + warning visible en sidebar; `EnrichedReport` con buckets
