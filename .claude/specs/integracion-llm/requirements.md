@@ -20,7 +20,7 @@ Renderizado a Markdown/HTML de las secciones nuevas (`discarded`/
 
 **Fecha de cierre:** 09-07-2026.
 
-*Fecha: 01-07-2026. Origen: roadmap `Contexto_para_mi/roadmap_specs_agente-ong_v4_22-06-2026.md`
+*Fecha: 01-07-2026. Origen: roadmap `roadmap_specs_agente-ong.md`
 ("SPEC 2: Integración LLM") + evidencia de falsos positivos del diagnóstico del 12-06-2026
 (`investigador-v2`) y de la re-validación T19/R21 del 28-06-2026.*
 
