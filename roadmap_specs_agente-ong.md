@@ -26,7 +26,8 @@
 
 1. **investigador-v2 / T19 (R21) — re-validación manual conjunta.** Re-ejecutar las dos búsquedas del diagnóstico del 12-06, documentar antes/después con números absolutos (total resultados, cuántos con importe/plazo, cuántos `convocatoria_probable`) en `Contexto_para_mi/revalidacion_investigador_v2.md`. Material de portafolio. Sin empezar — sin commit.
 2. **integracion-llm / T4 — Adaptadores Claude y OpenAI** en `llm/adapters/claude.py` y `openai.py`. Aplazada por dependencia externa (claves API).
-3. **integracion-llm / T5 — LLMConfig + build_provider** en `llm/config.py`. Aplazada por dependencia externa (claves API). Referenciada en producción por `# TODO(T5)` en `src/agente_ong/ui/jobs.py::_OLLAMA_MODEL`.
+3. **integracion-llm / T5 — LLMConfig + build_provider** en `llm/config.py`. Aplazada por dependencia externa (claves API).
+   Código relacionado: `src/agente_ong/ui/jobs.py:44` (comentario `# TODO(T5)` en `_OLLAMA_MODEL`).
 
 ---
 
@@ -100,3 +101,9 @@ Las specs completas (requirements, design, tasks) se escriben justo antes de eje
 - Refinado de `search_context` con LLM a partir de la descripción del proyecto.
 
 > **Ya fuera de backlog — implementado en investigador-v2:** enriquecimiento BDNS con importe (`presupuestoTotal`) y plazo promovido a R19, implementado en T13. Filtro `min_year` aplicado antes de las llamadas al detalle (R19.2). Vocabulario ODS integrado en `_derive_queries` (R24) y multiselección obligatoria de ODS propagada end-to-end (R25).
+
+---
+
+## Régimen de mantenimiento
+
+Actualizar este archivo al cerrar cada SPEC o reapertura significativa. Frecuencia mínima. Motivo empírico: entre el v4 (22-06-2026) y esta revisión (10-07-2026) el roadmap no se tocó durante 18 días pese a cierres relevantes (`integracion-llm` T1-T13, `investigador-v2` R24/R25, UI-36). Con esta regla no vuelve a pasar.
