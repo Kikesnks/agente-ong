@@ -1,8 +1,10 @@
 # Roadmap de specs — agente-ong
 
-*Última actualización: 10-07-2026*
+*Última actualización: 11-07-2026*
 
 > **Última revisión:** cierre de SPEC 2 / `integracion-llm` con reapertura R7 (T13, commit `e562864`, 09-07-2026). T4/T5 aplazadas por dependencia externa (claves API). Se recogen también las extensiones de `investigador-v2` con R24/R25 (ODS) y UI-36, ejecutadas entre el 22-06 y hoy. Este archivo pasa a documento vivo del sistema, ubicado en la raíz del repo. Fuente autoritativa del estado: `git log` + checkboxes en los `tasks.md` de cada spec.
+>
+> **11-07-2026:** creada la mini-spec `descartados-filtro` (requirements/design/tasks en `.claude/specs/descartados-filtro/`, sin código todavía). Sustituye y cierra las decisiones pendientes #22 y #23 de `Contexto_para_mi/decisiones_pendientes.md`.
 
 ---
 
@@ -35,6 +37,7 @@
 
 ```
 (pendientes inmediatos de arriba, sin orden entre sí)
+→ descartados-filtro (mini-spec, próximo trabajo — spec escrita, código sin empezar)
 → SPEC 3 (chat de proyecto)
 → SPEC 4 (agente redactor)
 → SPEC 5 (orquestación)
@@ -42,6 +45,28 @@
 ```
 
 Las specs completas (requirements, design, tasks) se escriben justo antes de ejecutarlas.
+
+---
+
+## Mini-spec: descartados-filtro
+
+- **Objetivo:** sustituir la sección "Material informativo (no convocatorias)" por una
+  sección DESCARTADOS unificada que muestre, con motivo explícito, las oportunidades que
+  hoy quedan fuera de la lista activa: por heurística R20 (`documento_informativo`) o por
+  el filtro semántico de SPEC 2 (`"NO"`, o no clasificada por fallo del proveedor / por
+  respuesta inesperada del LLM).
+- **Origen:** sustituye y cierra las decisiones pendientes #22 (iterar el prompt del
+  filtro para reducir falsos negativos — evidencia BDNS 907378) y #23 (tratamiento de
+  `documento_informativo` frente al filtro) de `Contexto_para_mi/decisiones_pendientes.md`.
+  Cambio de estrategia: en vez de perseguir la perfección del prompt (espacio de
+  excepciones prácticamente infinito), se expone el descarte al usuario para que lo juzgue
+  caso por caso.
+- **Naturaleza:** spec de presentación, no estructural — no crea modelos nuevos; persiste
+  un `filter_verdicts: dict[str, FilterVerdict]` en `ResearchReport` y refactoriza las 3
+  vistas del informe (resumida, detallada, Streamlit en vivo) para leerlo.
+- **Estado:** requirements/design/tasks escritos (`.claude/specs/descartados-filtro/`,
+  11-07-2026). Código sin empezar — 7 tareas (T1-T7) pendientes.
+- **Dependencias:** SPEC 2 / `integracion-llm` (cerrada, R6/R7).
 
 ---
 
