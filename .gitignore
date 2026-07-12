@@ -6,6 +6,12 @@ Contexto_para_mi/
 # Carpeta local de archivos antiguos del desarrollador (Kike), fuera del producto.
 OLD/
 
+# Documento vivo de estado del proyecto (lenguaje natural, uso interno de Kike).
+estado_proyecto.md
+
+# Documentos vivos de aprendizaje (lecciones + glosario), uso interno de Kike.
+Aprendizaje/
+
 # --- Locks temporales de LibreOffice/OpenOffice ---
 .~lock.*#
 
