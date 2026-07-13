@@ -22,6 +22,7 @@ from agente_ong.research.models import (
     VerificationStatus,
 )
 from agente_ong.ui.report_serde import (
+    classify_for_display,
     format_verification_date,
     opportunity_numbers,
     report_from_dict,
@@ -326,3 +327,42 @@ def test_summary_and_detail_url_include_verification_date() -> None:
     md_detail = report_to_markdown(report)
     assert "verificada el 15-06-2026" in md_summary
     assert "verificada el 15-06-2026" in md_detail
+
+
+# --- T4 (descartados-filtro): classify_for_display ---
+
+
+def test_classify_for_display_si_verdict_is_activa() -> None:
+    opp = _simple_opp("a")
+    verdicts = {"https://x.es/a": "si"}
+    assert classify_for_display(opp, verdicts) == "activa"
+
+
+def test_classify_for_display_missing_verdict_is_activa() -> None:
+    opp = _simple_opp("a")
+    assert classify_for_display(opp, {}) == "activa"
+
+
+def test_classify_for_display_no_verdict_is_descartada_filtro() -> None:
+    opp = _simple_opp("a")
+    verdicts = {"https://x.es/a": "no"}
+    assert classify_for_display(opp, verdicts) == "descartada_filtro"
+
+
+def test_classify_for_display_provider_failure_is_no_clasificada_provider() -> None:
+    opp = _simple_opp("a")
+    verdicts = {"https://x.es/a": "no_clasificado_provider"}
+    assert classify_for_display(opp, verdicts) == "no_clasificada_provider"
+
+
+def test_classify_for_display_unexpected_response_is_no_clasificada_response() -> None:
+    opp = _simple_opp("a")
+    verdicts = {"https://x.es/a": "no_clasificado_response"}
+    assert classify_for_display(opp, verdicts) == "no_clasificada_response"
+
+
+def test_classify_for_display_documento_informativo_takes_precedence_over_verdict() -> None:
+    """R3.3: la heurística de result_type gana al veredicto del filtro semántico."""
+    opp = _simple_opp("a", result_type="documento_informativo")
+    verdicts = {"https://x.es/a": "si"}
+    assert classify_for_display(opp, verdicts) == "documento_informativo"

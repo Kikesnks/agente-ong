@@ -11,6 +11,7 @@ Solo conoce los modelos públicos del investigador; no usa Streamlit ni SQLite.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from agente_ong.research.models import (
     Claim,
@@ -23,9 +24,64 @@ from agente_ong.research.models import (
     Unresolved,
     VerificationStatus,
 )
+from agente_ong.research.urlnorm import normalize_url
 
 # Campos de GrantOpportunity que son Claims (en el orden de presentación del informe).
 _OPP_CLAIM_FIELDS = ("title", "organism", "amount", "deadline", "scope", "url")
+
+# --- T4 (descartados-filtro): clasificación de presentación ---
+
+DisplayStatus = Literal[
+    "activa",
+    "descartada_filtro",
+    "no_clasificada_provider",
+    "no_clasificada_response",
+    "documento_informativo",
+]
+
+# Etiquetas legibles de cada motivo de descarte (R8).
+DISCARD_LABELS: dict[str, str] = {
+    "descartada_filtro": "Descartada por filtro semántico",
+    "no_clasificada_provider": "No clasificada (fallo del proveedor LLM)",
+    "no_clasificada_response": "No clasificada (respuesta inesperada del LLM)",
+    "documento_informativo": "Documento informativo (heurística)",
+}
+
+
+def classify_for_display(
+    opportunity: GrantOpportunity, filter_verdicts: dict[str, str]
+) -> DisplayStatus:
+    """Decide cómo presentar una oportunidad: activa o descartada (con motivo, R3/R8).
+
+    documento_informativo (R20) tiene precedencia sobre cualquier veredicto del filtro
+    semántico (R3.3): mismo comportamiento que ya tenía la sección "Material informativo"
+    que esta función sustituye.
+    """
+    if opportunity.result_type == "documento_informativo":
+        return "documento_informativo"
+    verdict = filter_verdicts.get(normalize_url(opportunity.url.value or ""))
+    if verdict == "no":
+        return "descartada_filtro"
+    if verdict == "no_clasificado_provider":
+        return "no_clasificada_provider"
+    if verdict == "no_clasificado_response":
+        return "no_clasificada_response"
+    return "activa"
+
+
+def partition_by_discard_status(
+    opportunities: list[GrantOpportunity], filter_verdicts: dict[str, str]
+) -> tuple[list[GrantOpportunity], list[tuple[GrantOpportunity, DisplayStatus]]]:
+    """Separa activas de descartadas; cada descartada va con su DisplayStatus (R3)."""
+    active: list[GrantOpportunity] = []
+    discarded: list[tuple[GrantOpportunity, DisplayStatus]] = []
+    for opp in opportunities:
+        status = classify_for_display(opp, filter_verdicts)
+        if status == "activa":
+            active.append(opp)
+        else:
+            discarded.append((opp, status))
+    return active, discarded
 
 
 # --- ResearchReport -> dict ---
