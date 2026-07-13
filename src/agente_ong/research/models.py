@@ -28,6 +28,9 @@ CaptureMode = Literal["download", "text_copy"]
 # filtrado semántico con LLM (SPEC 2+) sin implementarlo. "desconocido" es el default
 # retrocompatible.
 ResultType = Literal["convocatoria_probable", "documento_informativo", "desconocido"]
+# Duplicado deliberado de ClassificationResult (llm/semantic_filter.py, llm/filter_report.py):
+# research/ no importa de llm/ (Opción B, decisión #8 de integracion-llm).
+FilterVerdict = Literal["si", "no", "no_clasificado_provider", "no_clasificado_response"]
 
 
 def _utcnow() -> datetime:
@@ -243,3 +246,4 @@ class ResearchReport:
     reused_from_ledger: list[LedgerEntry] = field(default_factory=list)  # pistas reutilizadas
     unresolved: list[Unresolved] = field(default_factory=list)
     failed_sources: list[FailedSource] = field(default_factory=list)
+    filter_verdicts: dict[str, FilterVerdict] = field(default_factory=dict)

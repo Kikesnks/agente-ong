@@ -46,6 +46,7 @@ def report_to_dict(report: ResearchReport) -> dict:
         "failed_sources": [
             {"source_name": f.source_name, "error": f.error} for f in report.failed_sources
         ],
+        "filter_verdicts": report.filter_verdicts,
     }
 
 
@@ -119,6 +120,7 @@ def report_from_dict(data: dict) -> ResearchReport:
             FailedSource(source_name=f["source_name"], error=f["error"])
             for f in data.get("failed_sources", [])
         ],
+        filter_verdicts=data.get("filter_verdicts", {}),
     )
 
 

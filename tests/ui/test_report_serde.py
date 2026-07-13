@@ -142,6 +142,28 @@ def test_pre_v2_dict_without_result_type_loads_as_desconocido() -> None:
     assert restored.opportunities[0].result_type == "desconocido"
 
 
+# --- T2 (descartados-filtro): filter_verdicts en el serde (round-trip + retrocompatibilidad) ---
+
+
+def test_filter_verdicts_survives_round_trip() -> None:
+    report = _sample_report()
+    report.filter_verdicts = {
+        "https://ejemplo.es/abc": "si",
+        "https://ejemplo.es/def": "no",
+        "https://ejemplo.es/ghi": "no_clasificado_provider",
+    }
+    restored = report_from_dict(report_to_dict(report))
+    assert restored.filter_verdicts == report.filter_verdicts
+
+
+def test_pre_spec_dict_without_filter_verdicts_loads_as_empty_dict() -> None:
+    # Un informe persistido ANTES de descartados-filtro (R1.4) no tiene la clave.
+    data = report_to_dict(_sample_report())
+    del data["filter_verdicts"]
+    restored = report_from_dict(data)
+    assert restored.filter_verdicts == {}
+
+
 # --- Markdown (R7.1, R7.2) ---
 
 
