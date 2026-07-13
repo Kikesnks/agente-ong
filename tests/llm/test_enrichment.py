@@ -1,4 +1,4 @@
-"""Tests de `EnrichedReport`/`enrich_report` (R7, T10).
+"""Tests de `EnrichedReport`/`enrich_report` (R7, T10; T3 de `descartados-filtro`).
 
 `_SequencedProvider` es un doble LOCAL (no vive en `tests/llm/fakes.py`): a diferencia de
 `FakeLLMProvider` (una única respuesta fija para todas las llamadas), estos tests necesitan
@@ -59,15 +59,14 @@ def test_enrich_report_without_provider_returns_report_untouched() -> None:
 
     assert isinstance(enriched, EnrichedReport)
     assert enriched.base is report  # misma referencia, no clon
-    assert enriched.discarded == []
-    assert enriched.unclassified == []
+    assert enriched.base.filter_verdicts == {}
     assert enriched.semantic_filter_applied is False
 
 
-# --- Con provider: 3 buckets (R7.2/R7.4) ---
+# --- Con provider: nada se filtra, todo se conserva en filter_verdicts (T3) ---
 
 
-def test_enrich_report_with_provider_separates_into_three_buckets() -> None:
+def test_enrich_report_with_provider_keeps_all_opportunities_and_fills_verdicts() -> None:
     kept_opp = _opportunity("kept")
     discarded_opp = _opportunity("discarded")
     unclassified_opp = _opportunity("unclassified")
@@ -76,18 +75,23 @@ def test_enrich_report_with_provider_separates_into_three_buckets() -> None:
 
     enriched = enrich_report(report, provider)
 
-    assert enriched.base.opportunities == [kept_opp]
-    assert enriched.discarded == [discarded_opp]
-    assert enriched.unclassified == [unclassified_opp]
+    # base.opportunities queda IDÉNTICA a report.opportunities: nada se filtra.
+    assert enriched.base.opportunities == [kept_opp, discarded_opp, unclassified_opp]
+    assert enriched.base.filter_verdicts == {
+        "https://example.org/kept": "si",
+        "https://example.org/discarded": "no",
+        "https://example.org/unclassified": "no_clasificado_response",
+    }
     assert enriched.semantic_filter_applied is True
-    # El report ORIGINAL no se muta (R7.2): sigue con las 3 oportunidades.
+    # El report ORIGINAL no se muta (R7.2): sigue con las 3 oportunidades y sin veredictos.
     assert report.opportunities == [kept_opp, discarded_opp, unclassified_opp]
+    assert report.filter_verdicts == {}
 
 
 # --- Fallo de clasificación aislado (R7.5) ---
 
 
-def test_enrich_report_llm_error_on_one_opportunity_goes_to_unclassified() -> None:
+def test_enrich_report_llm_error_on_one_opportunity_records_provider_verdict() -> None:
     first = _opportunity("first")
     failing = _opportunity("failing")
     third = _opportunity("third")
@@ -98,9 +102,12 @@ def test_enrich_report_llm_error_on_one_opportunity_goes_to_unclassified() -> No
 
     enriched = enrich_report(report, provider)
 
-    assert enriched.base.opportunities == [first, third]
-    assert enriched.discarded == []
-    assert enriched.unclassified == [failing]
+    assert enriched.base.opportunities == [first, failing, third]
+    assert enriched.base.filter_verdicts == {
+        "https://example.org/first": "si",
+        "https://example.org/failing": "no_clasificado_provider",
+        "https://example.org/third": "si",
+    }
     assert enriched.semantic_filter_applied is True
 
 
@@ -113,8 +120,7 @@ def test_enrich_report_without_provider_and_empty_opportunities() -> None:
     enriched = enrich_report(report, None)
 
     assert enriched.base is report
-    assert enriched.discarded == []
-    assert enriched.unclassified == []
+    assert enriched.base.filter_verdicts == {}
     assert enriched.semantic_filter_applied is False
 
 
@@ -127,8 +133,7 @@ def test_enrich_report_with_provider_and_empty_opportunities_is_noop() -> None:
     enriched = enrich_report(report, provider)
 
     assert enriched.base.opportunities == []
-    assert enriched.discarded == []
-    assert enriched.unclassified == []
+    assert enriched.base.filter_verdicts == {}
     assert enriched.semantic_filter_applied is True
     assert provider.calls == 0
 

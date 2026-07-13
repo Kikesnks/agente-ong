@@ -12,21 +12,21 @@ from dataclasses import dataclass, replace
 
 from agente_ong.llm.filter_report import classify_report
 from agente_ong.llm.provider import LLMProvider
-from agente_ong.research.models import GrantOpportunity, ResearchReport
+from agente_ong.research.models import ResearchReport
+from agente_ong.research.urlnorm import normalize_url
 
 
 @dataclass
 class EnrichedReport:
     """`ResearchReport` con clasificación semántica opcional aplicada.
 
-    `base` es el informe a mostrar (con `opportunities` ya sin los descartados/no
-    clasificados cuando el filtro se aplicó); `discarded`/`unclassified` conservan esas
-    oportunidades por separado — nunca se ocultan (R7.4).
+    `base.opportunities` conserva TODAS las oportunidades (activas y descartadas): la
+    separación para mostrar es responsabilidad de la capa de presentación
+    (`ui/report_serde.py::classify_for_display`, spec `descartados-filtro`), no de esta
+    capa de orquestación.
     """
 
     base: ResearchReport
-    discarded: list[GrantOpportunity]
-    unclassified: list[GrantOpportunity]
     semantic_filter_applied: bool
 
 
@@ -34,43 +34,24 @@ def enrich_report(report: ResearchReport, provider: LLMProvider | None) -> Enric
     """Clasifica `report.opportunities` con `provider` si está disponible.
 
     Sin `provider` (Ollama no disponible, R7.3): `report` pasa intacto como `base` (mismo
-    objeto, no se clona), buckets vacíos, `semantic_filter_applied=False` — degradación
-    100% silenciosa.
+    objeto, no se clona), `semantic_filter_applied=False` — degradación 100% silenciosa.
 
     Con `provider`: usa `classify_report` (T8, no se toca) para clasificar cada
-    oportunidad; separa `report.opportunities` en kept/discarded/unclassified por
-    identidad (`id(opportunity)`, misma clave que usa `classify_report`); construye `base`
-    con `dataclasses.replace(report, opportunities=kept)` — el resto de campos del informe
-    (`ledger`, `failed_sources`, etc.) se preservan tal cual, y `report` NUNCA se muta. Un
-    fallo de clasificación (`LLMError`) por oportunidad ya queda como `"no_clasificado"` en
-    el dict que devuelve `classify_report` (con su propio `logger.warning`) — aquí solo se
-    rutea al bucket correcto, no se vuelve a atrapar la excepción.
+    oportunidad; construye `filter_verdicts` (clave = URL normalizada con `normalize_url`,
+    valor = veredicto) y lo adjunta a `base` mediante `dataclasses.replace(report,
+    filter_verdicts=verdicts)` — `report.opportunities` NUNCA se filtra ni se muta, el
+    resto de campos del informe se preservan tal cual.
     """
     if provider is None:
-        return EnrichedReport(
-            base=report,
-            discarded=[],
-            unclassified=[],
-            semantic_filter_applied=False,
-        )
+        return EnrichedReport(base=report, semantic_filter_applied=False)
 
     classifications = classify_report(provider, report)
-
-    kept: list[GrantOpportunity] = []
-    discarded: list[GrantOpportunity] = []
-    unclassified: list[GrantOpportunity] = []
-    for opportunity in report.opportunities:
-        result = classifications.get(id(opportunity), "no_clasificado")
-        if result == "si":
-            kept.append(opportunity)
-        elif result == "no":
-            discarded.append(opportunity)
-        else:
-            unclassified.append(opportunity)
-
+    verdicts = {
+        normalize_url(opp.url.value or ""): classifications[id(opp)]
+        for opp in report.opportunities
+        if id(opp) in classifications
+    }
     return EnrichedReport(
-        base=replace(report, opportunities=kept),
-        discarded=discarded,
-        unclassified=unclassified,
+        base=replace(report, filter_verdicts=verdicts),
         semantic_filter_applied=True,
     )

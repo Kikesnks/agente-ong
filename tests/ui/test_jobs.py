@@ -198,7 +198,7 @@ def test_pop_finished_removes_only_completed_jobs(db_path: Path, project_id: int
 # --- Cableado del filtro semántico (R7, T11) ---
 
 
-def test_run_job_with_ollama_available_persists_semantic_buckets(
+def test_run_job_with_ollama_available_persists_filter_verdicts(
     db_path: Path, project_id: int, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     kept = _opportunity("kept")
@@ -208,14 +208,21 @@ def test_run_job_with_ollama_available_persists_semantic_buckets(
     fake = FakeInvestigador(report=report)
     manager = JobManager(db_path, investigador_factory=lambda cfg: fake)
 
+    verdicts = {
+        "https://example.org/kept": "si",
+        "https://example.org/discarded": "no",
+        "https://example.org/unclassified": "no_clasificado_response",
+    }
     monkeypatch.setattr("agente_ong.ui.jobs.is_ollama_available", lambda *a, **kw: True)
     monkeypatch.setattr("agente_ong.ui.jobs.OllamaProvider", lambda **kw: object())
     monkeypatch.setattr(
         "agente_ong.ui.jobs.enrich_report",
         lambda rep, provider: EnrichedReport(
-            base=ResearchReport(mode=rep.mode, opportunities=[kept]),
-            discarded=[discarded],
-            unclassified=[unclassified],
+            base=ResearchReport(
+                mode=rep.mode,
+                opportunities=[kept, discarded, unclassified],
+                filter_verdicts=verdicts,
+            ),
             semantic_filter_applied=True,
         ),
     )
@@ -227,9 +234,12 @@ def test_run_job_with_ollama_available_persists_semantic_buckets(
         with ProjectStore(db_path) as store:
             run = store.list_runs(project_id)[0]
             assert run.report["semantic_filter_applied"] is True
-            assert [o["title"]["value"] for o in run.report["opportunities"]] == ["kept"]
-            assert [o["title"]["value"] for o in run.report["discarded"]] == ["discarded"]
-            assert [o["title"]["value"] for o in run.report["unclassified"]] == ["unclassified"]
+            assert [o["title"]["value"] for o in run.report["opportunities"]] == [
+                "kept",
+                "discarded",
+                "unclassified",
+            ]
+            assert run.report["filter_verdicts"] == verdicts
     finally:
         manager.shutdown()
 
@@ -250,8 +260,7 @@ def test_run_job_without_ollama_persists_report_unfiltered(
         with ProjectStore(db_path) as store:
             run = store.list_runs(project_id)[0]
             assert run.report["semantic_filter_applied"] is False
-            assert run.report["discarded"] == []
-            assert run.report["unclassified"] == []
+            assert run.report["filter_verdicts"] == {}
             assert [o["title"]["value"] for o in run.report["opportunities"]] == ["a"]
     finally:
         manager.shutdown()
