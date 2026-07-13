@@ -225,7 +225,8 @@ def test_summary_lists_informational_apart() -> None:
     )
     report = ResearchReport(mode="calls", opportunities=[info])
     md = report_to_markdown_summary(report)
-    assert "Material informativo" in md
+    assert "Descartados" in md
+    assert "Documento informativo (heurística)" in md
     assert "Estudio sobre pobreza" in md
     # Sin convocatorias accionables, lo dice claramente.
     assert "No se encontraron convocatorias" in md
@@ -264,6 +265,22 @@ def test_opportunity_numbers_assigns_1_to_n_to_actionable_only() -> None:
     assert len(numbers) == 2
 
 
+def test_opportunity_numbers_excludes_discarded_by_semantic_filter() -> None:
+    """T5: una oportunidad descartada por veredicto "no" (no documento_informativo)
+    tampoco recibe número."""
+    kept = _simple_opp("kept")
+    discarded = _simple_opp("discarded")
+    report = ResearchReport(
+        mode="calls",
+        opportunities=[kept, discarded],
+        filter_verdicts={"https://x.es/discarded": "no"},
+    )
+    numbers = opportunity_numbers(report)
+    assert numbers[id(kept)] == 1
+    assert id(discarded) not in numbers
+    assert len(numbers) == 1
+
+
 def test_detail_and_summary_use_same_numbers_for_mixed_report() -> None:
     """R14.2: la vista detallada y la resumida usan los mismos números de convocatoria."""
     opp_probable = _simple_opp("accionable", "convocatoria_probable")
@@ -273,7 +290,8 @@ def test_detail_and_summary_use_same_numbers_for_mixed_report() -> None:
     md_detail = report_to_markdown(report)
     assert "### 1. accionable" in md_summary
     assert "### 1. accionable" in md_detail
-    assert "Material informativo" in md_detail
+    assert "Descartados" in md_detail
+    assert "Documento informativo (heurística)" in md_detail
     assert "informativo" in md_detail
 
 
@@ -282,9 +300,26 @@ def test_detail_markdown_separates_informational_section() -> None:
     info = _simple_opp("estudio", "documento_informativo")
     report = ResearchReport(mode="calls", opportunities=[info])
     md = report_to_markdown(report)
-    assert "Material informativo" in md
+    assert "Descartados" in md
+    assert "Documento informativo (heurística)" in md
     assert "estudio" in md
     assert "No se encontraron convocatorias" in md
+
+
+def test_markdown_without_any_discard_has_no_descartados_section() -> None:
+    """R4.2/R5.2: sin oportunidades descartadas (todas activas), ninguna de las dos vistas
+    incluye la sección "## Descartados"."""
+    opp_a = _simple_opp("a")
+    opp_b = _simple_opp("b")
+    report = ResearchReport(
+        mode="calls",
+        opportunities=[opp_a, opp_b],
+        filter_verdicts={"https://x.es/a": "si", "https://x.es/b": "si"},
+    )
+    md_detail = report_to_markdown(report)
+    md_summary = report_to_markdown_summary(report)
+    assert "Descartados" not in md_detail
+    assert "Descartados" not in md_summary
 
 
 # --- R15: format_verification_date / url_verification_suffix ---

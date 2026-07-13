@@ -54,8 +54,7 @@ def classify_for_display(
     """Decide cómo presentar una oportunidad: activa o descartada (con motivo, R3/R8).
 
     documento_informativo (R20) tiene precedencia sobre cualquier veredicto del filtro
-    semántico (R3.3): mismo comportamiento que ya tenía la sección "Material informativo"
-    que esta función sustituye.
+    semántico (R3.3): mismo comportamiento que aplica la sección "Descartados" unificada.
     """
     if opportunity.result_type == "documento_informativo":
         return "documento_informativo"
@@ -258,11 +257,12 @@ _CLAIM_TITLES = {
 
 
 def opportunity_numbers(report: ResearchReport) -> dict[int, int]:
-    """Mapea id(opp) → número (1..N) para las convocatorias accionables (R14).
+    """Mapea id(opp) → número (1..N) para las convocatorias activas (R14).
 
     Numera en el orden de `report.opportunities` (orden de construcción del investigador,
-    preservado por `report_to_dict`/`report_from_dict`). El material informativo
-    (`documento_informativo`) no recibe número (R14.4).
+    preservado por `report_to_dict`/`report_from_dict`). Ninguna oportunidad descartada
+    (`classify_for_display` != "activa": material informativo, filtrada por el filtro
+    semántico o no clasificada) recibe número (R14.4).
 
     Usa `id()` como clave porque `GrantOpportunity` no es hashable (dataclass con eq=True).
     El mapeo es válido mientras los objetos sean los mismos de `report` —
@@ -272,7 +272,7 @@ def opportunity_numbers(report: ResearchReport) -> dict[int, int]:
     numbers: dict[int, int] = {}
     n = 0
     for opp in report.opportunities:
-        if opp.result_type != "documento_informativo":
+        if classify_for_display(opp, report.filter_verdicts) == "activa":
             n += 1
             numbers[id(opp)] = n
     return numbers
@@ -282,8 +282,7 @@ def report_to_markdown(report: ResearchReport) -> str:
     """Genera el informe en Markdown legible: cada dato con su valor, estado y fuentes."""
     lines: list[str] = ["# Informe de investigación", ""]
 
-    actionable = [o for o in report.opportunities if o.result_type != "documento_informativo"]
-    informational = [o for o in report.opportunities if o.result_type == "documento_informativo"]
+    actionable, discarded = partition_by_discard_status(report.opportunities, report.filter_verdicts)
     numbers = opportunity_numbers(report)
 
     if actionable:
@@ -303,13 +302,15 @@ def report_to_markdown(report: ResearchReport) -> str:
         lines.append("No se encontraron convocatorias.")
         lines.append("")
 
-    if informational:
-        lines.append("## Material informativo (no convocatorias)")
+    if discarded:
+        lines.append(f"## Descartados ({len(discarded)})")
         lines.append("")
-        for opp in informational:
+        for opp, status in discarded:
             title = opp.title.value or "(sin título)"
             url = opp.url.value
-            lines.append(f"- [{title}]({url})" if url else f"- {title}")
+            label = DISCARD_LABELS[status]
+            entry = f"[{title}]({url})" if url else title
+            lines.append(f"- {entry} — {label}")
         lines.append("")
 
     if report.unresolved:
@@ -333,11 +334,11 @@ def report_to_markdown_summary(report: ResearchReport) -> str:
     """Vista RESUMIDA del informe (R22.1): una ficha breve por convocatoria.
 
     Por cada convocatoria accionable: título, organismo, importe, plazo, URL y estado de
-    verificación — pocas líneas. El material informativo (no convocatorias, R20) se lista
-    aparte solo con título y URL. Se genera del mismo informe que la vista detallada (22.4).
+    verificación — pocas líneas. Lo descartado (material informativo, filtrado por el
+    filtro semántico o no clasificado) se lista aparte solo con título y URL. Se genera
+    del mismo informe que la vista detallada (22.4).
     """
-    actionable = [o for o in report.opportunities if o.result_type != "documento_informativo"]
-    informational = [o for o in report.opportunities if o.result_type == "documento_informativo"]
+    actionable, discarded = partition_by_discard_status(report.opportunities, report.filter_verdicts)
 
     lines: list[str] = ["# Informe de investigación (resumen)", ""]
     numbers = opportunity_numbers(report)
@@ -359,13 +360,15 @@ def report_to_markdown_summary(report: ResearchReport) -> str:
         lines.append("No se encontraron convocatorias.")
         lines.append("")
 
-    if informational:
-        lines.append("## Material informativo (no convocatorias)")
+    if discarded:
+        lines.append(f"## Descartados ({len(discarded)})")
         lines.append("")
-        for opp in informational:
+        for opp, status in discarded:
             title = opp.title.value or "(sin título)"
             url = opp.url.value
-            lines.append(f"- [{title}]({url})" if url else f"- {title}")
+            label = DISCARD_LABELS[status]
+            entry = f"[{title}]({url})" if url else title
+            lines.append(f"- {entry} — {label}")
         lines.append("")
 
     if report.unresolved:
