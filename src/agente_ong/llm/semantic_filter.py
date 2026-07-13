@@ -3,7 +3,7 @@ abierta o no, mediante una pregunta binaria al LLM.
 
 `classify_result` arma el prompt (system cargado desde archivo, T6; user con los datos
 concretos del resultado) y traduce la respuesta del modelo a un booleano fiable, con una
-tercera salida `"no_clasificado"` cuando la respuesta no es interpretable como SI/NO
+tercera salida `"no_clasificado_response"` cuando la respuesta no es interpretable como SI/NO
 (R6.3/R6.4) — nunca se fuerza un valor por defecto.
 """
 
@@ -14,11 +14,11 @@ from typing import Literal
 from agente_ong.llm.prompt_loader import load_prompt
 from agente_ong.llm.provider import LLMProvider
 
-ClassificationResult = Literal["si", "no", "no_clasificado"]
+ClassificationResult = Literal["si", "no", "no_clasificado_provider", "no_clasificado_response"]
 
 
 def classify_result(provider: LLMProvider, title: str, snippet: str) -> ClassificationResult:
-    """Clasifica un resultado de búsqueda como convocatoria abierta: "si"/"no"/"no_clasificado".
+    """Clasifica un resultado de búsqueda como convocatoria abierta: "si"/"no"/"no_clasificado_response".
 
     Propaga tal cual cualquier excepción de `provider.complete` (`LLMConnectionError`,
     `LLMAuthError`, `LLMNoResponseError`...) — la gestión de fallos por resultado es
@@ -33,4 +33,4 @@ def classify_result(provider: LLMProvider, title: str, snippet: str) -> Classifi
         return "si"
     if normalized == "NO":
         return "no"
-    return "no_clasificado"
+    return "no_clasificado_response"

@@ -23,7 +23,7 @@ from agente_ong.research.models import GrantOpportunity, ResearchReport
 
 logger = logging.getLogger(__name__)
 
-ClassificationResult = Literal["si", "no", "no_clasificado"]
+ClassificationResult = Literal["si", "no", "no_clasificado_provider", "no_clasificado_response"]
 
 
 def classify_report(
@@ -38,7 +38,7 @@ def classify_report(
 
     Un fallo de clasificación (`LLMError` y sus subclases: conexión, autenticación, sin
     respuesta) en una oportunidad no aborta el resto — se registra como aviso y esa
-    oportunidad queda `"no_clasificado"` (coherente con `failed_sources` del investigador:
+    oportunidad queda `"no_clasificado_provider"` (coherente con `failed_sources` del investigador:
     un fallo aislado no tumba el resto del procesamiento).
     """
     results: dict[int, ClassificationResult] = {}
@@ -55,7 +55,7 @@ def classify_report(
                 type(exc).__name__,
                 exc,
             )
-            results[id(opportunity)] = "no_clasificado"
+            results[id(opportunity)] = "no_clasificado_provider"
     return results
 
 

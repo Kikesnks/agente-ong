@@ -61,7 +61,7 @@ def test_classify_report_maps_each_opportunity_id_to_its_classification() -> Non
 
     assert result[id(opportunities[0])] == "si"
     assert result[id(opportunities[1])] == "no"
-    assert result[id(opportunities[2])] == "no_clasificado"
+    assert result[id(opportunities[2])] == "no_clasificado_response"
     assert len(result) == 3
 
 
@@ -82,7 +82,7 @@ def test_classify_report_isolates_failures_and_continues() -> None:
 
     result = classify_report(provider, report)
 
-    assert result[id(opportunities[0])] == "no_clasificado"
+    assert result[id(opportunities[0])] == "no_clasificado_provider"
     assert result[id(opportunities[1])] == "si"
     assert len(result) == 2
 

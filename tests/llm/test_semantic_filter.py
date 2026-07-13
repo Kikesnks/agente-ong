@@ -1,5 +1,5 @@
 """Tests de `classify_result` (R6.3/R6.4): traducción de la respuesta del LLM a
-"si"/"no"/"no_clasificado", y propagación de errores del proveedor (T8 los gestiona)."""
+"si"/"no"/"no_clasificado_response", y propagación de errores del proveedor (T8 los gestiona)."""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ def test_classify_result_normalizes_whitespace_and_case_to_no(raw: str) -> None:
     assert classify_result(fake, "Título", "Extracto") == "no"
 
 
-# --- "no_clasificado": nunca se fuerza SI/NO por defecto ---
+# --- "no_clasificado_response": nunca se fuerza SI/NO por defecto ---
 
 
 @pytest.mark.parametrize(
@@ -53,9 +53,9 @@ def test_classify_result_normalizes_whitespace_and_case_to_no(raw: str) -> None:
         "Sí",  # con tilde: strip().upper() da "SÍ", no coincide exacto con "SI"
     ],
 )
-def test_classify_result_defaults_to_no_clasificado(raw: str) -> None:
+def test_classify_result_defaults_to_no_clasificado_response(raw: str) -> None:
     fake = FakeLLMProvider(text=raw)
-    assert classify_result(fake, "Título", "Extracto") == "no_clasificado"
+    assert classify_result(fake, "Título", "Extracto") == "no_clasificado_response"
 
 
 # --- Prompt enviado al proveedor ---
