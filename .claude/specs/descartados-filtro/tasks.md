@@ -18,7 +18,7 @@ archivos y líneas exactos (según `design.md`).
 
 ### R2 — `ClassificationResult` ampliado
 
-- [ ] 1. Ampliar `ClassificationResult` a 4 valores en `semantic_filter.py` y
+- [x] 1. Ampliar `ClassificationResult` a 4 valores en `semantic_filter.py` y
       `filter_report.py`
   - Files: `src/agente_ong/llm/semantic_filter.py` (líneas 17, 36),
     `src/agente_ong/llm/filter_report.py` (líneas 26, 58),
@@ -43,7 +43,7 @@ archivos y líneas exactos (según `design.md`).
 
 ### R1 — Persistencia de `filter_verdicts`
 
-- [ ] 2. Añadir `filter_verdicts` a `ResearchReport` + serialización
+- [x] 2. Añadir `filter_verdicts` a `ResearchReport` + serialización
   - Files: `src/agente_ong/research/models.py` (línea ~30, ~245),
     `src/agente_ong/ui/report_serde.py` (líneas 34-49, 106-122),
     `tests/ui/test_report_serde.py`
@@ -64,7 +64,7 @@ archivos y líneas exactos (según `design.md`).
 
 ### R1/R2 — Población de `filter_verdicts`
 
-- [ ] 3. Poblar `filter_verdicts` en `llm/enrichment.py::enrich_report`
+- [x] 3. Poblar `filter_verdicts` en `llm/enrichment.py::enrich_report`
   - Files: `src/agente_ong/llm/enrichment.py` (líneas 1-76),
     `src/agente_ong/llm/enrichment_serde.py`, `tests/llm/test_enrichment.py`,
     `tests/llm/test_enrichment_serde.py`
@@ -98,7 +98,7 @@ archivos y líneas exactos (según `design.md`).
 
 ### R3/R8 — Función clasificadora para la vista
 
-- [ ] 4. `classify_for_display` + `partition_by_discard_status` en `report_serde.py`
+- [x] 4. `classify_for_display` + `partition_by_discard_status` en `report_serde.py`
   - Files: `src/agente_ong/ui/report_serde.py`, `tests/ui/test_report_serde.py`
   - Nuevas funciones puras `classify_for_display(opportunity, filter_verdicts) ->
     DisplayStatus` y `partition_by_discard_status(opportunities, filter_verdicts) ->
@@ -119,7 +119,7 @@ archivos y líneas exactos (según `design.md`).
 
 ### R4/R5/R6/R8 — Refactor de las vistas Markdown
 
-- [ ] 5. Sustituir "Material informativo" por sección DESCARTADOS en
+- [x] 5. Sustituir "Material informativo" por sección DESCARTADOS en
       `report_to_markdown`/`report_to_markdown_summary` + `opportunity_numbers`
   - Files: `src/agente_ong/ui/report_serde.py` (líneas 202-220, 223-271, 274-325),
     `tests/ui/test_report_serde.py`
@@ -146,7 +146,7 @@ archivos y líneas exactos (según `design.md`).
 
 ### R7/R8 — Refactor de la UI Streamlit
 
-- [ ] 6. Expandible DESCARTADOS colapsado con contador en `render_report`
+- [x] 6. Expandible DESCARTADOS colapsado con contador en `render_report`
   - Files: `src/agente_ong/ui/report_view.py` (líneas 19, 44-55, 132-134, 182-191),
     `tests/ui/test_report_view.py`
   - Eliminar `partition_by_actionability` (líneas 44-55) del módulo; sustituir su uso
@@ -173,7 +173,7 @@ archivos y líneas exactos (según `design.md`).
 
 ### R9 — End-to-end
 
-- [ ] 7. Verificación end-to-end de los 4 orígenes + caso sin descartes + retrocompat
+- [x] 7. Verificación end-to-end de los 4 orígenes + caso sin descartes + retrocompat
       + R9.4 (coincidencia entre las 3 vistas)
   - Files: `tests/ui/test_jobs.py` (o archivo de test nuevo si se prefiere aislar el
     escenario end-to-end de los tests unitarios existentes de `jobs.py`),
