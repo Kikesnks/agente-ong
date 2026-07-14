@@ -7,12 +7,17 @@ _Requirements: 11.1, 11.2, 11.3, 11.4_
 
 from __future__ import annotations
 
+import sys
+from unittest.mock import MagicMock
+
+import pytest
+
 from agente_ong.research.models import Claim, GrantOpportunity, ResearchReport, VerificationStatus
-from agente_ong.ui.report_serde import opportunity_numbers
+from agente_ong.ui.report_serde import opportunity_numbers, partition_by_discard_status
 from agente_ong.ui.report_view import (
     STATUS_ORDER,
     filter_opportunities,
-    partition_by_actionability,
+    render_report,
     sort_opportunities,
 )
 
@@ -144,17 +149,17 @@ def test_combined_with_status_filter() -> None:
     assert _titles(filtered) == ["v-ok"]
 
 
-# --- Partición por accionabilidad (R20.2) ---
+# --- Partición por estado de presentación (T6 descartados-filtro) ---
 
 
-def test_partition_separates_informational_from_actionable() -> None:
+def test_partition_separates_discarded_from_active() -> None:
     a = _opp("conv", VerificationStatus.OFFICIAL_UNCROSSED, result_type="convocatoria_probable")
     b = _opp("desc", VerificationStatus.NOT_FOUND, result_type="desconocido")
     c = _opp("info", VerificationStatus.UNCROSSED_UNVERIFIED, result_type="documento_informativo")
 
-    actionable, informational = partition_by_actionability([a, b, c])
-    assert _titles(actionable) == ["conv", "desc"]  # probable + desconocido
-    assert _titles(informational) == ["info"]
+    active, discarded = partition_by_discard_status([a, b, c], {})
+    assert _titles(active) == ["conv", "desc"]  # probable + desconocido
+    assert [opp.title.value for opp, _ in discarded] == ["info"]
 
 
 def test_partition_preserves_order() -> None:
@@ -163,9 +168,9 @@ def test_partition_preserves_order() -> None:
         _opp("a1", VerificationStatus.VERIFIED, result_type="convocatoria_probable"),
         _opp("i2", VerificationStatus.VERIFIED, result_type="documento_informativo"),
     ]
-    actionable, informational = partition_by_actionability(opps)
-    assert _titles(actionable) == ["a1"]
-    assert _titles(informational) == ["i1", "i2"]
+    active, discarded = partition_by_discard_status(opps, {})
+    assert _titles(active) == ["a1"]
+    assert [opp.title.value for opp, _ in discarded] == ["i1", "i2"]
 
 
 # --- R14.3: número estable con sort + filter ---
@@ -188,9 +193,65 @@ def test_opportunity_number_stable_after_sort_and_filter() -> None:
 
     # Flujo de render_report: sort → partition → filter que oculta opp_first.
     sorted_opps = sort_opportunities(report.opportunities)
-    actionable, _ = partition_by_actionability(sorted_opps)
-    filtered = filter_opportunities(actionable, status=VerificationStatus.NOT_FOUND)
+    active, _ = partition_by_discard_status(sorted_opps, report.filter_verdicts)
+    filtered = filter_opportunities(active, status=VerificationStatus.NOT_FOUND)
 
     # Solo opp_second pasa el filtro; debe conservar su número original (2, no 1).
     assert filtered == [opp_second]  # misma referencia, no copia
     assert numbers[id(filtered[0])] == 2
+
+
+# --- T6 (descartados-filtro): expandible unificado "DESCARTADOS: N" en Streamlit (R7.2) ---
+#
+# `render_report` importa `streamlit` de forma perezosa dentro de la función (línea 121);
+# para no arrastrar `streamlit.testing.v1.AppTest` (más pesado, ya usado en
+# tests/ui/test_app_smoke.py para el E2E completo) a este archivo de tests puramente
+# unitario, se sustituye el módulo `streamlit` en `sys.modules` por un `MagicMock` y se
+# inspeccionan las llamadas a `st.expander` — alternativa más ligera sugerida por la propia
+# tarea, suficiente para verificar el texto del título del expandible sin renderizar nada.
+
+
+def _fake_streamlit() -> MagicMock:
+    """Doble de `streamlit` con los retornos mínimos para que la lógica pura de
+    `render_report` (filtros, chosen_status, year/amount) no rompa con un MagicMock crudo."""
+    fake_st = MagicMock()
+    fake_st.selectbox.return_value = None  # "Todos" (sin filtro de estado)
+    fake_st.text_input.return_value = ""  # sin filtro de año/importe
+    fake_st.columns.return_value = (MagicMock(), MagicMock())
+    return fake_st
+
+
+def test_render_report_shows_discarded_counter_in_expander_title(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_st = _fake_streamlit()
+    monkeypatch.setitem(sys.modules, "streamlit", fake_st)
+
+    active = _opp("activa", VerificationStatus.VERIFIED, result_type="convocatoria_probable")
+    discarded_a = _opp("info", VerificationStatus.NOT_FOUND, result_type="documento_informativo")
+    discarded_b = _opp("filtrada", VerificationStatus.NOT_FOUND, result_type="desconocido")
+    report = ResearchReport(
+        mode="calls",
+        opportunities=[active, discarded_a, discarded_b],
+        filter_verdicts={"https://x.es/filtrada": "no"},
+    )
+
+    render_report(report)
+
+    titles = [call.args[0] for call in fake_st.expander.call_args_list]
+    assert "DESCARTADOS: 2" in titles
+
+
+def test_render_report_without_discards_has_no_descartados_expander(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_st = _fake_streamlit()
+    monkeypatch.setitem(sys.modules, "streamlit", fake_st)
+
+    active = _opp("activa", VerificationStatus.VERIFIED, result_type="convocatoria_probable")
+    report = ResearchReport(mode="calls", opportunities=[active])
+
+    render_report(report)
+
+    titles = [call.args[0] for call in fake_st.expander.call_args_list]
+    assert not any(str(t).startswith("DESCARTADOS") for t in titles)

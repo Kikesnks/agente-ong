@@ -16,7 +16,14 @@ from __future__ import annotations
 import re
 
 from agente_ong.research.models import GrantOpportunity, ResearchReport, VerificationStatus
-from agente_ong.ui.report_serde import opportunity_numbers, report_to_markdown, report_to_markdown_summary, url_verification_suffix
+from agente_ong.ui.report_serde import (
+    DISCARD_LABELS,
+    opportunity_numbers,
+    partition_by_discard_status,
+    report_to_markdown,
+    report_to_markdown_summary,
+    url_verification_suffix,
+)
 
 # Orden canónico de presentación: de más a menos fiable (R11.1).
 STATUS_ORDER: tuple[VerificationStatus, ...] = (
@@ -39,20 +46,6 @@ def sort_opportunities(opportunities: list[GrantOpportunity]) -> list[GrantOppor
     segundo criterio).
     """
     return sorted(opportunities, key=lambda opp: _STATUS_RANK[opp.overall_status])
-
-
-def partition_by_actionability(
-    opportunities: list[GrantOpportunity],
-) -> tuple[list[GrantOpportunity], list[GrantOpportunity]]:
-    """Separa lo accionable del material informativo (R20.2).
-
-    Devuelve `(accionables, informativos)` preservando el orden de entrada: los
-    `documento_informativo` (Tavily sin señal de convocatoria) van al segundo grupo; las
-    convocatorias probables y las de tipo desconocido, al primero.
-    """
-    actionable = [o for o in opportunities if o.result_type != "documento_informativo"]
-    informational = [o for o in opportunities if o.result_type == "documento_informativo"]
-    return actionable, informational
 
 
 def filter_opportunities(
@@ -130,8 +123,9 @@ def render_report(report: ResearchReport, *, key: str = "report") -> None:
     # R14: calcular ANTES de sort/filter — id() deja de ser válido si los objetos se copian.
     numbers = opportunity_numbers(report)
     ordered = sort_opportunities(report.opportunities)
-    # R20.2: el material informativo (no convocatorias) se presenta en una sección aparte.
-    opportunities, informational = partition_by_actionability(ordered)
+    # R3/R7: lo descartado (material informativo, filtro semántico, no clasificado) se
+    # presenta en un expandible unificado aparte.
+    opportunities, discarded = partition_by_discard_status(ordered, report.filter_verdicts)
 
     if opportunities:
         st.caption(f"{len(opportunities)} convocatoria(s), ordenadas de más a menos fiable.")
@@ -179,17 +173,6 @@ def render_report(report: ResearchReport, *, key: str = "report") -> None:
     else:
         st.info("La investigación no encontró convocatorias.")
 
-    if informational:
-        st.subheader("Material informativo (no convocatorias)")
-        st.caption(
-            "Documentos relacionados (estudios, noticias, páginas) que no parecen "
-            "convocatorias abiertas. Útiles como contexto."
-        )
-        for opp in informational:
-            title = opp.title.value or "(sin título)"
-            url = opp.url.value
-            st.markdown(f"- [{title}]({url})" if url else f"- {title}")
-
     if report.unresolved:
         st.subheader("Datos por confirmar")
         for u in report.unresolved:
@@ -202,14 +185,25 @@ def render_report(report: ResearchReport, *, key: str = "report") -> None:
             for f in report.failed_sources:
                 st.text(f"{f.source_name}: {f.error}")
 
+    # R7.2: expandible unificado con todo lo descartado (material informativo, filtro
+    # semántico, no clasificado), colapsado por defecto y con el motivo por entrada.
+    if discarded:
+        with st.expander(f"DESCARTADOS: {len(discarded)}", expanded=False):
+            for opp, status in discarded:
+                title = opp.title.value or "(sin título)"
+                url = opp.url.value
+                label = DISCARD_LABELS[status]
+                entry = f"[{title}]({url})" if url else title
+                st.markdown(f"- {entry} — {label}")
+
     # Vista detallada bajo demanda (R22): el render de arriba es la vista RESUMIDA por
     # defecto; el informe completo (con todos los datos y fuentes) queda en un expander.
-    if opportunities or informational:
+    if opportunities or discarded:
         with st.expander("Ver informe detallado"):
             st.markdown(report_to_markdown(report))
 
     # Descargas (R7/R22.3): sin contenido no se ofrece un archivo vacío engañoso (R7.2).
-    if opportunities or informational or report.unresolved or report.failed_sources:
+    if opportunities or discarded or report.unresolved or report.failed_sources:
         col_resumen, col_detalle = st.columns(2)
         col_resumen.download_button(
             "Descargar resumen (Markdown)",

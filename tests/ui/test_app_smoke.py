@@ -176,10 +176,10 @@ def test_research_flow_renders_sorted_report(app: AppTest, fake_sources: list) -
     assert "Oficial" in labels[0] and "oficial (sin cruzar)" in labels[0]
     assert str(labels[0]).startswith("1.")  # R14.1: número visible en la cabecera del expander
 
-    # R20.2: el resultado de Tavily sin señal de convocatoria va a "Material informativo"
-    # (sección aparte, no como convocatoria accionable).
-    subheaders = " ".join(str(s.value) for s in app.subheader)
-    assert "Material informativo" in subheaders
+    # R7.2: el resultado de Tavily sin señal de convocatoria va al expandible unificado
+    # "DESCARTADOS" (ya no accionable, no como convocatoria).
+    expander_labels = [str(e.label) for e in app.expander]
+    assert "DESCARTADOS: 1" in expander_labels
     all_md = " ".join(str(m.value) for m in app.markdown)
     assert "Web general" in all_md
     assert "verificada el" in all_md  # R15.1: fecha de consulta visible en la UI

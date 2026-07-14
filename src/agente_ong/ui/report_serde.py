@@ -266,7 +266,7 @@ def opportunity_numbers(report: ResearchReport) -> dict[int, int]:
 
     Usa `id()` como clave porque `GrantOpportunity` no es hashable (dataclass con eq=True).
     El mapeo es válido mientras los objetos sean los mismos de `report` —
-    `sort_opportunities`, `filter_opportunities` y `partition_by_actionability` devuelven
+    `sort_opportunities`, `filter_opportunities` y `partition_by_discard_status` devuelven
     listas reordenadas de las MISMAS referencias, nunca copias.
     """
     numbers: dict[int, int] = {}
