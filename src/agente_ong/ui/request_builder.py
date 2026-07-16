@@ -6,7 +6,7 @@ profundidad, año mínimo, fuentes activas, URLs directas) a la pareja
 override en el request (`max_depth`/`max_pages`, ya soportados); `min_year` viaja en la
 config porque las fuentes se construyen con él (ver decisión de diseño en design.md).
 
-Los VALORES de los presets son provisionales (ver DECISIONES_PENDIENTES.md): "normal" está
+Los VALORES de los presets son provisionales (decisión histórica sobre presets, resuelta 2026-06): "normal" está
 anclado a los defaults actuales del módulo (DEFAULT_MAX_DEPTH/DEFAULT_MAX_PAGES), "rápida"
 por debajo y "exhaustiva" por encima (R8.2: valores crecientes).
 """

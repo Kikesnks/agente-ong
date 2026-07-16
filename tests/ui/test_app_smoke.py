@@ -5,7 +5,7 @@ lista; lanzar una investigación y comprobar que el informe se renderiza ordenad
 fiabilidad y descargable. La lógica fina ya está cubierta por los unit tests; aquí solo el
 circuito completo. _Requirements: 1.1, 2.1, 4.1, 11.1_
 
-Inyección de fakes (DECISIONES_PENDIENTES.md #2, opción b): `AppTest` ejecuta la app EN
+Inyección de fakes (decisión histórica sobre monkeypatching en smoke, resuelta 2026-06): `AppTest` ejecuta la app EN
 ESTE MISMO proceso, así que se monkeypatchea `Investigador._default_sources` para que el
 JobManager real construya un Investigador real con FUENTES FAKE (tests/research/fakes.py).
 Cero llamadas a Tavily/Firecrawl/BDNS/TED. `is_ollama_available` (R7, T11/T12) también se
