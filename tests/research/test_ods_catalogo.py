@@ -1,8 +1,8 @@
 """
 Tests de R25 (T25/T29): catálogo oficial de los 17 ODS del investigador.
 
-A diferencia de R24 (ods_vocabulary.py), este módulo NO tiene fallback: todo
-fallo de carga o de estructura debe lanzar ValueError con mensaje claro.
+Este módulo NO tiene fallback: todo fallo de carga o de estructura debe
+lanzar ValueError con mensaje claro.
 """
 from __future__ import annotations
 

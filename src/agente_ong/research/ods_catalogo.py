@@ -1,9 +1,9 @@
 """
 Carga del catálogo oficial de los 17 ODS (R25) desde YAML.
 
-A diferencia de ods_vocabulary.py (R24), este módulo NO tiene fallback
-embebido: si el YAML falla al cargar o no contiene los 17 objetivos
-esperados, se lanza una excepción explícita (decisión B de R25). El
+Este módulo NO tiene fallback embebido: si el YAML falla al cargar o no
+contiene los 17 objetivos esperados, se lanza una excepción explícita
+(decisión B de R25). El
 catálogo es la fuente de opciones de la multiselección obligatoria de la
 UI (R25.1); un catálogo incompleto o corrupto no debe pasar desapercibido.
 """
