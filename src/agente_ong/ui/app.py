@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
@@ -26,6 +27,7 @@ from agente_ong.llm.health import is_ollama_available
 from agente_ong.research.config import DEFAULT_DB_PATH, ResearchConfig
 from agente_ong.research.ods_catalogo import load_ods_catalogo
 from agente_ong.ui import request_builder, uploads
+from agente_ong.ui.filename import slugify_project_name
 from agente_ong.ui.jobs import JobManager
 from agente_ong.ui.models import Project
 from agente_ong.ui.project_store import ProjectStore
@@ -317,7 +319,18 @@ def _research_status(store: ProjectStore, project: Project, manager: JobManager)
             st.markdown(f"**Informe del {started}**")
             if run.params.get("query_terms"):
                 st.caption("Búsqueda: " + ", ".join(run.params["query_terms"]))
-            render_report(report_from_dict(run.report), key=f"run-{run.id}")
+            project_slug = slugify_project_name(project.name, fallback=str(project.id))
+            created_at = (
+                run.created_at.date()
+                if isinstance(run.created_at, datetime)
+                else run.created_at
+            )
+            render_report(
+                report_from_dict(run.report),
+                key=f"run-{run.id}",
+                project_slug=project_slug,
+                created_at=created_at,
+            )
 
 
 def _documents_panel(project: Project) -> None:

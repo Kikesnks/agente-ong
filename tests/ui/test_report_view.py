@@ -8,6 +8,7 @@ _Requirements: 11.1, 11.2, 11.3, 11.4_
 from __future__ import annotations
 
 import sys
+from datetime import date
 from unittest.mock import MagicMock
 
 import pytest
@@ -236,7 +237,7 @@ def test_render_report_shows_discarded_counter_in_expander_title(
         filter_verdicts={"https://x.es/filtrada": "no"},
     )
 
-    render_report(report)
+    render_report(report, project_slug="test", created_at=date(2026, 1, 1))
 
     titles = [call.args[0] for call in fake_st.expander.call_args_list]
     assert "DESCARTADOS: 2" in titles
@@ -251,7 +252,7 @@ def test_render_report_without_discards_has_no_descartados_expander(
     active = _opp("activa", VerificationStatus.VERIFIED, result_type="convocatoria_probable")
     report = ResearchReport(mode="calls", opportunities=[active])
 
-    render_report(report)
+    render_report(report, project_slug="test", created_at=date(2026, 1, 1))
 
     titles = [call.args[0] for call in fake_st.expander.call_args_list]
     assert not any(str(t).startswith("DESCARTADOS") for t in titles)

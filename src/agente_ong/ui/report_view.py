@@ -14,8 +14,10 @@ Dos capas en este módulo:
 from __future__ import annotations
 
 import re
+from datetime import date
 
 from agente_ong.research.models import GrantOpportunity, ResearchReport, VerificationStatus
+from agente_ong.ui.filename import build_report_filename
 from agente_ong.ui.report_serde import (
     DISCARD_LABELS,
     opportunity_numbers,
@@ -113,10 +115,18 @@ def status_badge(status: VerificationStatus) -> str:
     return _STATUS_BADGES[status]
 
 
-def render_report(report: ResearchReport, *, key: str = "report") -> None:
+def render_report(
+    report: ResearchReport,
+    *,
+    key: str = "report",
+    project_slug: str,
+    created_at: date,
+) -> None:
     """Renderiza un informe: lista ordenada y filtrable, incidencias y descarga (R4/R7/R11).
 
     `key` aísla los widgets cuando se renderizan varios informes en la misma página.
+    `project_slug` y `created_at` ya vienen resueltos por quien llama (decisión #25): esta
+    función no sanea el nombre del proyecto ni conoce `Project`.
     """
     import streamlit as st  # import perezoso: las funciones puras no requieren Streamlit
 
@@ -208,14 +218,18 @@ def render_report(report: ResearchReport, *, key: str = "report") -> None:
         col_resumen.download_button(
             "Descargar resumen (Markdown)",
             data=report_to_markdown_summary(report),
-            file_name="informe_resumen.md",
+            file_name=build_report_filename(
+                project_slug=project_slug, created_at=created_at, kind="summary"
+            ),
             mime="text/markdown",
             key=f"{key}-download-summary",
         )
         col_detalle.download_button(
             "Descargar informe detallado (Markdown)",
             data=report_to_markdown(report),
-            file_name="informe_detallado.md",
+            file_name=build_report_filename(
+                project_slug=project_slug, created_at=created_at, kind="detailed"
+            ),
             mime="text/markdown",
             key=f"{key}-download-full",
         )
