@@ -109,4 +109,4 @@ Cuando la UI recibe un recurso, debe guardarlo en `RECURSOS/[nombre_proyecto]/`.
 - Convención SDD del proyecto: las specs cerradas pueden reabrirse temporalmente para
   ampliaciones (nuevos requisitos, tareas adicionales) siempre que el motivo, la fecha
   de reapertura y la fecha de nuevo cierre queden documentados en la propia spec y en
-  Contexto_para_mi/decisiones_pendientes.md.
+  decisiones_pendientes.md.
