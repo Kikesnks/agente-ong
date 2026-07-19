@@ -1,0 +1,48 @@
+# Fuente: Plan Director de la Cooperación Española 2024-2027, secciones 3.2.1, 3.2.2, 3.2.3
+# NIPO 108240367
+fuente:
+  documento: "Plan Director de la Cooperación Española 2024-2027"
+  nipo: "108240367"
+  seccion: "3.2 Prioridades sectoriales"
+
+transiciones:
+  - id: "social"
+    nombre: "Transición social"
+    seccion_fuente: "3.2.1"
+    sectores:
+      - nombre: "Gobernabilidad democrática"
+        ods: [16]
+      - nombre: "Salud global y sistemas sanitarios"
+        ods: [3]
+      - nombre: "Seguridad alimentaria y lucha contra el hambre"
+        ods: [2]
+      - nombre: "Educación equitativa, inclusiva y de calidad y formación a lo largo de la vida"
+        ods: [4]
+      - nombre: "Igualdad de género y empoderamiento de todas las mujeres, niñas y adolescentes"
+        ods: [3, 5, 10, 16]
+      - nombre: "Cultura y desarrollo"
+        ods: [11]
+
+  - id: "ecologica"
+    nombre: "Transición ecológica"
+    seccion_fuente: "3.2.2"
+    sectores:
+      - nombre: "Lucha contra el cambio climático: adaptación y mitigación"
+        ods: [13]
+      - nombre: "Acceso a energías limpias"
+        ods: [7]
+      - nombre: "Promoción y protección de la biodiversidad"
+        ods: [14, 15]
+      - nombre: "Agua y saneamiento"
+        ods: [6]
+
+  - id: "economica"
+    nombre: "Transición económica"
+    seccion_fuente: "3.2.3"
+    sectores:
+      - nombre: "Desarrollo rural territorial y sistemas agroalimentarios sostenibles"
+        ods: [2, 11, 14]
+      - nombre: "Desarrollo económico inclusivo y sostenible"
+        ods: [8, 9, 12]
+      - nombre: "Digitalización para el desarrollo sostenible"
+        ods: [4, 9, 16]
