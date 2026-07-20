@@ -13,9 +13,14 @@ el cierre documental, nunca mezclados).
 
 ## Estado al cierre de sesión (2026-07-20)
 
-**Completadas (T1-T7):** implementación funcional completa de R1-R7, suite en 420
-tests (partida: 364), todos los commits en `main` (local, push manual pendiente por
-el usuario). Detalle de cada una en su nota "Estado: completada" más abajo.
+**Completadas (T1-T7, T9):** implementación funcional completa de R1-R7, suite en
+420 tests (partida: 364), todos los commits en `main` (local, push manual
+pendiente por el usuario). T9 se ejecutó fuera de orden (antes que T8, a petición
+explícita del usuario) con alcance acotado: cerró #16/#27 en
+`decisiones_pendientes.md` y marcó este `tasks.md`, pero **no tocó
+`estado_proyecto.md`** (ya estaba al día desde el cierre de sesión anterior) **ni
+`Contexto_para_mi/notas_spec4.md`** (sin verificar en esta tarea — ver su nota
+"Estado: completada"). Detalle de cada tarea en su propia nota más abajo.
 
 **Pendiente:**
 
@@ -24,26 +29,19 @@ el usuario). Detalle de cada una en su nota "Estado: completada" más abajo.
   regiones diversos) y revisión manual de los cuatro campos extraídos — sin tocar
   código salvo el propio `opportunity_alignment.md`. Ver el "Riesgo a vigilar" de
   la tarea 8: si tras 3-4 iteraciones no se alcanza el 80%, parar y abrir decisión
-  en `decisiones_pendientes.md`, no forzar el resultado.
-- **Tarea 9 (cierre documental #16/#27):** no empezada. Depende de que la tarea 8
-  esté cerrada (o al menos de una decisión explícita de parar si no se alcanza el
-  80%). Recordar: además de `decisiones_pendientes.md`/`estado_proyecto.md`/
-  `notas_spec4.md`, la nota de la tarea 7 de arriba dejó constancia de que el
-  archivo de test previsto (`tests/research/test_jobs_alignment.py`) no se creó
-  — si la tarea 9 audita "archivos tocados por tarea", no marcarlo como
-  pendiente/olvidado, la cobertura real está en otros 4 archivos ya listados.
+  en `decisiones_pendientes.md`, no forzar el resultado. Nota: #16/#27 ya están
+  cerradas (T9) aunque T8 siga pendiente — el cierre documental consideró que la
+  calibración es un refinamiento de calidad del prompt, no parte del diseño de
+  datos que resolvían esas dos decisiones.
 
-**Decisiones abiertas que afectan a T8/T9:**
+**Decisiones abiertas que afectan a T8:**
 
 - Ninguna decisión de arquitectura queda abierta para T8 (solo trabajo de
   calibración manual, sin código nuevo salvo el `.md` del prompt).
-- Para T9: al cerrar #16/#27, reflejar que la spec tuvo dos correcciones
-  documentales sobre su propio diseño original (commit `bde5de4`, tarea 3: el
-  modelo `Opportunity` nunca existió en el proyecto; la ruta de integración real
-  no es `research/jobs.py` sino `ui/jobs.py`/`llm/enrichment.py`). Si el cierre
-  documental de T9 referencia "el modelo Opportunity" en algún sitio fuera de esta
-  spec (p.ej. `notas_spec4.md`), corregirlo también ahí para no propagar la
-  imprecisión.
+- Si al hacer T8 se revisa `Contexto_para_mi/notas_spec4.md` y aparece "el modelo
+  Opportunity" como referencia, corregirlo igual que se corrigió en `design.md`/
+  `requirements.md` (commit `bde5de4`, tarea 3): ese modelo nunca existió en el
+  proyecto real.
 
 ## Atomic Task Requirements
 
@@ -297,7 +295,7 @@ nuevo, `AlineacionEstrategica`, independiente de `GrantOpportunity`/`research/mo
 
 ### Cierre documental de la spec
 
-- [ ] 9. Cerrar #16 y #27 en la documentación viva
+- [x] 9. Cerrar #16 y #27 en la documentación viva
   - Files: `decisiones_pendientes.md`, `estado_proyecto.md`,
     `Contexto_para_mi/notas_spec4.md`, este `tasks.md`
   - Marcar #16 y #27 como cerradas en `decisiones_pendientes.md` con referencia a
@@ -314,6 +312,15 @@ nuevo, `AlineacionEstrategica`, independiente de `GrantOpportunity`/`research/mo
   - Done: `pytest -q` completo en verde (suite total); `git status` sin pendientes
     de código; commit `docs(spec): cerrar alineacion-estrategica (#16, #27
     implementadas)`
+  - **Estado: completada** (alcance acotado explícitamente por el usuario para esta
+    ejecución: solo `decisiones_pendientes.md` + este `tasks.md`, commit
+    `docs(spec): cerrar T9 y decisiones #16/#27`). #16 y #27 cerradas en
+    `decisiones_pendientes.md` con referencia a las 7 tareas de esta spec y a los
+    commits concretos de cada una. `estado_proyecto.md` ya quedó actualizado con la
+    nueva capacidad en el cierre de sesión anterior (2026-07-20, gitignored, no
+    versionado). `Contexto_para_mi/notas_spec4.md` (gitignored) **no se ha
+    verificado/actualizado en esta tarea** — queda pendiente si alguien lo consulta
+    y encuentra #16/#27 todavía como prerrequisito abierto.
 
 ## Notas operativas
 
