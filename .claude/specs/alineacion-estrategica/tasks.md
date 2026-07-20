@@ -11,37 +11,34 @@ decisiones #16/#27. Cada tarea de código deja la suite en verde antes de pasar 
 siguiente; cada tarea es un commit único (`feat:`/`test:` para código, `docs(spec):` para
 el cierre documental, nunca mezclados).
 
-## Estado al cierre de sesión (2026-07-20)
+## Estado al cierre de la spec (21-07-2026)
 
-**Completadas (T1-T7, T9):** implementación funcional completa de R1-R7, suite en
-420 tests (partida: 364), todos los commits en `main` (local, push manual
-pendiente por el usuario). T9 se ejecutó fuera de orden (antes que T8, a petición
-explícita del usuario) con alcance acotado: cerró #16/#27 en
-`decisiones_pendientes.md` y marcó este `tasks.md`, pero **no tocó
-`estado_proyecto.md`** (ya estaba al día desde el cierre de sesión anterior) **ni
-`Contexto_para_mi/notas_spec4.md`** (sin verificar en esta tarea — ver su nota
-"Estado: completada"). Detalle de cada tarea en su propia nota más abajo.
+**Spec cerrada con T8 APLAZADA (no completada).** Completadas: T1-T7, T9. T8
+queda `[~]` (aplazada) — ver su nota de estado más abajo. Ningún criterio de
+"Done" de T8 se ha alcanzado (no hay conjunto de 10 convocatorias calibrado ni
+80% de coherencia medido); no se fuerza el resultado, siguiendo el propio
+"Riesgo a vigilar" que la tarea ya preveía.
 
-**Pendiente:**
+**Qué se ganó igualmente al intentar T8:** dos bugs reales del parser
+diagnosticados y arreglados en producción (commits `9a28ae2` — code-fence
+Markdown; `2cdb083` — JSON parcial/vacío), y dos decisiones nuevas abiertas en
+`decisiones_pendientes.md`:
 
-- **Tarea 8 (calibración manual del prompt):** no empezada. Requiere Ollama local
-  arrancado, un conjunto de ≥10 convocatorias reales representativas (ODS y
-  regiones diversos) y revisión manual de los cuatro campos extraídos — sin tocar
-  código salvo el propio `opportunity_alignment.md`. Ver el "Riesgo a vigilar" de
-  la tarea 8: si tras 3-4 iteraciones no se alcanza el 80%, parar y abrir decisión
-  en `decisiones_pendientes.md`, no forzar el resultado. Nota: #16/#27 ya están
-  cerradas (T9) aunque T8 siga pendiente — el cierre documental consideró que la
-  calibración es un refinamiento de calidad del prompt, no parte del diseño de
-  datos que resolvían esas dos decisiones.
+- **#30** — el bloqueo real de T8: BDNS entrega muy poco texto (200-400
+  caracteres, sin ámbito/plazo/descripción) al extractor, insuficiente para que
+  el LLM clasifique nada con criterio. Ligada a la decisión #19 ya abierta.
+  Reabrir T8 cuando #30 esté resuelta.
+- **#31** — desincronización entre el veredicto del filtro semántico
+  (`filter_verdicts`, gobierna si se extrae alineación) y la heurística
+  `documento_informativo` (gobierna qué se oculta en el informe): una
+  convocatoria puede gastar una llamada LLM de alineación y no mostrarse nunca
+  al usuario. Sin resolver, documentada.
 
-**Decisiones abiertas que afectan a T8:**
-
-- Ninguna decisión de arquitectura queda abierta para T8 (solo trabajo de
-  calibración manual, sin código nuevo salvo el `.md` del prompt).
-- Si al hacer T8 se revisa `Contexto_para_mi/notas_spec4.md` y aparece "el modelo
-  Opportunity" como referencia, corregirlo igual que se corrigió en `design.md`/
-  `requirements.md` (commit `bde5de4`, tarea 3): ese modelo nunca existió en el
-  proyecto real.
+**Si se reabre T8 en el futuro:** no repetir el diagnóstico ya hecho — leer
+directamente las notas de estado de T8 y las decisiones #19/#30 antes de
+calibrar. `Contexto_para_mi/calibracion_t8.md` (gitignored) tiene la plantilla
+lista pero vacía; ningún dato real llegó a registrarse en ella porque el
+bloqueo se descubrió antes de la primera convocatoria calibrada de verdad.
 
 ## Atomic Task Requirements
 
@@ -270,7 +267,7 @@ nuevo, `AlineacionEstrategica`, independiente de `GrantOpportunity`/`research/mo
 
 ### R6 — Calibración manual del prompt
 
-- [ ] 8. Calibrar `opportunity_alignment.md` contra convocatorias reales
+- [~] 8. Calibrar `opportunity_alignment.md` contra convocatorias reales (APLAZADA)
   - Files: `src/agente_ong/llm/prompts/opportunity_alignment.md` (edición
     iterativa), opcionalmente `Contexto_para_mi/notas_calibracion_alignment.md`
     (nuevo, gitignored)
@@ -292,6 +289,21 @@ nuevo, `AlineacionEstrategica`, independiente de `GrantOpportunity`/`research/mo
   - Riesgo a vigilar: si tras 3-4 iteraciones no se alcanza el 80%, parar y abrir
     una decisión en `decisiones_pendientes.md` sobre si el modelo local es
     suficiente, en vez de forzar el resultado
+  - **Estado: APLAZADA (21-07-2026), no completada.** Antes de calibrar de verdad
+    se diagnosticaron y arreglaron dos bugs reales del parser (commits `9a28ae2`,
+    tolerancia a code-fence Markdown, y `2cdb083`, tolerancia a JSON parcial o
+    vacío) — ganancia neta, quedan en producción y no se deshacen aunque la
+    calibración no siga ahora.
+    **Bloqueo real encontrado, no de prompt ni de parser:** las convocatorias de
+    BDNS llegan al extractor con solo 200-400 caracteres (título + organismo +
+    importe; sin ámbito, plazo ni descripción — verificado con dos casos reales,
+    238 y 427 caracteres). Con tan poca información el LLM no tiene de dónde
+    sacar ODS/región/enfoque/sector y devuelve todo vacío, lo cual es correcto
+    dado el input, no un fallo de calibración del prompt. Encaja con la decisión
+    #19 ya abierta (`HttpReaderSource` falla al leer detalle de BDNS).
+    **La calibración de esta tarea no procede hasta enriquecer ese input** (ver
+    decisión #30 en `decisiones_pendientes.md`). Reabrir T8 cuando #30 esté
+    resuelta.
 
 ### Cierre documental de la spec
 
