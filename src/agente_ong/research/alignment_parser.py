@@ -61,6 +61,11 @@ def parsear_alineacion(respuesta_llm_cruda: str) -> AlineacionEstrategica:
       ```…```) se toleran: se quita la línea de apertura y la de cierre
       antes de parsear (algunos modelos locales, p.ej. qwen2.5:7b, ignoran la
       instrucción de "sin bloque de código" y envuelven el JSON siempre).
+    - JSON parcial o vacío (p.ej. `{}`, o solo alguna de las cuatro claves) se
+      tolera: las claves ausentes se rellenan con lista vacía, igual que si el
+      LLM las hubiera devuelto explícitamente vacías (mismos modelos locales
+      a veces colapsan a `{}` en vez de al esquema completo cuando no tienen
+      nada que reportar).
     """
     try:
         data = json.loads(_quitar_code_fence(respuesta_llm_cruda))
@@ -74,9 +79,8 @@ def parsear_alineacion(respuesta_llm_cruda: str) -> AlineacionEstrategica:
 
     for campo in _CAMPOS_ESPERADOS:
         if campo not in data:
-            raise AlignmentParseError(
-                f"Respuesta del LLM no tiene la estructura esperada: falta el campo '{campo}'"
-            )
+            data[campo] = []
+            continue
         if not isinstance(data[campo], list):
             raise AlignmentParseError(
                 f"Respuesta del LLM no tiene la estructura esperada: '{campo}' debe ser una lista"

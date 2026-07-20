@@ -126,18 +126,22 @@ def test_respuesta_no_es_objeto_json_lanza_alignment_parse_error() -> None:
         parsear_alineacion(json.dumps([1, 2, 3]))
 
 
-def test_falta_un_campo_lanza_alignment_parse_error() -> None:
+def test_falta_un_campo_se_rellena_con_lista_vacia() -> None:
+    """JSON parcial: la clave ausente se rellena con `[]`, no lanza excepción
+    (qwen2.5:7b a veces omite claves en vez de mandarlas vacías)."""
     payload = json.dumps(
         {
-            "ods": [],
+            "ods": [3],
             "prioridades_geograficas": [],
             "enfoques_transversales": [],
             # falta 'sectores_plan_director'
         }
     )
 
-    with pytest.raises(AlignmentParseError, match="sectores_plan_director"):
-        parsear_alineacion(payload)
+    resultado = parsear_alineacion(payload)
+
+    assert resultado.ods == [3]
+    assert resultado.sectores_plan_director == []
 
 
 def test_campo_con_tipo_incorrecto_lanza_alignment_parse_error() -> None:
@@ -190,4 +194,43 @@ def test_respuesta_con_basura_despues_del_fence_lanza_alignment_parse_error() ->
     respuesta = f"```json\n{payload}\n```\nEspero que te sirva."
 
     with pytest.raises(AlignmentParseError):
+        parsear_alineacion(respuesta)
+
+
+# --- Tolerancia a JSON parcial o vacío (qwen2.5:7b a veces colapsa a {}) ---
+
+
+def test_objeto_vacio_devuelve_las_cuatro_listas_vacias() -> None:
+    resultado = parsear_alineacion("{}")
+
+    assert resultado.ods == []
+    assert resultado.prioridades_geograficas == []
+    assert resultado.enfoques_transversales == []
+    assert resultado.sectores_plan_director == []
+
+
+def test_objeto_vacio_envuelto_en_fence_devuelve_las_cuatro_listas_vacias() -> None:
+    resultado = parsear_alineacion("```json\n{}\n```")
+
+    assert resultado.ods == []
+    assert resultado.prioridades_geograficas == []
+    assert resultado.enfoques_transversales == []
+    assert resultado.sectores_plan_director == []
+
+
+def test_objeto_con_una_sola_clave_rellena_las_otras_tres_vacias() -> None:
+    resultado = parsear_alineacion(json.dumps({"ods": [2]}))
+
+    assert resultado.ods == [2]
+    assert resultado.prioridades_geograficas == []
+    assert resultado.enfoques_transversales == []
+    assert resultado.sectores_plan_director == []
+
+
+def test_clave_presente_con_tipo_incorrecto_sigue_lanzando_alignment_parse_error() -> None:
+    """Un JSON parcial sigue siendo estrictamente validado en las claves que SÍ trae:
+    tolerar ausencias no significa tolerar tipos equivocados."""
+    respuesta = json.dumps({"ods": "hambre"})
+
+    with pytest.raises(AlignmentParseError, match="ods"):
         parsear_alineacion(respuesta)
