@@ -145,3 +145,49 @@ def test_campo_con_tipo_incorrecto_lanza_alignment_parse_error() -> None:
 
     with pytest.raises(AlignmentParseError, match="ods"):
         parsear_alineacion(respuesta)
+
+
+# --- Tolerancia a code-fence Markdown (qwen2.5:7b envuelve el JSON siempre) ---
+
+
+def test_respuesta_con_fence_json_parsea_bien() -> None:
+    payload = _payload(ods=[3, 5])
+    respuesta = f"```json\n{payload}\n```"
+
+    resultado = parsear_alineacion(respuesta)
+
+    assert resultado.ods == [3, 5]
+
+
+def test_respuesta_con_fence_sin_lenguaje_parsea_bien() -> None:
+    payload = _payload(ods=[3, 5])
+    respuesta = f"```\n{payload}\n```"
+
+    resultado = parsear_alineacion(respuesta)
+
+    assert resultado.ods == [3, 5]
+
+
+def test_respuesta_sin_fence_sigue_parseando_bien() -> None:
+    """Retrocompatible: un JSON pelado (sin envoltorio) sigue funcionando igual."""
+    payload = _payload(ods=[3, 5])
+
+    resultado = parsear_alineacion(payload)
+
+    assert resultado.ods == [3, 5]
+
+
+def test_respuesta_con_basura_antes_del_fence_lanza_alignment_parse_error() -> None:
+    payload = _payload(ods=[3, 5])
+    respuesta = f"Aquí tienes el resultado:\n```json\n{payload}\n```"
+
+    with pytest.raises(AlignmentParseError):
+        parsear_alineacion(respuesta)
+
+
+def test_respuesta_con_basura_despues_del_fence_lanza_alignment_parse_error() -> None:
+    payload = _payload(ods=[3, 5])
+    respuesta = f"```json\n{payload}\n```\nEspero que te sirva."
+
+    with pytest.raises(AlignmentParseError):
+        parsear_alineacion(respuesta)

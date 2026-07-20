@@ -34,6 +34,22 @@ class AlignmentParseError(Exception):
     """La respuesta del LLM no es JSON parseable o no tiene la estructura esperada."""
 
 
+def _quitar_code_fence(texto: str) -> str:
+    """Si toda la respuesta (sin espacios sobrantes) está envuelta en un bloque de
+    código Markdown, quita la línea de apertura (```` ``` `` o ```` ```json ````) y la
+    de cierre (```` ``` ````). Si hay contenido antes o después del bloque no toca
+    nada: deja que `json.loads` falle de forma natural, no intenta rescatar JSON
+    embebido en texto libre.
+    """
+    texto = texto.strip()
+    if not (texto.startswith("```") and texto.endswith("```")):
+        return texto
+    lineas = texto.splitlines()
+    if len(lineas) < 2:
+        return texto
+    return "\n".join(lineas[1:-1]).strip()
+
+
 def parsear_alineacion(respuesta_llm_cruda: str) -> AlineacionEstrategica:
     """Parsea la respuesta cruda del LLM extractor y valida los cuatro campos.
 
@@ -41,9 +57,13 @@ def parsear_alineacion(respuesta_llm_cruda: str) -> AlineacionEstrategica:
     - ODS fuera del rango 1-17 se descartan con log WARNING.
     - Duplicados se colapsan preservando el orden de primera aparición.
     - JSON malformado o estructura incorrecta lanza `AlignmentParseError`.
+    - Respuestas envueltas en un bloque de código Markdown (```json…``` o
+      ```…```) se toleran: se quita la línea de apertura y la de cierre
+      antes de parsear (algunos modelos locales, p.ej. qwen2.5:7b, ignoran la
+      instrucción de "sin bloque de código" y envuelven el JSON siempre).
     """
     try:
-        data = json.loads(respuesta_llm_cruda)
+        data = json.loads(_quitar_code_fence(respuesta_llm_cruda))
     except json.JSONDecodeError as exc:
         raise AlignmentParseError(f"Respuesta del LLM no es JSON válido: {exc}") from exc
 
