@@ -11,6 +11,40 @@ decisiones #16/#27. Cada tarea de código deja la suite en verde antes de pasar 
 siguiente; cada tarea es un commit único (`feat:`/`test:` para código, `docs(spec):` para
 el cierre documental, nunca mezclados).
 
+## Estado al cierre de sesión (2026-07-20)
+
+**Completadas (T1-T7):** implementación funcional completa de R1-R7, suite en 420
+tests (partida: 364), todos los commits en `main` (local, push manual pendiente por
+el usuario). Detalle de cada una en su nota "Estado: completada" más abajo.
+
+**Pendiente:**
+
+- **Tarea 8 (calibración manual del prompt):** no empezada. Requiere Ollama local
+  arrancado, un conjunto de ≥10 convocatorias reales representativas (ODS y
+  regiones diversos) y revisión manual de los cuatro campos extraídos — sin tocar
+  código salvo el propio `opportunity_alignment.md`. Ver el "Riesgo a vigilar" de
+  la tarea 8: si tras 3-4 iteraciones no se alcanza el 80%, parar y abrir decisión
+  en `decisiones_pendientes.md`, no forzar el resultado.
+- **Tarea 9 (cierre documental #16/#27):** no empezada. Depende de que la tarea 8
+  esté cerrada (o al menos de una decisión explícita de parar si no se alcanza el
+  80%). Recordar: además de `decisiones_pendientes.md`/`estado_proyecto.md`/
+  `notas_spec4.md`, la nota de la tarea 7 de arriba dejó constancia de que el
+  archivo de test previsto (`tests/research/test_jobs_alignment.py`) no se creó
+  — si la tarea 9 audita "archivos tocados por tarea", no marcarlo como
+  pendiente/olvidado, la cobertura real está en otros 4 archivos ya listados.
+
+**Decisiones abiertas que afectan a T8/T9:**
+
+- Ninguna decisión de arquitectura queda abierta para T8 (solo trabajo de
+  calibración manual, sin código nuevo salvo el `.md` del prompt).
+- Para T9: al cerrar #16/#27, reflejar que la spec tuvo dos correcciones
+  documentales sobre su propio diseño original (commit `bde5de4`, tarea 3: el
+  modelo `Opportunity` nunca existió en el proyecto; la ruta de integración real
+  no es `research/jobs.py` sino `ui/jobs.py`/`llm/enrichment.py`). Si el cierre
+  documental de T9 referencia "el modelo Opportunity" en algún sitio fuera de esta
+  spec (p.ej. `notas_spec4.md`), corregirlo también ahí para no propagar la
+  imprecisión.
+
 ## Atomic Task Requirements
 
 Cada tarea toca un componente único (catálogo, loader, modelo, parser, prompt, extractor,
@@ -22,7 +56,7 @@ test automático) y especifica los archivos exactos según `design.md`.
 
 ### R2/R3/R4 — Catálogos YAML de alineación estratégica
 
-- [ ] 1. Crear los tres catálogos YAML (prioridades geográficas, enfoques
+- [x] 1. Crear los tres catálogos YAML (prioridades geográficas, enfoques
       transversales, sectores del Plan Director)
   - Files: `src/agente_ong/research/catalogos/prioridades_geograficas.yaml` (nuevo),
     `src/agente_ong/research/catalogos/enfoques_transversales.yaml` (nuevo),
@@ -40,10 +74,13 @@ test automático) y especifica los archivos exactos según `design.md`.
   - Done: los tres YAML parsean con `yaml.safe_load` sin error; sin duplicados dentro
     de cada catálogo; commit `feat: catálogos YAML de alineación estratégica (Plan
     Director 2024-2027)`
+  - **Estado: completada.** Commit `a5e3de7`. Sin tests (como preveía la tarea);
+    verificación manual (`yaml.safe_load` + recuento) hecha en el momento, no queda
+    persistida como test hasta la tarea 2.
 
 ### R2/R3/R4 — Loader de catálogos
 
-- [ ] 2. `catalogos_loader.py` con las cuatro funciones puras
+- [x] 2. `catalogos_loader.py` con las cuatro funciones puras
   - Files: `src/agente_ong/research/catalogos_loader.py` (nuevo),
     `tests/research/test_catalogos_loader.py` (nuevo)
   - Antes de escribir código: examinar el loader de `ods_catalogo.py` existente y
@@ -65,6 +102,11 @@ test automático) y especifica los archivos exactos según `design.md`.
   - _Requirements: R2, R3, R4_
   - Done: `pytest tests/research/test_catalogos_loader.py -q` en verde; commit
     `feat: loader de catálogos de alineación estratégica + tests`
+  - **Estado: completada.** Commit `0505a5f`. Decisión de implementación resuelta:
+    híbrido (helpers internos compartidos para I/O sin-fallback, funciones públicas
+    independientes por catálogo, ya que sectores tiene forma jerárquica distinta a
+    prioridades/enfoques). 26 tests. `obtener_transicion_de_sector` devuelve el
+    `nombre` de la transición (p.ej. "Transición social"), no el `id`.
 
 ### R1 — Modelo AlineacionEstrategica
 
@@ -72,7 +114,7 @@ test automático) y especifica los archivos exactos según `design.md`.
 `design.md`, sección "Modelo de datos"). Los cuatro campos se agrupan en un contenedor
 nuevo, `AlineacionEstrategica`, independiente de `GrantOpportunity`/`research/models.py`.
 
-- [ ] 3. Crear `AlineacionEstrategica` con los cuatro campos de alineación estratégica
+- [x] 3. Crear `AlineacionEstrategica` con los cuatro campos de alineación estratégica
   - Files: `src/agente_ong/research/alignment.py`, `tests/research/test_alignment.py`
   - Dataclass con `ods: list[int] = field(default_factory=list)`,
     `prioridades_geograficas: list[str] = field(default_factory=list)`,
@@ -90,10 +132,18 @@ nuevo, `AlineacionEstrategica`, independiente de `GrantOpportunity`/`research/mo
   - Done: `pytest tests/research/test_alignment.py -q` en verde; commit
     `feat: modelo AlineacionEstrategica con los cuatro campos de alineación
     estratégica + tests`
+  - **Estado: completada.** Commit `da04f2c`, precedido por el commit de corrección
+    documental `bde5de4` (`docs(spec): corregir modelo Opportunity inexistente y
+    ruta de jobs.py en alineacion-estrategica`): al abrir el código para esta tarea
+    se descubrió que no existe ningún modelo `Opportunity` en el proyecto (ver la
+    "Corrección (2026-07-20)" justo arriba). Consultado con el usuario: se
+    confirmó explícitamente **no tocar `research/models.py`/`GrantOpportunity`**;
+    `AlineacionEstrategica` vive en `research/alignment.py`, independiente. Esta
+    decisión sigue vigente y condicionó también la tarea 7. 4 tests.
 
 ### R5 — Parser de la respuesta LLM
 
-- [ ] 4. `alignment_parser.py`: `parsear_alineacion` + `AlignmentParseError`
+- [x] 4. `alignment_parser.py`: `parsear_alineacion` + `AlignmentParseError`
   - Files: `src/agente_ong/research/alignment_parser.py` (nuevo),
     `tests/research/test_alignment_parser.py` (nuevo)
   - `AlignmentParseError(Exception)`; usa el contenedor de retorno
@@ -112,10 +162,13 @@ nuevo, `AlineacionEstrategica`, independiente de `GrantOpportunity`/`research/mo
   - _Requirements: R5_
   - Done: `pytest tests/research/test_alignment_parser.py -q` en verde con los 6
     casos; commit `feat: parser de alineación estratégica contra catálogos + tests`
+  - **Estado: completada.** Commit `ec73089`. 10 tests (los 6 pedidos + variantes
+    por campo de catálogo). `ods` con elementos no-`int` (p.ej. strings) se
+    descarta igual que fuera de rango, no cuenta como error de estructura.
 
 ### R6 — Prompt de extracción
 
-- [ ] 5. `opportunity_alignment.md` (versión inicial)
+- [x] 5. `opportunity_alignment.md` (versión inicial)
   - Files: `src/agente_ong/llm/prompts/opportunity_alignment.md` (nuevo)
   - Rol y tarea, placeholder de taxonomía inyectable en runtime (no hardcodeada),
     instrucciones de formato de salida (JSON plano, sin texto adicional), al menos
@@ -128,10 +181,16 @@ nuevo, `AlineacionEstrategica`, independiente de `GrantOpportunity`/`research/mo
   - _Requirements: R6_
   - Done: el archivo existe con la estructura descrita; commit `feat: prompt inicial
     de extracción de alineación estratégica`
+  - **Estado: completada.** Commit `08c895e`. Placeholders `<<ODS>>`,
+    `<<PRIORIDADES_GEOGRAFICAS>>`, `<<ENFOQUES_TRANSVERSALES>>`,
+    `<<SECTORES_PLAN_DIRECTOR>>` (no `{llaves}`, deliberado: el bloque de salida
+    JSON del propio prompt usa llaves literales y chocaría). La tarea 6 los
+    sustituye con `.replace()`, no con `str.format()`. Pendiente de calibración
+    real en la tarea 8.
 
 ### R7 — Extractor LLM
 
-- [ ] 6. `alignment_extractor.py`: `extraer_alineacion`
+- [x] 6. `alignment_extractor.py`: `extraer_alineacion`
   - Files: `src/agente_ong/llm/alignment_extractor.py` (nuevo),
     `tests/llm/test_alignment_extractor.py` (nuevo)
   - `extraer_alineacion(opportunity_text, llm_client) -> AlineacionEstrategica |
@@ -150,10 +209,18 @@ nuevo, `AlineacionEstrategica`, independiente de `GrantOpportunity`/`research/mo
   - _Requirements: R7_
   - Done: `pytest tests/llm/test_alignment_extractor.py -q` en verde con los 4
     casos; commit `feat: extractor LLM de alineación estratégica + tests`
+  - **Estado: completada.** Commit `4741635`. Precisiones sobre la firma de
+    `design.md` (no contradicen la spec): `llm_client: LLMClient` → `provider:
+    LLMProvider | None` (mismo patrón que `enrich_report`, la disponibilidad de
+    Ollama se resuelve en el caller, no aquí); se añadió `opportunity_id: str |
+    None = None` (keyword-only), pedido por esta misma tarea para los logs pero
+    ausente en la firma de `design.md`. A diferencia de `enrich_report`
+    (degradación 100% silenciosa), aquí SÍ hay logs WARNING/ERROR por requisito
+    explícito de R7. 7 tests (los 4 pedidos + 2 de detalle).
 
 ### R7 — Integración en el pipeline de enrichment
 
-- [ ] 7. Conectar `extraer_alineacion` en `ui/jobs.py` tras el filtro semántico
+- [x] 7. Conectar `extraer_alineacion` en `ui/jobs.py` tras el filtro semántico
   - Files: `src/agente_ong/ui/jobs.py` (corregido 2026-07-20: no existe
     `research/jobs.py`; el punto real de integración del enrichment es
     `ui/jobs.py`, que ya importa de `llm/` — ver `enrich_report`),
@@ -175,6 +242,33 @@ nuevo, `AlineacionEstrategica`, independiente de `GrantOpportunity`/`research/mo
   - Done: `pytest tests/research/test_jobs_alignment.py -q` en verde con los 5
     escenarios; commit `feat: integrar extracción de alineación en pipeline de
     enrichment + tests`
+  - **Estado: completada, con dos correcciones sobre el texto de arriba (no
+    reabrir la tarea por esto, ya implementado y verificado):**
+    - **`ui/jobs.py` NO se tocó.** El punto real de integración es
+      `enrich_report` (`llm/enrichment.py`), al que `ui/jobs.py` ya llamaba sin
+      cambios; extender `enrich_report` bastó para que la persistencia
+      (`enriched_report_to_dict` → SQLite) incluyera la alineación.
+    - **No se creó `tests/research/test_jobs_alignment.py`.** Los 5 escenarios
+      quedaron repartidos en: `tests/llm/test_alignment_report.py` (nuevo, 5
+      tests, mirror de `test_filter_report.py`), `tests/llm/test_enrichment.py`
+      (+3 tests, +3 reparados), `tests/llm/test_enrichment_serde.py` (+1 test),
+      `tests/ui/test_descartados_e2e.py` (1 test reparado). `ui/jobs.py` ya
+      tenía su propia cobertura en `tests/ui/test_jobs.py`, no tocada.
+    - Commit `42c4cfa`. Campo nuevo `EnrichedReport.strategic_alignment: dict[url
+      normalizada, AlineacionEstrategica]` (`llm/enrichment.py`), poblado en
+      `enrich_report` reutilizando las mismas `classifications` que ya arma
+      `filter_verdicts` (sin llamada extra de clasificación). Gating: extracción
+      SOLO si el veredicto es exactamente `"si"` (no para
+      `no_clasificado_provider`/`no_clasificado_response`).
+    - **Decisión de diseño no cubierta por la spec, resuelta:** dónde vive
+      `strategic_alignment`. Se descubrió que `filter_verdicts` SÍ vive como
+      campo directo en `ResearchReport`/`research/models.py` (precedente de la
+      spec `integracion-llm`, anterior a la regla acordada en la tarea 3). Se
+      mantuvo la regla de la tarea 3 vigente: `strategic_alignment` vive en
+      `EnrichedReport` (`llm/enrichment.py`), `research/models.py` sigue
+      intacto. **Si T8/T9 o una spec futura necesitan mostrar la alineación en
+      la UI, este es el campo a leer** (vía `enriched_report_from_dict`), no
+      nada en `research/models.py`.
 
 ### R6 — Calibración manual del prompt
 

@@ -71,6 +71,11 @@ Al abrir una sesión nueva, en este orden:
   - Código, spec, arquitectura, decisiones consecuentes → un commit por tarea.
   - Tareas puramente textuales (docs, notas, checkboxes) → agrupar en un
     commit único.
+- **Actualizar `tasks.md` al cerrar cada tarea.** Marcar la tarea como
+  completada (`[x]`) en el mismo commit que la implementa (o en el commit
+  `docs(spec):` inmediato si son varias). `tasks.md` es la brújula: si paramos
+  de golpe, es lo que nos dice por dónde seguir. Nunca dejar una tarea
+  implementada sin marcar.
 
 ---
 
