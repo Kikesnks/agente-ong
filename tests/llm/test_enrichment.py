@@ -1,19 +1,38 @@
-"""Tests de `EnrichedReport`/`enrich_report` (R7, T10; T3 de `descartados-filtro`).
+"""Tests de `EnrichedReport`/`enrich_report` (R7 de `integracion-llm`, T10; T3 de
+`descartados-filtro`; R7 de `alineacion-estrategica`, tarea 7).
 
 `_SequencedProvider` es un doble LOCAL (no vive en `tests/llm/fakes.py`): a diferencia de
 `FakeLLMProvider` (una única respuesta fija para todas las llamadas), estos tests necesitan
-una respuesta o fallo DISTINTO por oportunidad, en el orden en que `classify_report`
-recorre `report.opportunities` (T8, no se toca).
+una respuesta o fallo DISTINTO por llamada, en el orden en que `enrich_report` llama al
+proveedor: primero `classify_report` recorre `report.opportunities` para clasificar (T8,
+no se toca), después `extraer_alineaciones_del_informe` recorre las MISMAS oportunidades
+en el mismo orden, pero solo llama al proveedor para las de veredicto "si" (tarea 7).
 """
 
 from __future__ import annotations
 
+import json
+import logging
 from dataclasses import dataclass, field
+
+import pytest
 
 from agente_ong.llm.enrichment import EnrichedReport, enrich_report
 from agente_ong.llm.errors import LLMConnectionError
 from agente_ong.llm.provider import LLMProvider, LLMResponse
 from agente_ong.research.models import Claim, GrantOpportunity, ResearchReport
+
+# JSON mínimo válido de alineación (las cuatro listas vacías): basta para que
+# `parsear_alineacion` (tarea 4) lo acepte sin lanzar `AlignmentParseError`; el contenido
+# no importa a estos tests de cableado, solo que la extracción "tenga éxito".
+_JSON_ALINEACION_VALIDA = json.dumps(
+    {
+        "ods": [],
+        "prioridades_geograficas": [],
+        "enfoques_transversales": [],
+        "sectores_plan_director": [],
+    }
+)
 
 
 @dataclass
@@ -61,6 +80,7 @@ def test_enrich_report_without_provider_returns_report_untouched() -> None:
     assert enriched.base is report  # misma referencia, no clon
     assert enriched.base.filter_verdicts == {}
     assert enriched.semantic_filter_applied is False
+    assert enriched.strategic_alignment == {}
 
 
 # --- Con provider: nada se filtra, todo se conserva en filter_verdicts (T3) ---
@@ -71,7 +91,10 @@ def test_enrich_report_with_provider_keeps_all_opportunities_and_fills_verdicts(
     discarded_opp = _opportunity("discarded")
     unclassified_opp = _opportunity("unclassified")
     report = _report(kept_opp, discarded_opp, unclassified_opp)
-    provider = _SequencedProvider(responses=["SI", "NO", "esto no es SI ni NO"])
+    # 3 respuestas de clasificación + 1 de alineación (solo "kept" tiene veredicto "si").
+    provider = _SequencedProvider(
+        responses=["SI", "NO", "esto no es SI ni NO", _JSON_ALINEACION_VALIDA]
+    )
 
     enriched = enrich_report(report, provider)
 
@@ -86,6 +109,8 @@ def test_enrich_report_with_provider_keeps_all_opportunities_and_fills_verdicts(
     # El report ORIGINAL no se muta (R7.2): sigue con las 3 oportunidades y sin veredictos.
     assert report.opportunities == [kept_opp, discarded_opp, unclassified_opp]
     assert report.filter_verdicts == {}
+    # Solo la convocatoria relevante ("si") tiene alineación extraída (tarea 7).
+    assert set(enriched.strategic_alignment.keys()) == {"https://example.org/kept"}
 
 
 # --- Fallo de clasificación aislado (R7.5) ---
@@ -96,8 +121,15 @@ def test_enrich_report_llm_error_on_one_opportunity_records_provider_verdict() -
     failing = _opportunity("failing")
     third = _opportunity("third")
     report = _report(first, failing, third)
+    # 3 respuestas de clasificación + 2 de alineación ("first" y "third" son "si").
     provider = _SequencedProvider(
-        responses=["SI", LLMConnectionError("fallo simulado"), "SI"]
+        responses=[
+            "SI",
+            LLMConnectionError("fallo simulado"),
+            "SI",
+            _JSON_ALINEACION_VALIDA,
+            _JSON_ALINEACION_VALIDA,
+        ]
     )
 
     enriched = enrich_report(report, provider)
@@ -109,6 +141,10 @@ def test_enrich_report_llm_error_on_one_opportunity_records_provider_verdict() -
         "https://example.org/third": "si",
     }
     assert enriched.semantic_filter_applied is True
+    assert set(enriched.strategic_alignment.keys()) == {
+        "https://example.org/first",
+        "https://example.org/third",
+    }
 
 
 # --- Aristas: informe vacío ---
@@ -143,7 +179,7 @@ def test_enrich_report_does_not_mutate_original_report_object() -> None:
     cuanto hay provider (dataclasses.replace crea uno nuevo), aunque comparen igual en
     campos no tocados."""
     report = _report(_opportunity("a"))
-    provider = _SequencedProvider(responses=["SI"])
+    provider = _SequencedProvider(responses=["SI", _JSON_ALINEACION_VALIDA])
 
     enriched = enrich_report(report, provider)
 
@@ -151,3 +187,52 @@ def test_enrich_report_does_not_mutate_original_report_object() -> None:
     assert enriched.base.ledger == report.ledger
     assert enriched.base.failed_sources == report.failed_sources
     assert enriched.base.mode == report.mode
+
+
+# --- Extracción de alineación estratégica (R7 de `alineacion-estrategica`, tarea 7) ---
+
+
+def test_enrich_report_extracts_alignment_only_for_relevant_opportunity() -> None:
+    kept_opp = _opportunity("kept")
+    discarded_opp = _opportunity("discarded")
+    report = _report(kept_opp, discarded_opp)
+    provider = _SequencedProvider(responses=["SI", "NO", _JSON_ALINEACION_VALIDA])
+
+    enriched = enrich_report(report, provider)
+
+    assert enriched.strategic_alignment.keys() == {"https://example.org/kept"}
+    assert enriched.strategic_alignment["https://example.org/kept"].ods == []
+    # La descartada no dispara ninguna llamada de extracción: 2 clasificación + 1 alineación.
+    assert provider.calls == 3
+
+
+def test_enrich_report_alignment_failure_on_one_opportunity_does_not_affect_others() -> None:
+    """Fallo puntual de extracción (respuesta malformada) en una convocatoria relevante:
+    esa URL queda ausente de `strategic_alignment`, las demás se procesan igual (R7.5)."""
+    ok_opp = _opportunity("ok")
+    broken_opp = _opportunity("broken")
+    report = _report(ok_opp, broken_opp)
+    provider = _SequencedProvider(
+        responses=[
+            "SI",  # clasificación de ok_opp
+            "SI",  # clasificación de broken_opp
+            _JSON_ALINEACION_VALIDA,  # alineación de ok_opp
+            "esto no es JSON",  # alineación de broken_opp: falla el parseo
+        ]
+    )
+
+    enriched = enrich_report(report, provider)
+
+    assert enriched.strategic_alignment.keys() == {"https://example.org/ok"}
+    assert "https://example.org/broken" not in enriched.strategic_alignment
+
+
+def test_enrich_report_alignment_failure_logs_error(caplog: pytest.LogCaptureFixture) -> None:
+    broken_opp = _opportunity("broken")
+    report = _report(broken_opp)
+    provider = _SequencedProvider(responses=["SI", "esto no es JSON"])
+
+    with caplog.at_level(logging.ERROR, logger="agente_ong.llm.alignment_extractor"):
+        enrich_report(report, provider)
+
+    assert any(r.levelno == logging.ERROR for r in caplog.records)

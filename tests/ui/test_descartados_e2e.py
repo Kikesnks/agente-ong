@@ -35,6 +35,15 @@ from agente_ong.ui.report_serde import (
 _TIMEOUT = 10  # segundos; los fakes terminan en milisegundos
 _SELECTED_ODS: list[OdsEntry] = [{"numero": 1, "nombre": "Fin de la pobreza"}]
 
+# JSON mínimo válido de alineación (tarea 7 de `alineacion-estrategica`): tras clasificar,
+# `enrich_report` también llama a `extraer_alineacion` para cada convocatoria con
+# veredicto "si". El contenido no importa a estos tests de descartes, solo que la
+# extracción "tenga éxito" y no rompa la secuencia de respuestas del provider fake.
+_JSON_ALINEACION_VALIDA = (
+    '{"ods": [], "prioridades_geograficas": [], "enfoques_transversales": [], '
+    '"sectores_plan_director": []}'
+)
+
 
 @dataclass
 class _SequenceLLMProvider(LLMProvider):
@@ -148,11 +157,13 @@ def test_end_to_end_covers_all_four_discard_origins(
 
     provider = _SequenceLLMProvider(
         outcomes=[
-            "SI",  # activa
-            "NO",  # descartada por filtro
-            LLMConnectionError("fallo simulado"),  # no_clasificada_provider
-            "esto no es SI ni NO",  # no_clasificada_response
-            "SI",  # informativo: la heurística (R20) gana pese al veredicto "si"
+            "SI",  # activa (clasificación)
+            "NO",  # descartada por filtro (clasificación)
+            LLMConnectionError("fallo simulado"),  # no_clasificada_provider (clasificación)
+            "esto no es SI ni NO",  # no_clasificada_response (clasificación)
+            "SI",  # informativo: la heurística (R20) gana pese al veredicto "si" (clasificación)
+            _JSON_ALINEACION_VALIDA,  # activa: única con veredicto "si" además de informativo
+            _JSON_ALINEACION_VALIDA,  # informativo: también veredicto "si" (tarea 7 no filtra por result_type)
         ]
     )
     monkeypatch.setattr("agente_ong.ui.jobs.is_ollama_available", lambda *a, **kw: True)
