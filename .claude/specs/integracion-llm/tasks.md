@@ -70,20 +70,58 @@ testeable y especifica los archivos exactos.
     src/agente_ong/llm/errors.py (tarea 2)_
   - _Requirements: 2.1, 2.3_
 
-- [ ] 4. [APLAZADA — pendiente de claves API] Adaptadores Claude y OpenAI en llm/adapters/claude.py y openai.py
-  - Files: src/agente_ong/llm/adapters/claude.py, src/agente_ong/llm/adapters/openai.py,
-    tests/llm/test_adapters.py (continúa de la tarea 3), requirements.txt
-  - PRIMERO: verificar EN VIVO el formato de `usage_metadata`/tokens de
-    `langchain-anthropic` y `langchain-openai` (difiere de Ollama) antes de fijar el
-    parseo. `ClaudeProvider` (`ChatAnthropic`) y `OpenAIProvider` (`ChatOpenAI`), mismo
-    contrato que `OllamaProvider`: implementan `LLMProvider`, traducen excepciones a los
-    errores de R4. Añadir `langchain-anthropic` y `langchain-openai` a `requirements.txt`
-  - Tests: el MISMO test de contrato de la tarea 3, parametrizado sobre los tres
-    adaptadores (Ollama, Claude, OpenAI), con la capa LangChain de cada uno mockeada;
-    verifica que los tres son intercambiables (misma forma de `LLMResponse`)
-  - Purpose: completar los tres proveedores con un contrato de test único y compartido
-  - _Leverage: src/agente_ong/llm/adapters/ollama.py (tarea 3, mismo molde),
-    tests/llm/test_adapters.py (test de contrato parametrizable)_
+- [x] 4a. `OpenAICompatibleProvider` en `llm/adapters/openai_compatible.py` (reapertura
+      21-07-2026, enfoque revisado: adaptador genérico, no uno específico de OpenAI)
+  - Files: `src/agente_ong/llm/adapters/openai_compatible.py`,
+    `tests/llm/test_adapters.py` (continúa de la tarea 3), `requirements.txt`
+  - **Cambio de enfoque respecto al original de esta tarea:** en vez de un
+    `OpenAIProvider` específico, se construyó `OpenAICompatibleProvider` — un único
+    adaptador con `base_url`/`api_key`/`model` inyectables (los tres obligatorios, sin
+    default) que sirve tanto para OpenAI como para cualquier proveedor que hable el
+    mismo formato (verificado en la documentación oficial de DeepSeek:
+    `https://api.deepseek.com`, endpoint `/chat/completions`, mismo formato de mensajes
+    y de respuesta; la propia documentación de DeepSeek instruye a usar el SDK de
+    `openai` sin modificar salvo `base_url`/`api_key`). `requirements.md` marcaba esto
+    como "fuera de esta spec, candidato de BACKLOG" — corregido en este mismo cierre
+    (ver ahí).
+  - `ChatOpenAI` (`langchain-openai`), mismo contrato que `OllamaProvider`: implementa
+    `LLMProvider`. Traducción de excepciones (jerarquía de `openai-python`
+    `_exceptions.py`, confirmada leyendo el paquete instalado, NO verificada en vivo —
+    sin clave de API disponible): `APIConnectionError` → `LLMConnectionError`
+    (transitorio); `AuthenticationError` → `LLMAuthError` (caso nuevo, sin equivalente
+    en Ollama); cualquier otro `OpenAIError` → `LLMNoResponseError`. Añadido
+    `langchain-openai>=0.2` a `requirements.txt`
+  - Tests: el mismo test de contrato de la tarea 3, parametrizado ahora sobre 2
+    adaptadores (Ollama, OpenAI-compatible) — Claude queda para su propia sub-tarea (4b,
+    ver abajo); 3 tests específicos de traducción de excepciones (conexión, auth, otro
+    error), mockeando `ChatOpenAI` — sin llamada real, sin `DEEPSEEK_API_KEY`
+  - Purpose: desbloquear un proveedor de pago barato (DeepSeek) sin comprometerse a un
+    único proveedor concreto — cambiar de OpenAI a DeepSeek a otro compatible es solo
+    cambiar `base_url`
+  - _Leverage: src/agente_ong/llm/adapters/ollama.py (mismo molde de traducción de
+    excepciones y parseo de `usage_metadata`), src/agente_ong/research/config.py (patrón
+    de gestión de claves a reutilizar cuando T5 lea `DEEPSEEK_API_KEY` del entorno — no
+    se adelanta esa tarea aquí, el adaptador se construye con argumentos explícitos)_
+  - _Requirements: 2.1, 2.2 (parcial — ver 4b para Claude)_
+  - **Pendiente antes de confiar en esto en producción:** verificación EN VIVO del
+    formato de `usage_metadata`/excepciones contra una respuesta real de DeepSeek, en
+    cuanto exista `DEEPSEEK_API_KEY` (mismo principio que T3 aplicó a Ollama). No
+    bloquea el uso con mocks/tests.
+
+- [ ] 4b. [APLAZADA — pendiente de clave Anthropic] Adaptador Claude en
+      llm/adapters/claude.py
+  - Files: src/agente_ong/llm/adapters/claude.py, tests/llm/test_adapters.py
+  - Sin cambios respecto al plan original: `ClaudeProvider` (`ChatAnthropic`,
+    `langchain-anthropic`), mismo contrato que `OllamaProvider`/
+    `OpenAICompatibleProvider`. PRIMERO verificar EN VIVO el formato de
+    `usage_metadata`/tokens de `langchain-anthropic` (difiere de Ollama/OpenAI) antes de
+    fijar el parseo. No es "OpenAI-compatible" (protocolo de mensajes distinto de
+    Anthropic), por eso no se resolvió junto con 4a
+  - Tests: añadir Claude a la misma lista `ADAPTERS` parametrizada de
+    `tests/llm/test_adapters.py`
+  - Purpose: completar los tres proveedores intercambiables que pedía R2.1 original
+  - _Leverage: src/agente_ong/llm/adapters/ollama.py, src/agente_ong/llm/adapters/openai_compatible.py
+    (mismo molde)_
   - _Requirements: 2.1, 2.2_
 
 ### R3 — Configuración
@@ -103,7 +141,7 @@ testeable y especifica los archivos exactos.
   - Purpose: cambiar de proveedor es solo configuración (R3.4); las claves se leen del
     entorno, nunca hardcodeadas
   - _Leverage: src/agente_ong/research/config.py (patrón dataclass + from_env + _env_int),
-    src/agente_ong/llm/adapters/ (los tres adaptadores de las tareas 3-4)_
+    src/agente_ong/llm/adapters/ (los adaptadores de las tareas 3, 4a y 4b)_
   - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
 ### R6 — Filtro semántico (Opción 1)

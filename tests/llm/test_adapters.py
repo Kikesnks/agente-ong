@@ -1,8 +1,10 @@
 """Tests de contrato de los adaptadores de `LLMProvider` (R2).
 
 Parametrizado sobre los proveedores reales, con la capa LangChain mockeada (sin red real
-— la verificación en vivo contra Ollama ya se hizo aparte, fuera de la suite). T4 añadirá
-Claude y OpenAI a `ADAPTERS` para que corran el mismo test de contrato.
+— la verificación en vivo contra Ollama ya se hizo aparte, fuera de la suite).
+`OpenAICompatibleProvider` (reapertura de SPEC 2, T4) se añadió a `ADAPTERS` para correr
+el mismo test de contrato; Claude sigue aplazado (protocolo distinto, no
+OpenAI-compatible).
 """
 
 from __future__ import annotations
@@ -13,20 +15,42 @@ import httpx
 import ollama
 import pytest
 from langchain_core.messages import AIMessage
+from openai import APIConnectionError, AuthenticationError, InternalServerError
 
 from agente_ong.llm.adapters.ollama import OllamaProvider
-from agente_ong.llm.errors import LLMConnectionError, LLMNoResponseError
+from agente_ong.llm.adapters.openai_compatible import OpenAICompatibleProvider
+from agente_ong.llm.errors import LLMAuthError, LLMConnectionError, LLMNoResponseError
 from agente_ong.llm.provider import LLMProvider, LLMResponse
 
 _OLLAMA_CHAT_MODEL = "agente_ong.llm.adapters.ollama.ChatOllama"
+_OPENAI_COMPATIBLE_CHAT_MODEL = "agente_ong.llm.adapters.openai_compatible.ChatOpenAI"
 
 
 def _build_ollama_provider() -> OllamaProvider:
     return OllamaProvider(model="qwen2.5:7b")
 
 
+def _build_openai_compatible_provider() -> OpenAICompatibleProvider:
+    return OpenAICompatibleProvider(
+        model="deepseek-v4-flash",
+        base_url="https://api.deepseek.com",
+        api_key="clave-de-prueba",
+    )
+
+
+def _httpx_request() -> httpx.Request:
+    return httpx.Request("POST", "https://api.deepseek.com/chat/completions")
+
+
+def _httpx_response(status_code: int) -> httpx.Response:
+    return httpx.Response(status_code, request=_httpx_request(), json={"error": {"message": "fallo"}})
+
+
 # (factory del adaptador, ruta del ChatModel de LangChain a mockear)
-ADAPTERS = [(_build_ollama_provider, _OLLAMA_CHAT_MODEL)]
+ADAPTERS = [
+    (_build_ollama_provider, _OLLAMA_CHAT_MODEL),
+    (_build_openai_compatible_provider, _OPENAI_COMPATIBLE_CHAT_MODEL),
+]
 
 
 # --- Contrato compartido (R2.1/R2.2/R2.3) ---
@@ -99,6 +123,40 @@ def test_ollama_response_error_translates_to_llm_no_response_error() -> None:
     with patch(_OLLAMA_CHAT_MODEL) as mock_chat_model:
         mock_chat_model.return_value.invoke.side_effect = ollama.ResponseError("modelo no encontrado")
         provider = OllamaProvider(model="qwen2.5:7b")
+
+        with pytest.raises(LLMNoResponseError):
+            provider.complete("system", "user")
+
+
+# --- Traducción de excepciones específica de OpenAICompatibleProvider (R4.1) ---
+
+
+def test_openai_compatible_connection_failure_translates_to_llm_connection_error() -> None:
+    with patch(_OPENAI_COMPATIBLE_CHAT_MODEL) as mock_chat_model:
+        mock_chat_model.return_value.invoke.side_effect = APIConnectionError(request=_httpx_request())
+        provider = _build_openai_compatible_provider()
+
+        with pytest.raises(LLMConnectionError):
+            provider.complete("system", "user")
+
+
+def test_openai_compatible_authentication_error_translates_to_llm_auth_error() -> None:
+    with patch(_OPENAI_COMPATIBLE_CHAT_MODEL) as mock_chat_model:
+        mock_chat_model.return_value.invoke.side_effect = AuthenticationError(
+            "clave inválida", response=_httpx_response(401), body=None
+        )
+        provider = _build_openai_compatible_provider()
+
+        with pytest.raises(LLMAuthError):
+            provider.complete("system", "user")
+
+
+def test_openai_compatible_other_api_error_translates_to_llm_no_response_error() -> None:
+    with patch(_OPENAI_COMPATIBLE_CHAT_MODEL) as mock_chat_model:
+        mock_chat_model.return_value.invoke.side_effect = InternalServerError(
+            "error interno del servidor", response=_httpx_response(500), body=None
+        )
+        provider = _build_openai_compatible_provider()
 
         with pytest.raises(LLMNoResponseError):
             provider.complete("system", "user")

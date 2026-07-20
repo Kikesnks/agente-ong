@@ -40,11 +40,14 @@ posteriores (redactor, chat) una vez validada la infraestructura LLM en producci
 - Streaming de respuesta (lo necesitará el chat de SPEC 3; se diseña allí).
 - Presupuesto/límite de tokens (contador sí, control de coste no — backlog v1.1).
 - UI de gestión de claves API (SPEC 6; aquí las claves solo se leen del entorno).
-- Adaptadores Claude y OpenAI de pago (R2.1, R2.2): implementados a nivel de tarea
-  (T4/T5) pero aplazados hasta disponer de claves API. Ver
-  Contexto_para_mi/decisiones_pendientes.md #11.
-- Adaptador genérico OpenAI-compatible (Grok, DeepSeek, etc.) — candidato de BACKLOG,
-  fuera de esta spec.
+- Adaptador Claude de pago (R2.1, R2.2): implementado a nivel de tarea (T4b/T5) pero
+  aplazado hasta disponer de clave Anthropic. Ver `decisiones_pendientes.md` #11.
+- **Corrección (21-07-2026):** el adaptador genérico OpenAI-compatible (Grok, DeepSeek,
+  etc.) estaba aquí como "candidato de BACKLOG, fuera de esta spec" — dejó de estarlo:
+  se implementó como `OpenAICompatibleProvider` (tarea 4a, con tests mockeados;
+  verificación en vivo pendiente de clave). El adaptador OpenAI de pago original queda
+  cubierto por este mismo adaptador genérico (`base_url` apuntando a OpenAI), no como
+  clase separada.
 - Enrutado heurístico o extracción estructurada de campos vía LLM — posterior a validar
   el filtro mínimo en producción.
 
@@ -92,8 +95,10 @@ lógica de agentes; `Ollama` es el proveedor local/gratuito elegido para desarro
 pruebas sin coste.
 
 Criterios de aceptación:
-- 2.1 Existen tres adaptadores — Claude (Anthropic), OpenAI y Ollama — que implementan el
-  puerto `LLMProvider` usando LangChain internamente.
+- 2.1 Existen tres adaptadores — Claude (Anthropic), OpenAI-compatible (sirve para
+  OpenAI, DeepSeek y otros que hablen el mismo formato, `base_url` inyectable) y Ollama
+  — que implementan el puerto `LLMProvider` usando LangChain internamente. (Redacción
+  ajustada 21-07-2026: "OpenAI" → "OpenAI-compatible", ver "Fuera de alcance".)
 - 2.2 Los tres adaptadores son intercambiables entre sí sin cambiar el código consumidor:
   cambiar de proveedor es sustituir la instancia inyectada, nunca una rama `if` en el
   código de negocio.
