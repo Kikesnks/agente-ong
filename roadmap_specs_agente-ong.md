@@ -125,6 +125,19 @@ Las specs completas (requirements, design, tasks) se escriben justo antes de eje
 - Generación automática de `query_terms` desde lenguaje natural.
 - Refinado de `search_context` con LLM a partir de la descripción del proyecto.
 
+### Candidatas de la investigación sobre redacción de proyectos (22-07-2026)
+
+Prioridad y spec destino por decidir al abrir SPEC 3/4.
+
+- Validador de coherencia presupuesto-actividades: comprueba que cada partida del presupuesto se corresponde con actividades del marco lógico y viceversa.
+- Sugerencia de indicadores SMART por sector CRS (base INDIKIT): propone indicadores medibles según el sector del proyecto.
+- Alineador con Plan Director 2024-2027: mapea el proyecto a transición + ODS + sector CRS del Plan Director vigente.
+- Generador de MOA con socio local: redacta el borrador del acuerdo/memorando de colaboración con la contraparte local.
+- Preparador de TdR para evaluación y auditoría externas: genera términos de referencia para contratar ambas obligaciones.
+- Simulador de baremo según Orden AUC/286/2022: estima la puntuación de la propuesta contra los criterios oficiales de valoración.
+
+Referencia: `Contexto_para_mi/informe_redaccion_proyectos_ONGs_2026-07-22.md`.
+
 > **Ya fuera de backlog — implementado en investigador-v2:** enriquecimiento BDNS con importe (`presupuestoTotal`) y plazo promovido a R19, implementado en T13. Filtro `min_year` aplicado antes de las llamadas al detalle (R19.2). Vocabulario ODS integrado en `_derive_queries` (R24) y multiselección obligatoria de ODS propagada end-to-end (R25).
 
 ---
