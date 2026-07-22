@@ -6,15 +6,6 @@ Contexto_para_mi/
 # Carpeta local de archivos antiguos del desarrollador (Kike), fuera del producto.
 OLD/
 
-# Documento vivo de estado del proyecto (lenguaje natural, uso interno de Kike).
-estado_proyecto.md
-
-# Documento vivo de decisiones pendientes (uso interno de Kike). Vivía en
-# Contexto_para_mi/ (cubierto por esa regla); ahora vive en la raíz, así que necesita
-# su propia regla. El "/" inicial lo ancla a la raíz: no ignora un decisiones_pendientes.md
-# que pudiera aparecer en otro subdirectorio (p.ej. OLD/, que interesa preservar).
-/decisiones_pendientes.md
-
 # Documentos vivos de aprendizaje (lecciones + glosario), uso interno de Kike.
 Aprendizaje/
 
