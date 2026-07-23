@@ -8,18 +8,21 @@ circuito completo. _Requirements: 1.1, 2.1, 4.1, 11.1_
 Inyección de fakes (decisión histórica sobre monkeypatching en smoke, resuelta 2026-06): `AppTest` ejecuta la app EN
 ESTE MISMO proceso, así que se monkeypatchea `Investigador._default_sources` para que el
 JobManager real construya un Investigador real con FUENTES FAKE (tests/research/fakes.py).
-Cero llamadas a Tavily/Firecrawl/BDNS/TED. `is_ollama_available` (R7, T11/T12) también se
-monkeypatchea, pero en DOS PUNTOS DISTINTOS por una razón no obvia: `jobs.py` (módulo
-persistente, importado una sola vez) se parchea directamente en
-`agente_ong.ui.jobs.is_ollama_available`; en cambio `app.py` lo re-importa en CADA
+Cero llamadas a Tavily/Firecrawl/BDNS/TED. La disponibilidad de Ollama (R7, T11/T12; T5d)
+también se monkeypatchea, pero en DOS PUNTOS DISTINTOS por una razón no obvia: `jobs.py`
+(módulo persistente, importado una sola vez) se parchea directamente en
+`agente_ong.ui.jobs.build_provider`; en cambio `app.py` lo re-importa en CADA
 `AppTest.run()` (AppTest ejecuta el script como "fresco", no reutiliza el módulo
-`agente_ong.ui.app` ya importado por este test), así que solo parcheando la FUENTE
-(`agente_ong.llm.health.is_ollama_available`) el mock sobrevive a esa re-ejecución. Sin
-esto, en una máquina con Ollama local corriendo (como esta), se dispararían tanto una
-clasificación LLM real como un warning de sidebar dependiente del entorno, ajenos a lo que
-este smoke test valida. Sin residuos: `RESEARCH_DB_PATH` y el cwd van a `tmp_path` (la
-carpeta `RECURSOS/` del proyecto se crea allí) y el singleton del JobManager se limpia antes
-y después de cada test.
+`agente_ong.ui.app` ya importado por este test) — pero `describe_llm_status`/
+`build_provider`, que app.py llama, VIVEN en `agente_ong.llm.config`, un módulo normal que
+SÍ persiste entre reruns (solo `app.py` recibe el trato especial de "script fresco" de
+AppTest); parcheando la FUENTE que ambos usan internamente
+(`agente_ong.llm.config.is_ollama_available`) el mock sobrevive a esa re-ejecución sin
+necesidad de un segundo punto de parche por módulo. Sin esto, en una máquina con Ollama
+local corriendo (como esta), se dispararían tanto una clasificación LLM real como un aviso
+de sidebar dependiente del entorno, ajenos a lo que este smoke test valida. Sin residuos:
+`RESEARCH_DB_PATH` y el cwd van a `tmp_path` (la carpeta `RECURSOS/` del proyecto se crea
+allí) y el singleton del JobManager se limpia antes y después de cada test.
 """
 
 from __future__ import annotations
@@ -79,17 +82,20 @@ def app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, fake_sources: list) -> 
     monkeypatch.setattr(
         Investigador, "_default_sources", staticmethod(lambda config: fake_sources)
     )
-    monkeypatch.setattr("agente_ong.ui.jobs.is_ollama_available", lambda *a, **kw: False)
+    monkeypatch.setattr("agente_ong.ui.jobs.build_provider", lambda *a, **kw: None)
     # AppTest re-ejecuta app.py como script "fresco" en cada run (no reutiliza el módulo ya
     # importado agente_ong.ui.app): parchear agente_ong.ui.app.* no tiene efecto, porque
     # AppTest trabaja sobre su PROPIA copia del namespace del script, no sobre la de este
-    # test. Hay que parchear la FUENTE (agente_ong.llm.health.is_ollama_available) para que
-    # el `from ... import` de app.py, reevaluado en cada ejecución, recoja el mock.
-    monkeypatch.setattr("agente_ong.llm.health.is_ollama_available", lambda *a, **kw: False)
-    # _cached_ollama_available (T12) usa @st.cache_data: es una caché GLOBAL de proceso
-    # (TTL 30s) que sobrevive entre AppTest.run() de tests distintos dentro de esta misma
-    # sesión de pytest. Sin limpiarla, el resultado de un test anterior puede "filtrarse" a
-    # este, ignorando el monkeypatch de arriba.
+    # test. Hay que parchear la FUENTE (agente_ong.llm.config.is_ollama_available, usada
+    # internamente por build_provider/describe_llm_status) para que el `from ... import` de
+    # app.py, reevaluado en cada ejecución, recoja el mock — agente_ong.llm.config SÍ es un
+    # módulo persistente (no se re-ejecuta como "script"), así que este único parche basta.
+    monkeypatch.setattr("agente_ong.llm.config.is_ollama_available", lambda *a, **kw: False)
+    # _cached_llm_display_status (T5d, sustituye a _cached_ollama_available de T12) usa
+    # @st.cache_data: es una caché GLOBAL de proceso (TTL 30s) que sobrevive entre
+    # AppTest.run() de tests distintos dentro de esta misma sesión de pytest. Sin limpiarla,
+    # el resultado de un test anterior puede "filtrarse" a este, ignorando el monkeypatch de
+    # arriba.
     st.cache_data.clear()
     app_module._job_manager.clear()
 
@@ -188,25 +194,45 @@ def test_research_flow_renders_sorted_report(app: AppTest, fake_sources: list) -
     assert len(app.get("download_button")) == 2
 
 
-# --- Warning de sidebar cuando Ollama no está disponible (R7.6, T12) ---
+# --- Aviso de sidebar según el estado del LLM configurado (R7.6/R7.7, T12/T5d) ---
 
 
 def test_sidebar_warns_when_ollama_unavailable(app: AppTest) -> None:
-    """El fixture `app` ya mockea `agente_ong.llm.health.is_ollama_available` a False."""
+    """El fixture `app` ya mockea `agente_ong.llm.config.is_ollama_available` a False;
+    sin `LLM_PROVIDER` en el entorno (default `ollama`), el mensaje combina el aviso de
+    default con el de indisponibilidad — sigue siendo `st.sidebar.warning` (alarma)."""
     app.run()
     assert not app.exception
 
     warnings = " ".join(str(w.value) for w in app.warning)
-    assert "Ollama" in warnings
+    assert "ollama" in warnings and "no responde" in warnings
 
 
-def test_sidebar_does_not_warn_when_ollama_available(
+def test_sidebar_shows_info_when_provider_available_but_not_configured(
     app: AppTest, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("agente_ong.llm.health.is_ollama_available", lambda *a, **kw: True)
+    """Sin `LLM_PROVIDER` en el entorno pero con el proveedor por defecto disponible: aviso
+    puramente informativo (`st.sidebar.info`), no una alarma — criterio acordado con Kike
+    (23-07-2026): el único caso con mensaje pese a proveedor disponible no es un error."""
+    monkeypatch.setattr("agente_ong.llm.config.is_ollama_available", lambda *a, **kw: True)
 
     app.run()
     assert not app.exception
 
     warnings = " ".join(str(w.value) for w in app.warning)
-    assert "Ollama" not in warnings
+    assert "Ollama" not in warnings and "ollama" not in warnings
+
+    infos = " ".join(str(i.value) for i in app.info)
+    assert "LLM_PROVIDER" in infos and "ollama" in infos
+
+
+def test_sidebar_warns_when_llm_provider_disabled(
+    app: AppTest, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("LLM_PROVIDER", "disabled")
+
+    app.run()
+    assert not app.exception
+
+    warnings = " ".join(str(w.value) for w in app.warning)
+    assert "desactivado" in warnings

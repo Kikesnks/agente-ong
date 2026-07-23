@@ -582,6 +582,44 @@ por `result_type` (no extraer si `documento_informativo`, igual que ya se
 excluye por veredicto `"no"`), o (c) aceptar el gasto y documentarlo como
 conocido, sin cambiar código.
 
+## #32 — [CERRADA 23-07-2026] Asimetría de caché en T5d: `describe_llm_status` se consume dos veces con estrategias distintas
+
+**Fecha:** 23-07-2026.
+**Estado:** cerrada — decisión consciente, documentada para futuros mantenedores.
+**Origen:** implementación de T5d de `integracion-llm` (cableado real de
+`build_provider`/`describe_llm_status` en `ui/jobs.py`/`ui/app.py`).
+**Descripción:** `describe_llm_status(config) -> tuple[LLMProvider | None, str | None,
+bool]` (T5c) devuelve, entre otras cosas, un `LLMProvider` real — un recurso vivo
+(envuelve un cliente LangChain), no un dato serializable. `ui/jobs.py::_run_job_inner`
+y `ui/app.py::_warn_llm_unavailable` consumen esa función con estrategias
+DELIBERADAMENTE distintas, no por descuido:
+- `jobs.py` llama `build_provider(LLMConfig.from_env())` **sin caché**, fresco en cada
+  job, en su propio hilo — mismo patrón que ya usaba antes de T5 (nunca se cacheó el
+  provider real).
+- `app.py` cachea con `@st.cache_data(ttl=30)` una función nueva,
+  `_cached_llm_display_status() -> tuple[str | None, bool]`, que llama a
+  `describe_llm_status` mismo, pero **descarta el `LLMProvider`** y solo cachea
+  `(mensaje, es_alarma)` — ambos tipos primitivos, seguros de copiar/serializar.
+**Motivo del rechazo de la alternativa obvia:** cachear la tupla completa de
+`describe_llm_status` (incluido el `LLMProvider`) con `st.cache_data` habría sido
+cachear un RECURSO con la primitiva pensada para DATOS — `st.cache_data` copia
+(pickle/deepcopy) el valor en cada lectura; un cliente LangChain vivo puede fallar esa
+copia en tiempo de ejecución o duplicarse silenciosamente sin que nadie lo note. No se
+verificó en vivo (sin red real disponible en la sesión), así que se optó por la opción
+sin ese riesgo en vez de arriesgar un fallo de producción no detectable en tests con
+mocks. `st.cache_resource` habría evitado el problema de copia, pero habría dejado un
+`LLMProvider` vivo cacheado globalmente en el proceso solo para uso de display, sin
+necesidad funcional real (el sidebar nunca hace una llamada LLM).
+**Impacto:** ninguno negativo — el sidebar sigue mostrando el estado correcto con el
+mismo TTL 30s que ya tenía `_cached_ollama_available`; `jobs.py` no pierde nada porque
+nunca cacheó el provider. Coste: dos puntos de llamada a `is_ollama_available()` en
+lugar de compartir un único ping cacheado entre ambos módulos (si ambos se ejecutan
+dentro de la misma ventana de 30s, cada uno paga su propio ping) — aceptado, mismo
+orden de magnitud que ya existía (jobs.py nunca compartió caché con el sidebar).
+**Referencia:** `.claude/specs/integracion-llm/tasks.md` T5d;
+`src/agente_ong/ui/app.py::_cached_llm_display_status`;
+`src/agente_ong/ui/jobs.py::_run_job_inner`.
+
 ---
 
 ## Historial de decisiones cerradas (referencia rápida)
@@ -602,3 +640,4 @@ conocido, sin cambiar código.
 | #13 | Desaparición de Tavily con R24 — causa raíz eliminada por R25 | 16-07-2026 |
 | #14 | Falso positivo Canarias — filtro semántico en producción con DESCARTADOS | 16-07-2026 |
 | #17 | Limpieza vocabulario ODS de R24 — código muerto eliminado | 16-07-2026 |
+| #32 | Asimetría de caché en T5d: sidebar cachea solo mensaje, jobs.py provider fresco | 23-07-2026 |

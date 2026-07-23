@@ -211,86 +211,97 @@ def test_build_provider_never_raises_for_bogus_provider_values() -> None:
 def test_describe_llm_status_disabled() -> None:
     config = LLMConfig(provider="disabled")
 
-    provider, message = describe_llm_status(config)
+    provider, message, is_alarm = describe_llm_status(config)
 
     assert provider is None
     assert message == "filtro desactivado por configuración"
+    assert is_alarm is True
 
 
 def test_describe_llm_status_deepseek_without_key() -> None:
     config = LLMConfig(provider="deepseek", deepseek_api_key=None, provider_explicit=True)
 
-    provider, message = describe_llm_status(config)
+    provider, message, is_alarm = describe_llm_status(config)
 
     assert provider is None
     assert message == "`deepseek` configurado pero falta `DEEPSEEK_API_KEY`"
+    assert is_alarm is True
 
 
 def test_describe_llm_status_openai_without_key() -> None:
     config = LLMConfig(provider="openai", openai_api_key=None, provider_explicit=True)
 
-    provider, message = describe_llm_status(config)
+    provider, message, is_alarm = describe_llm_status(config)
 
     assert provider is None
     assert message == "`openai` configurado pero falta `OPENAI_API_KEY`"
+    assert is_alarm is True
 
 
 def test_describe_llm_status_ollama_unavailable() -> None:
     config = LLMConfig(provider="ollama", provider_explicit=True)
 
     with patch(_IS_OLLAMA_AVAILABLE, return_value=False):
-        provider, message = describe_llm_status(config)
+        provider, message, is_alarm = describe_llm_status(config)
 
     assert provider is None
     assert message == "`ollama` configurado pero no responde"
+    assert is_alarm is True
 
 
 def test_describe_llm_status_available_and_explicit_has_no_message() -> None:
     config = LLMConfig(provider="ollama", provider_explicit=True)
 
     with patch(_IS_OLLAMA_AVAILABLE, return_value=True), patch(_OLLAMA_PROVIDER):
-        provider, message = describe_llm_status(config)
+        provider, message, is_alarm = describe_llm_status(config)
 
     assert provider is not None
     assert message is None
+    assert is_alarm is False
 
 
 def test_describe_llm_status_default_fallback_available() -> None:
     """`LLM_PROVIDER` ausente pero el proveedor por defecto SÍ responde: mensaje
-    informativo siempre presente (única combinación con mensaje pese a disponible)."""
+    informativo siempre presente (única combinación con mensaje pese a disponible), y
+    la única que produce `is_alarm=False` con mensaje no vacío."""
     config = LLMConfig(provider="ollama", provider_explicit=False)
 
     with patch(_IS_OLLAMA_AVAILABLE, return_value=True), patch(_OLLAMA_PROVIDER):
-        provider, message = describe_llm_status(config)
+        provider, message, is_alarm = describe_llm_status(config)
 
     assert provider is not None
     assert message == "`LLM_PROVIDER` no definida, usando `ollama` por defecto"
+    assert is_alarm is False
 
 
 def test_describe_llm_status_default_fallback_unavailable_combines_reason() -> None:
+    """Mensaje combinado (default + inalcanzable): el texto combina ambos motivos, pero
+    `is_alarm` es `True` — "warning gana" sobre el aviso informativo puro."""
     config = LLMConfig(provider="ollama", provider_explicit=False)
 
     with patch(_IS_OLLAMA_AVAILABLE, return_value=False):
-        provider, message = describe_llm_status(config)
+        provider, message, is_alarm = describe_llm_status(config)
 
     assert provider is None
     assert message == (
         "`LLM_PROVIDER` no definida, usando `ollama` por defecto "
         "(`ollama` configurado pero no responde)"
     )
+    assert is_alarm is True
 
 
 def test_describe_llm_status_unrecognized_provider() -> None:
     """No es una de las 5 combinaciones de `design.md`, pero tampoco queda en silencio."""
     config = LLMConfig(provider="grok", provider_explicit=True)
 
-    provider, message = describe_llm_status(config)
+    provider, message, is_alarm = describe_llm_status(config)
 
     assert provider is None
     assert message == (
         "`grok` no es un proveedor reconocido "
         "(valores válidos: ollama, deepseek, openai, disabled)"
     )
+    assert is_alarm is True
 
 
 def test_describe_llm_status_provider_matches_build_provider_for_same_config() -> None:
@@ -298,7 +309,7 @@ def test_describe_llm_status_provider_matches_build_provider_for_same_config() -
 
     with patch(_OPENAI_COMPATIBLE_PROVIDER) as mock_provider:
         expected = build_provider(config)
-        provider, _ = describe_llm_status(config)
+        provider, _, _ = describe_llm_status(config)
 
     assert mock_provider.return_value is expected
     assert provider is expected

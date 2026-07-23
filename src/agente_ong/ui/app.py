@@ -23,7 +23,7 @@ import streamlit as st
 from streamlit.runtime.secrets import StreamlitSecretNotFoundError
 from streamlit_autorefresh import st_autorefresh
 
-from agente_ong.llm.health import is_ollama_available
+from agente_ong.llm.config import LLMConfig, describe_llm_status
 from agente_ong.research.config import DEFAULT_DB_PATH, ResearchConfig
 from agente_ong.research.ods_catalogo import load_ods_catalogo
 from agente_ong.ui import request_builder, uploads
@@ -121,29 +121,42 @@ def _warn_missing_keys(config: ResearchConfig) -> None:
 
 
 @st.cache_data(ttl=30)
-def _cached_ollama_available() -> bool:
-    """Cachea el ping a Ollama para no gastar 1s de HTTP en cada rerun de Streamlit (los
-    reruns son frecuentes: cada input, cada polling de st_autorefresh). TTL 30s: si Kk
-    arranca/para Ollama durante la sesión, el estado se refresca en menos de un minuto sin
-    necesidad de F5."""
-    return is_ollama_available()
+def _cached_llm_display_status() -> tuple[str | None, bool]:
+    """Cachea (mensaje, es_alarma) del estado del LLM — NUNCA el `LLMProvider` en sí.
+
+    `describe_llm_status` devuelve además un `LLMProvider | None` real (envuelve un
+    cliente LangChain vivo): eso es un RECURSO, no un DATO, y `st.cache_data` copia
+    (pickle/deepcopy) lo que cachea en cada lectura — la primitiva correcta para un
+    recurso vivo sería `st.cache_resource`, pero aquí ni siquiera hace falta: el sidebar
+    solo necesita el texto y si es alarma, nunca el provider (que `jobs.py` construye
+    fresco, sin caché, por cada job — ver `_run_job_inner`). Mismo TTL 30s y mismo motivo
+    que el `_cached_ollama_available` original: no gastar el ping HTTP de Ollama en cada
+    rerun de Streamlit (los reruns son frecuentes: cada input, cada polling de
+    `st_autorefresh`). Decisión documentada en `decisiones_pendientes.md` #32.
+    """
+    _, message, is_alarm = describe_llm_status(LLMConfig.from_env())
+    return message, is_alarm
 
 
 def _warn_llm_unavailable() -> None:
-    """Avisa en la sidebar (R7.6) si no hay Ollama disponible al arrancar/refrescar.
+    """Avisa en la sidebar (R7.6/R7.7) según el estado real del proveedor LLM configurado.
 
-    La investigación sigue funcionando sin filtro semántico (degradación silenciosa en
-    `enrich_report`, R7.3) — este warning es la contraparte visible: el usuario sabe por qué
-    no hay clasificación, en vez de descubrirlo por ausencia silenciosa (mismo principio que
-    `_warn_missing_keys`, commit 60c820b).
+    La investigación sigue funcionando sin filtro semántico si no hay proveedor usable
+    (degradación silenciosa en `enrich_report`, R7.3) — este aviso es la contraparte
+    visible: el usuario sabe por qué, en vez de descubrirlo por ausencia silenciosa
+    (mismo principio que `_warn_missing_keys`, commit `60c820b`). `is_alarm` decide el
+    estilo (criterio acordado con Kike, 23-07-2026): `st.sidebar.warning` para cualquier
+    motivo de mala configuración (`disabled`, sin clave, proveedor inalcanzable, valor no
+    reconocido); `st.sidebar.info` solo para el aviso puramente informativo de
+    `LLM_PROVIDER` no definida con el proveedor por defecto disponible.
     """
-    if not _cached_ollama_available():
-        st.sidebar.warning(
-            "⚠️ Ollama no está disponible. La investigación funcionará "
-            "sin filtro semántico: los resultados no se clasificarán "
-            "como relevantes/descartados. Arranca `ollama serve` para "
-            "activar el filtro."
-        )
+    message, is_alarm = _cached_llm_display_status()
+    if message is None:
+        return
+    if is_alarm:
+        st.sidebar.warning(f"⚠️ {message}")
+    else:
+        st.sidebar.info(f"ℹ️ {message}")
 
 
 def _create_project(

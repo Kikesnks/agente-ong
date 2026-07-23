@@ -174,7 +174,9 @@ def build_provider(config: LLMConfig) -> LLMProvider | None:
     return None
 
 
-def describe_llm_status(config: LLMConfig) -> tuple[LLMProvider | None, str | None]:
+def describe_llm_status(
+    config: LLMConfig,
+) -> tuple[LLMProvider | None, str | None, bool]:
     """Resuelve `config` (una única vez, vía `build_provider`) y añade el motivo legible.
 
     `build_provider` por sí solo no distingue, desde fuera, POR QUÉ el resultado es
@@ -182,42 +184,63 @@ def describe_llm_status(config: LLMConfig) -> tuple[LLMProvider | None, str | No
     sidebar (R7.7). El `LLMProvider` devuelto es siempre el mismo objeto que devolvería
     `build_provider(config)`: no hay una segunda lógica de resolución divergente.
 
+    Tercer valor devuelto, `is_alarm`: el consumidor (T5d, sidebar) NO debe reinterpretar
+    el texto del mensaje para decidir `st.sidebar.warning` vs. `st.sidebar.info` — esta
+    función ya lo decide, con el criterio acordado con Kike (23-07-2026): `True` para
+    cualquier motivo de mala configuración (`disabled`, sin clave, inalcanzable, valor no
+    reconocido); `False` solo para el aviso puramente informativo de
+    `provider_explicit=False` con proveedor disponible. Si ese aviso informativo se
+    combina con un motivo de alarma (proveedor por defecto Y además inalcanzable), gana
+    la alarma (`is_alarm=True`) — se conserva el valor ya calculado antes de combinar,
+    sin re-derivarlo del texto combinado.
+
     Cinco combinaciones de mensaje (ver `design.md`, bullet "Healthcheck del sidebar"):
-      - `provider == "disabled"` → "filtro desactivado por configuración".
-      - proveedor de pago sin su clave → nombra el proveedor y la variable ausente.
-      - `"ollama"` inalcanzable → nombra el proveedor.
+      - `provider == "disabled"` → "filtro desactivado por configuración" (alarma).
+      - proveedor de pago sin su clave → nombra proveedor y variable ausente (alarma).
+      - `"ollama"` inalcanzable → nombra el proveedor (alarma).
       - proveedor disponible con `provider_explicit=True` → `None` (sin aviso).
       - `provider_explicit=False` (sin `LLM_PROVIDER` en el entorno) → mensaje SIEMPRE
         presente, combinado con el motivo de indisponibilidad si además el proveedor no
-        responde — única combinación con mensaje pese a proveedor disponible.
+        responde (entonces alarma) — única combinación con mensaje pese a proveedor
+        disponible, y la única que puede ser informativa (`is_alarm=False`).
 
     Un valor de `provider` no reconocido no está entre las cinco combinaciones de
     `design.md` (que asume uno de los cuatro nombres válidos), pero tampoco se deja sin
-    diagnóstico: produce un sexto mensaje explícito en vez de silencio ante un typo de
-    configuración.
+    diagnóstico: produce un sexto mensaje explícito (alarma) en vez de silencio ante un
+    typo de configuración.
     """
     provider = build_provider(config)
 
     message: str | None
+    is_alarm: bool
     if config.provider == "disabled":
         message = "filtro desactivado por configuración"
+        is_alarm = True
     elif config.provider in _PAID_PROVIDER_PRESETS and provider is None:
         env_var = _PAID_PROVIDER_ENV_VARS[config.provider]
         message = f"`{config.provider}` configurado pero falta `{env_var}`"
+        is_alarm = True
     elif config.provider == "ollama" and provider is None:
         message = "`ollama` configurado pero no responde"
+        is_alarm = True
     elif provider is None:
         message = (
             f"`{config.provider}` no es un proveedor reconocido "
             "(valores válidos: ollama, deepseek, openai, disabled)"
         )
+        is_alarm = True
     else:
         message = None
+        is_alarm = False
 
     if not config.provider_explicit:
         default_notice = (
             f"`LLM_PROVIDER` no definida, usando `{config.provider}` por defecto"
         )
         message = f"{default_notice} ({message})" if message else default_notice
+        # is_alarm NO se toca aquí: si ya era True (motivo de alarma detectado arriba),
+        # sigue siendo True tras combinar el texto ("warning gana"); si era False
+        # (proveedor disponible, sin motivo de alarma), el mensaje combinado es
+        # puramente informativo.
 
-    return provider, message
+    return provider, message, is_alarm

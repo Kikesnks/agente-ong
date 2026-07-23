@@ -224,7 +224,7 @@ Orden de ejecución: T5a → T5b → T5c → T5d → T5e → T5f (cada una es un
   - Done: `pytest tests/llm/test_config.py -q` en verde con los 5 casos; el mensaje de
     cada combinación coincide literalmente con el descrito en `design.md`
 
-- [ ] 5d. Cableado en `ui/jobs.py` y `ui/app.py`
+- [x] 5d. Cableado en `ui/jobs.py` y `ui/app.py`
   - Files: `src/agente_ong/ui/jobs.py`, `src/agente_ong/ui/app.py`,
     `tests/ui/test_jobs.py`, `tests/ui/test_app_smoke.py`
   - `jobs.py`: en `_run_job_inner`, sustituir `OllamaProvider(model=_OLLAMA_MODEL) if

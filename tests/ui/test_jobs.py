@@ -27,11 +27,11 @@ _SELECTED_ODS: list[OdsEntry] = [{"numero": 1, "nombre": "Fin de la pobreza"}]
 
 
 @pytest.fixture(autouse=True)
-def _no_ollama_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Evita llamadas de red reales a un Ollama local en tests que no las necesitan (R7,
-    T11): por defecto `is_ollama_available()` se mockea a `False`; los tests del filtro
-    semántico la sobrescriben explícitamente."""
-    monkeypatch.setattr("agente_ong.ui.jobs.is_ollama_available", lambda *a, **kw: False)
+def _no_llm_provider_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Evita llamadas de red reales (Ollama local u otro proveedor) en tests que no las
+    necesitan (R7, T11; T5d): por defecto `build_provider(...)` se mockea a `None`; los
+    tests del filtro semántico la sobrescriben explícitamente."""
+    monkeypatch.setattr("agente_ong.ui.jobs.build_provider", lambda *a, **kw: None)
 
 
 def _opportunity(title_value: str) -> GrantOpportunity:
@@ -213,8 +213,7 @@ def test_run_job_with_ollama_available_persists_filter_verdicts(
         "https://example.org/discarded": "no",
         "https://example.org/unclassified": "no_clasificado_response",
     }
-    monkeypatch.setattr("agente_ong.ui.jobs.is_ollama_available", lambda *a, **kw: True)
-    monkeypatch.setattr("agente_ong.ui.jobs.OllamaProvider", lambda **kw: object())
+    monkeypatch.setattr("agente_ong.ui.jobs.build_provider", lambda *a, **kw: object())
     monkeypatch.setattr(
         "agente_ong.ui.jobs.enrich_report",
         lambda rep, provider: EnrichedReport(
@@ -247,7 +246,7 @@ def test_run_job_with_ollama_available_persists_filter_verdicts(
 def test_run_job_without_ollama_persists_report_unfiltered(
     db_path: Path, project_id: int
 ) -> None:
-    """`is_ollama_available()` mockeada a False por el fixture autouse: el job debe seguir
+    """`build_provider(...)` mockeada a `None` por el fixture autouse: el job debe seguir
     completando y persistiendo el informe intacto, sin clasificar (degradación silenciosa)."""
     report = ResearchReport(mode="calls", opportunities=[_opportunity("a")])
     fake = FakeInvestigador(report=report)

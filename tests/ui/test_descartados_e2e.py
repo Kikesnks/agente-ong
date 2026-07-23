@@ -166,8 +166,7 @@ def test_end_to_end_covers_all_four_discard_origins(
             _JSON_ALINEACION_VALIDA,  # informativo: también veredicto "si" (tarea 7 no filtra por result_type)
         ]
     )
-    monkeypatch.setattr("agente_ong.ui.jobs.is_ollama_available", lambda *a, **kw: True)
-    monkeypatch.setattr("agente_ong.ui.jobs.OllamaProvider", lambda **kw: provider)
+    monkeypatch.setattr("agente_ong.ui.jobs.build_provider", lambda *a, **kw: provider)
 
     manager, persisted = _submit_and_wait(db_path, project_id, report)
     try:
@@ -194,7 +193,7 @@ def test_end_to_end_covers_all_four_discard_origins(
 def test_end_to_end_without_ollama_still_discards_documento_informativo(
     db_path: Path, project_id: int, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("agente_ong.ui.jobs.is_ollama_available", lambda *a, **kw: False)
+    monkeypatch.setattr("agente_ong.ui.jobs.build_provider", lambda *a, **kw: None)
 
     active = _opportunity("activa")
     informativo = _opportunity("informativo", result_type="documento_informativo")
