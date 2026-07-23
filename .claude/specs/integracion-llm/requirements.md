@@ -58,8 +58,16 @@ posteriores (redactor, chat) una vez validada la infraestructura LLM en producci
 **Reapertura R7 (09-07-2026):** la capa de orquestación que cablea el filtro al pipeline
 (T9-T13) sigue exactamente este mismo principio — vive entera en `llm/`, consume un
 `ResearchReport` ya construido como entrada de solo lectura (nunca lo muta; produce una
-copia vía `dataclasses.replace` cuando hay que quitar oportunidades) y no añade ni un
-campo a `research/models.py` ni a `research/graph.py`. Ver R7.
+copia vía `dataclasses.replace` cuando hay que registrar el veredicto de cada
+oportunidad) y no añade ninguna LÓGICA de clasificación a `research/models.py` ni a
+`research/graph.py` — la clasificación sigue viviendo enteramente en `llm/`. Ver R7.
+
+**Corrección (23-07-2026), alineación con el código real:** `research/models.py` sí
+declara el TIPO `FilterVerdict` y el campo `ResearchReport.filter_verdicts` (añadidos
+por la spec `descartados-filtro`, posterior a esta reapertura) — `research/` conoce la
+FORMA del veredicto, no la lógica que lo calcula. Es un precedente anterior a la regla
+acordada más tarde en la tarea 3 de `alineacion-estrategica` ("ningún campo nuevo en
+`research/models.py`"); no se deshace, solo se documenta con precisión. Ver R7.2.
 
 ### Nota de numeración
 
@@ -111,16 +119,36 @@ Criterios de aceptación:
 
 **Evidencia:** `tech.md` y `structure.md`: "configurar el proveedor/modelo mediante
 variables de entorno; nunca hardcodear claves"; la UI de gestión de claves se pospone a
-SPEC 6.
+SPEC 6. Patrón ya validado en producción por `ResearchConfig.from_env()`/
+`tavily_api_key` (`research/config.py:124-169`, `ui/app.py::_sync_streamlit_secrets_to_env`,
+líneas 71-91), que esta configuración replica sin reinventarlo.
+
+**Alcance acordado con Kike (23-07-2026):** el adaptador Claude (T4b) sigue aplazado —
+el selector de proveedor de esta ronda no lo incluye. La elección de proveedor desde la
+UI por el usuario final queda fuera de alcance (SPEC 6). El `base_url` de cada proveedor
+de pago queda fuera de alcance como variable de entorno: son presets internos del código.
 
 Criterios de aceptación:
-- 3.1 El proveedor activo y el modelo concreto son seleccionables por configuración (sin
-  tocar código).
+- 3.1 El proveedor activo se selecciona mediante la variable de entorno `LLM_PROVIDER`,
+  con los valores humanos `ollama`, `deepseek`, `openai` o `disabled` — conjunto
+  ampliable a futuros proveedores sin romper compatibilidad hacia atrás. Sin tocar
+  código.
 - 3.2 Los parámetros del modelo (al menos temperatura) son configurables.
 - 3.3 Las claves de API se leen exclusivamente de variables de entorno; ninguna clave se
-  hardcodea ni se versiona.
-- 3.4 Cambiar de proveedor (p.ej. de Ollama a Claude) es un cambio de configuración
+  hardcodea ni se versiona. Cada proveedor tiene su propia variable dedicada: `ollama`
+  no requiere clave (proveedor local); `deepseek` lee `DEEPSEEK_API_KEY`; `openai` lee
+  `OPENAI_API_KEY`. El código puede leer todas las claves presentes en el entorno, pero
+  solo usa la del proveedor seleccionado por `LLM_PROVIDER` (3.1).
+- 3.4 Cambiar de proveedor (p.ej. de `ollama` a `deepseek`) es un cambio de configuración
   exclusivamente — cero cambios de código en los consumidores.
+- 3.5 El `base_url` y el modelo por defecto de cada proveedor de pago (`deepseek`,
+  `openai`) son presets internos del código, no configurables por variable de entorno en
+  este alcance — evita apuntar por error a un endpoint no verificado.
+- 3.6 El patrón de carga de configuración es idéntico al ya usado por
+  `ResearchConfig`/Tavily: sincronización de `st.secrets` a `os.environ` al arrancar la
+  UI (Streamlit Cloud, `_sync_streamlit_secrets_to_env`), `load_dotenv(..., override=False)`
+  dentro de `from_env()` (una variable ya presente en el proceso gana siempre sobre el
+  `.env`), y lectura final con `os.environ.get(...)`.
 
 ## R4 — Errores y reintentos
 
@@ -185,25 +213,46 @@ inalcanzable para el usuario final.
 Criterios de aceptación:
 - 7.1 Existe una función de detección de disponibilidad de Ollama
   (`is_ollama_available`) que nunca lanza una excepción — solo devuelve `True`/`False`.
-- 7.2 Una capa nueva en `llm/` (`EnrichedReport`/`enrich_report`) envuelve un
-  `ResearchReport` ya construido y produce una versión clasificada
-  (kept/discarded/unclassified) sin mutar el original ni ningún tipo de
-  `research/models.py`.
-- 7.3 Sin un proveedor LLM disponible, `enrich_report` degrada en silencio: el
-  `ResearchReport` original queda intacto en `base`, los buckets
-  `discarded`/`unclassified` quedan vacíos, y `semantic_filter_applied` es `False` — el
-  usuario obtiene el mismo resultado que antes de esta reapertura.
-- 7.4 Con un proveedor LLM disponible, cada oportunidad descartada o no clasificada por el
-  filtro sale de `base.opportunities` pero **no desaparece**: queda accesible en
-  `discarded`/`unclassified` del `EnrichedReport` — nunca se oculta ni se descarta
-  silenciosamente.
-- 7.5 Un fallo de clasificación (`LLMError`) en una oportunidad concreta la manda a
-  `unclassified` con aviso registrado (`logger.warning`), sin abortar la clasificación del
-  resto — mismo principio de aislamiento que R6.5/T8 y que `failed_sources` del
-  investigador.
+- 7.2 Una capa nueva en `llm/` (`EnrichedReport`/`enrich_report`, `llm/enrichment.py`)
+  envuelve un `ResearchReport` ya construido. `base.opportunities` conserva TODAS las
+  oportunidades tal cual las construyó el investigador (activas y descartadas, ninguna
+  se quita ni se muta); el veredicto de cada una se registra por URL normalizada en
+  `base.filter_verdicts` (`dict[str, FilterVerdict]`, campo de `ResearchReport` —
+  `research/models.py:249`, valores `"si"`/`"no"`/`"no_clasificado_provider"`/
+  `"no_clasificado_response"`). La separación entre activas y descartadas para
+  presentación es responsabilidad de la capa de UI
+  (`ui/report_serde.py::classify_for_display`/`partition_by_discard_status`, spec
+  `descartados-filtro`), no de `enrich_report`.
+- 7.3 Sin un proveedor LLM disponible o usable, `enrich_report` degrada en silencio.
+  Esto cubre explícitamente tres casos, todos resueltos a `provider=None` antes de
+  llegar a `enrich_report`: (a) `LLM_PROVIDER=disabled`; (b) el proveedor seleccionado
+  carece de la clave de API requerida (p.ej. `LLM_PROVIDER=deepseek` sin
+  `DEEPSEEK_API_KEY`); (c) el proveedor seleccionado está configurado pero no responde
+  (p.ej. Ollama sin servidor local activo). En cualquiera de los tres, el
+  `ResearchReport` original queda intacto en `base`, y `semantic_filter_applied` es
+  `False` — el usuario obtiene el mismo resultado que si el filtro no existiera.
+- 7.4 Con un proveedor LLM disponible, ninguna oportunidad sale de `base.opportunities`:
+  activas y descartadas conviven en la misma lista, exactamente como las construyó el
+  investigador. Lo que cambia es `base.filter_verdicts`, poblado con el veredicto de
+  cada una. Ninguna oportunidad descartada se oculta o se pierde: la capa de
+  presentación la muestra en la sección "Descartados" con su motivo etiquetado
+  (`DISCARD_LABELS`, `ui/report_serde.py:43-48`) — nunca se descarta silenciosamente.
+- 7.5 Un fallo de clasificación (`LLMError`) en una oportunidad concreta le asigna el
+  veredicto `"no_clasificado_provider"` (distinto de `"no_clasificado_response"`,
+  reservado a una respuesta del LLM no interpretable como SI/NO — ver R6.4) con aviso
+  registrado (`logger.warning`, `llm/filter_report.py:52-57`), sin abortar la
+  clasificación del resto — mismo principio de aislamiento que R6.5/T8 y que
+  `failed_sources` del investigador.
 - 7.6 La UI muestra un aviso persistente si no hay LLM disponible al arrancar, con la
   misma mecánica que los avisos de claves ausentes (`_warn_missing_keys`, commit
   `60c820b`).
+- 7.7 El aviso de disponibilidad de LLM (7.6) identifica el proveedor configurado por
+  `LLM_PROVIDER` y su estado real — nunca asume "Ollama" como único caso. Si
+  `LLM_PROVIDER=disabled`, el aviso indica que el filtro semántico está desactivado por
+  configuración (decisión explícita, no un fallo) en vez de "no hay LLM disponible". Si
+  el proveedor seleccionado carece de su clave o no responde, el aviso nombra el
+  proveedor y la causa concreta (clave ausente vs. proveedor inalcanzable), en vez de un
+  mensaje genérico.
 
 ---
 
@@ -218,9 +267,16 @@ Criterios de aceptación:
 
 ## Decisiones tomadas (09-07-2026, Kike — reapertura R7)
 
-- **Opción C confirmada:** el filtro semántico NO se integra en `research/`. La decisión
-  #8 (Opción B, T8) queda intacta. Se añade una capa nueva de orquestación EXTERNA a
-  `research/` (`llm/enrichment.py`) que envuelve el `ResearchReport` con clasificación
-  semántica opcional, en vez del nodo `semantic_filter` dentro de `research/graph.py`
-  propuesto inicialmente.
+- **Opción C confirmada:** la LÓGICA del filtro semántico NO se integra en `research/`.
+  La decisión #8 (Opción B, T8) queda intacta para la lógica de clasificación. Se añade
+  una capa nueva de orquestación EXTERNA a `research/` (`llm/enrichment.py`) que envuelve
+  el `ResearchReport` con clasificación semántica opcional, en vez del nodo
+  `semantic_filter` dentro de `research/graph.py` propuesto inicialmente.
 - **Nombre del módulo:** `src/agente_ong/llm/enrichment.py` (cerrado, no queda abierto).
+- **Corrección (23-07-2026), alineación con el código real:** la spec `descartados-filtro`
+  (posterior a esta reapertura) añadió el TIPO `FilterVerdict` y el campo
+  `ResearchReport.filter_verdicts` directamente en `research/models.py` — precedente
+  anterior a la regla estricta de "ningún campo nuevo en `research/models.py`" acordada
+  después en la tarea 3 de `alineacion-estrategica`. Matiz vigente: `research/` conoce el
+  TIPO del veredicto (dato), no la LÓGICA que lo calcula (que sigue en `llm/`). No se
+  deshace el precedente, solo se documenta con precisión. Ver R7.2.
