@@ -1,4 +1,4 @@
-"""Configuración multi-proveedor del módulo LLM (T5a, reapertura 23-07-2026).
+"""Configuración multi-proveedor del módulo LLM (T5a/T5b, reapertura 23-07-2026).
 
 `LLMConfig` selecciona el proveedor activo (`ollama` | `deepseek` | `openai` |
 `disabled`) por variable de entorno (`LLM_PROVIDER`), sin exponer `base_url` ni modelo
@@ -8,10 +8,11 @@ código (`_PAID_PROVIDER_PRESETS`), fuera de alcance como configuración en esta
 clave; `deepseek`/`openai` leen su propia variable dedicada (`DEEPSEEK_API_KEY`/
 `OPENAI_API_KEY`).
 
-Esta tarea (T5a) cubre solo `LLMConfig`/`from_env()` y los presets. La resolución a un
-`LLMProvider` real (`build_provider`) y el mensaje del sidebar (`describe_llm_status`)
-son T5b/T5c, en tareas separadas — este módulo no importa nada de `llm/adapters/` ni de
-`llm/health.py`.
+`build_provider` (T5b) es el único punto del código, fuera de los propios adaptadores,
+que conoce los cuatro nombres de proveedor: resuelve `LLMConfig` a un `LLMProvider` real
+o a `None` (fallback silencioso completo, R7.3 — `disabled`, sin clave o no disponible
+se comportan todos igual para el consumidor). El mensaje del sidebar
+(`describe_llm_status`) es T5c, en tarea separada.
 """
 
 from __future__ import annotations
@@ -20,6 +21,11 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
+
+from agente_ong.llm.adapters.ollama import OllamaProvider
+from agente_ong.llm.adapters.openai_compatible import OpenAICompatibleProvider
+from agente_ong.llm.health import is_ollama_available
+from agente_ong.llm.provider import LLMProvider
 
 # Proveedores válidos (R3.1 de requirements.md); Claude queda fuera de este alcance
 # (T4b sigue aplazada, sin clave Anthropic). `build_provider` (T5b) es quien valida si
@@ -115,3 +121,46 @@ class LLMConfig:
             deepseek_api_key=os.environ.get("DEEPSEEK_API_KEY"),
             openai_api_key=os.environ.get("OPENAI_API_KEY"),
         )
+
+
+def build_provider(config: LLMConfig) -> LLMProvider | None:
+    """Resuelve `config` a un `LLMProvider` real, o a `None` si no hay uno usable.
+
+    Sin excepciones: ninguna rama propaga un fallo crudo al consumidor. Las tres
+    situaciones siguientes son indistinguibles desde fuera — todas devuelven `None`
+    (fallback silencioso completo, R7.3): `provider == "disabled"`, el proveedor
+    seleccionado carece de la clave de API requerida, o el proveedor seleccionado no
+    responde (hoy solo aplica a `"ollama"`, vía `is_ollama_available`). Un valor de
+    `provider` no reconocido (ni `"ollama"`, ni una clave de `_PAID_PROVIDER_PRESETS`,
+    ni `"disabled"`) también devuelve `None`, nunca lanza.
+
+    Único punto del código, fuera de los propios adaptadores, que conoce los cuatro
+    nombres de proveedor (ver docstring del módulo).
+    """
+    if config.provider == "disabled":
+        return None
+
+    if config.provider == "ollama":
+        if not is_ollama_available():
+            return None
+        return OllamaProvider(model=_OLLAMA_MODEL_PRESET)
+
+    if config.provider in _PAID_PROVIDER_PRESETS:
+        api_key = (
+            config.deepseek_api_key
+            if config.provider == "deepseek"
+            else config.openai_api_key
+        )
+        if not api_key:
+            return None
+        base_url, model = _PAID_PROVIDER_PRESETS[config.provider]
+        return OpenAICompatibleProvider(
+            model=model,
+            base_url=base_url,
+            api_key=api_key,
+            temperature=config.temperature,
+        )
+
+    # Valor de provider no reconocido (ni ollama, ni un preset de pago, ni disabled):
+    # nunca excepción, mismo principio de "nunca lanza" que is_ollama_available.
+    return None

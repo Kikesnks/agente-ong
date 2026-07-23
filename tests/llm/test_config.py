@@ -1,14 +1,14 @@
-"""Tests de `LLMConfig`/`from_env()` (T5a de integracion-llm, reapertura 23-07-2026).
+"""Tests de `LLMConfig`/`from_env()`/`build_provider` (T5a/T5b de integracion-llm,
+reapertura 23-07-2026).
 
-`build_provider`/`describe_llm_status` (T5b/T5c) no existen todavía en este módulo —
-aquí solo se cubre la construcción de la configuración desde variables de entorno.
+`describe_llm_status` (T5c) no existe todavía en este módulo.
 """
 
 from __future__ import annotations
 
 from unittest.mock import patch
 
-from agente_ong.llm.config import LLMConfig
+from agente_ong.llm.config import LLMConfig, build_provider
 
 
 def test_llm_config_defaults() -> None:
@@ -102,3 +102,106 @@ def test_from_env_prefers_os_environ_over_dotenv_file(monkeypatch) -> None:
     assert mock_load_dotenv.call_args.kwargs.get("override") is False
     assert config.provider == "openai"
     assert config.provider_explicit is True
+
+
+# --- build_provider (T5b) ---
+
+_IS_OLLAMA_AVAILABLE = "agente_ong.llm.config.is_ollama_available"
+_OLLAMA_PROVIDER = "agente_ong.llm.config.OllamaProvider"
+_OPENAI_COMPATIBLE_PROVIDER = "agente_ong.llm.config.OpenAICompatibleProvider"
+
+
+def test_build_provider_disabled_returns_none() -> None:
+    config = LLMConfig(provider="disabled")
+
+    assert build_provider(config) is None
+
+
+def test_build_provider_ollama_available_returns_ollama_provider() -> None:
+    config = LLMConfig(provider="ollama")
+
+    with patch(_IS_OLLAMA_AVAILABLE, return_value=True), patch(
+        _OLLAMA_PROVIDER
+    ) as mock_ollama_provider:
+        result = build_provider(config)
+
+    mock_ollama_provider.assert_called_once_with(model="qwen2.5:7b")
+    assert result is mock_ollama_provider.return_value
+
+
+def test_build_provider_ollama_not_available_returns_none() -> None:
+    config = LLMConfig(provider="ollama")
+
+    with patch(_IS_OLLAMA_AVAILABLE, return_value=False), patch(
+        _OLLAMA_PROVIDER
+    ) as mock_ollama_provider:
+        result = build_provider(config)
+
+    assert result is None
+    mock_ollama_provider.assert_not_called()
+
+
+def test_build_provider_deepseek_with_key_returns_openai_compatible_provider() -> None:
+    config = LLMConfig(
+        provider="deepseek", deepseek_api_key="sk-deepseek-test", temperature=0.3
+    )
+
+    with patch(_OPENAI_COMPATIBLE_PROVIDER) as mock_provider:
+        result = build_provider(config)
+
+    mock_provider.assert_called_once_with(
+        model="deepseek-chat",
+        base_url="https://api.deepseek.com",
+        api_key="sk-deepseek-test",
+        temperature=0.3,
+    )
+    assert result is mock_provider.return_value
+
+
+def test_build_provider_deepseek_without_key_returns_none() -> None:
+    config = LLMConfig(provider="deepseek", deepseek_api_key=None)
+
+    with patch(_OPENAI_COMPATIBLE_PROVIDER) as mock_provider:
+        result = build_provider(config)
+
+    assert result is None
+    mock_provider.assert_not_called()
+
+
+def test_build_provider_openai_with_key_returns_openai_compatible_provider() -> None:
+    config = LLMConfig(
+        provider="openai", openai_api_key="sk-openai-test", temperature=0.0
+    )
+
+    with patch(_OPENAI_COMPATIBLE_PROVIDER) as mock_provider:
+        result = build_provider(config)
+
+    mock_provider.assert_called_once_with(
+        model="gpt-4o-mini",
+        base_url="https://api.openai.com/v1",
+        api_key="sk-openai-test",
+        temperature=0.0,
+    )
+    assert result is mock_provider.return_value
+
+
+def test_build_provider_openai_without_key_returns_none() -> None:
+    config = LLMConfig(provider="openai", openai_api_key=None)
+
+    with patch(_OPENAI_COMPATIBLE_PROVIDER) as mock_provider:
+        result = build_provider(config)
+
+    assert result is None
+    mock_provider.assert_not_called()
+
+
+def test_build_provider_unrecognized_provider_returns_none() -> None:
+    config = LLMConfig(provider="grok")
+
+    assert build_provider(config) is None
+
+
+def test_build_provider_never_raises_for_bogus_provider_values() -> None:
+    for bogus in ("", "claude", "OLLAMA", " ollama", "Deepseek"):
+        config = LLMConfig(provider=bogus)
+        assert build_provider(config) is None

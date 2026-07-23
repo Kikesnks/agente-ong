@@ -170,7 +170,7 @@ Orden de ejecución: T5a → T5b → T5c → T5d → T5e → T5f (cada una es un
     `LLMConfig`/`from_env()` no importan ningún adaptador de `llm/adapters/` (solo T5b
     los conoce)
 
-- [ ] 5b. `build_provider()` en `llm/config.py`
+- [x] 5b. `build_provider()` en `llm/config.py`
   - Files: `src/agente_ong/llm/config.py` (continúa de T5a), `tests/llm/test_config.py`
     (continúa de T5a)
   - `build_provider(config: LLMConfig) -> LLMProvider | None`: sin excepciones, resuelve
