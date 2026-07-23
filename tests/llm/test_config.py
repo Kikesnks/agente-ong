@@ -118,14 +118,14 @@ def test_build_provider_disabled_returns_none() -> None:
 
 
 def test_build_provider_ollama_available_returns_ollama_provider() -> None:
-    config = LLMConfig(provider="ollama")
+    config = LLMConfig(provider="ollama", temperature=0.5)
 
     with patch(_IS_OLLAMA_AVAILABLE, return_value=True), patch(
         _OLLAMA_PROVIDER
     ) as mock_ollama_provider:
         result = build_provider(config)
 
-    mock_ollama_provider.assert_called_once_with(model="qwen2.5:7b")
+    mock_ollama_provider.assert_called_once_with(model="qwen2.5:7b", temperature=0.5)
     assert result is mock_ollama_provider.return_value
 
 

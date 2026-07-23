@@ -143,7 +143,7 @@ def build_provider(config: LLMConfig) -> LLMProvider | None:
     if config.provider == "ollama":
         if not is_ollama_available():
             return None
-        return OllamaProvider(model=_OLLAMA_MODEL_PRESET)
+        return OllamaProvider(model=_OLLAMA_MODEL_PRESET, temperature=config.temperature)
 
     if config.provider in _PAID_PROVIDER_PRESETS:
         api_key = (
