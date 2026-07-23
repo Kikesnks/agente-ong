@@ -134,7 +134,7 @@ Claude/OpenAI) se divide en seis subtareas atómicas — T5a-T5f — para desblo
 Orden de ejecución: T5a → T5b → T5c → T5d → T5e → T5f (cada una es un commit propio,
 `feat:`/`test:`).*
 
-- [ ] 5a. `LLMConfig` + `from_env()` + presets internos en `llm/config.py`
+- [x] 5a. `LLMConfig` + `from_env()` + presets internos en `llm/config.py`
   - Files: `src/agente_ong/llm/config.py` (nuevo), `tests/llm/test_config.py` (nuevo)
   - `LLMConfig` (`dataclass`): `provider: Literal["ollama", "deepseek", "openai",
     "disabled"]`, `provider_explicit: bool`, `temperature: float = 0.0`,
