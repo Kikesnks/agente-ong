@@ -66,22 +66,72 @@ investigador, y en particular no altera `R20` de `investigador-v2` (`result_type
 ### R3 — Configuración
 
 **Dónde:** módulo nuevo `src/agente_ong/llm/config.py`, mismo patrón que
-`research/config.py` (`dataclass` + `from_env()`).
+`research/config.py` (`dataclass` + `from_env()`). Alcance ampliado 23-07-2026 (ver
+`requirements.md` R3, commit `58ccd1f`): T5 se desbloquea con selección multi-proveedor
+por entorno, sin esperar a Claude (T4b sigue aplazada).
 
-- `LLMConfig` (`dataclass`): `provider: Literal["claude", "openai", "ollama"]`,
-  `model: str`, `temperature: float = 0.0` (determinismo por defecto, apropiado para el
-  filtro SI/NO de R6), claves de API por proveedor (`anthropic_api_key`, `openai_api_key`;
-  Ollama sin clave).
-- `LLMConfig.from_env()` lee `LLM_PROVIDER`, `LLM_MODEL`, `LLM_TEMPERATURE`,
-  `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` (mismas convenciones de nombre que
-  `ResearchConfig.from_env()` en `research/config.py`: prefijo del dominio + `_env_int`/
-  variante float reutilizable).
-- Una función `build_provider(config: LLMConfig) -> LLMProvider` (fábrica simple) resuelve
-  qué adaptador instanciar según `config.provider` — es el único punto del código, fuera de
-  los propios adaptadores, que conoce los tres nombres de proveedor; los consumidores
-  (filtro, y en el futuro chat/redactor) reciben ya un `LLMProvider` inyectado y nunca
-  llaman a `build_provider` ellos mismos salvo en el punto de composición (wiring de la
-  UI/CLI), igual que `investigador.py` construye las `SearchSource` concretas.
+- `LLMConfig` (`dataclass`): `provider: Literal["ollama", "deepseek", "openai",
+  "disabled"]`, `provider_explicit: bool` (`True` si `LLM_PROVIDER` estaba definida en
+  el entorno; `False` si no estaba y se usó el default — ver más abajo), `temperature:
+  float = 0.0` (determinismo por defecto, apropiado para el filtro SI/NO de R6),
+  `deepseek_api_key: str | None = None`, `openai_api_key: str | None = None` (Ollama no
+  lleva campo de clave: no la requiere, R3.3). Sin campo `model`: el modelo y el
+  `base_url` de cada proveedor de pago son presets internos del código (ver bullet de
+  presets, más abajo), no parte de `LLMConfig`.
+- `LLMConfig.from_env()` lee `LLM_PROVIDER`, `LLM_TEMPERATURE`, `DEEPSEEK_API_KEY`,
+  `OPENAI_API_KEY` (mismo patrón que `ResearchConfig.from_env()`:
+  `load_dotenv(env_path, override=False)` antes de leer, R3.6). Lee TODAS las claves
+  presentes en el entorno (R3.3) sin validar que la del proveedor seleccionado exista —
+  esa comprobación vive en `build_provider`, no en la construcción de `LLMConfig`
+  (mismo principio que `ResearchConfig`: una clave ausente no rompe la construcción,
+  solo el uso). Si `LLM_PROVIDER` no está definida: `provider = "ollama"`,
+  `provider_explicit = False` — preserva el comportamiento actual (`jobs.py:182` intenta
+  Ollama incondicionalmente hoy, sin ninguna variable de por medio). Si está definida
+  (a cualquier valor, válido o no): `provider_explicit = True`. **Confirmado con Kike
+  (23-07-2026).**
+- **Presets internos por proveedor de pago:** un diccionario privado en `config.py`
+  (p. ej. `_PAID_PROVIDER_PRESETS: dict[str, tuple[str, str]]`, clave = nombre de
+  proveedor, valor = `(base_url, model)`) para `deepseek` y `openai`. Sin variable de
+  entorno equivalente a `LLM_BASE_URL`/`LLM_MODEL` (fuera de alcance). Los valores
+  concretos se fijan en `tasks.md` al implementar; la verificación en vivo contra
+  DeepSeek queda como paso manual posterior, fuera de esta ronda (mismo principio de
+  verificación que T3/T4a).
+- `build_provider(config: LLMConfig) -> LLMProvider | None` — **cambio de firma
+  respecto al diseño original:** ya no devuelve siempre un `LLMProvider`, puede devolver
+  `None`. Fábrica única, sin excepciones, que resuelve el fallback silencioso completo
+  (R7.3):
+  - `config.provider == "disabled"` → `None`.
+  - `config.provider == "ollama"` → `None` si `is_ollama_available()` es `False`; si no,
+    `OllamaProvider(model=...)` (mismo preset ya usado hoy en `jobs.py::_OLLAMA_MODEL`).
+  - `config.provider in ("deepseek", "openai")` → `None` si falta la clave
+    correspondiente; si no, `OpenAICompatibleProvider` con el preset de
+    `base_url`/`model` de ese proveedor y la clave leída.
+  - Cualquier valor de `provider` no reconocido → `None` (nunca excepción — mismo
+    principio de "nunca lanza" que `is_ollama_available`).
+  Es el único punto del código, fuera de los propios adaptadores, que conoce los cuatro
+  nombres de proveedor; sustituye directamente el hardcodeo de `OllamaProvider(model=
+  _OLLAMA_MODEL) if is_ollama_available() else None` en `ui/jobs.py:182`.
+- **Healthcheck del sidebar (R7.7):** `build_provider` por sí solo no basta para el
+  aviso — el sidebar necesita saber el MOTIVO cuando el resultado es `None` (`disabled`
+  vs. sin clave vs. no disponible), y también cuándo `LLM_PROVIDER` ni siquiera estaba
+  definida, aunque el proveedor por defecto SÍ esté disponible. Nueva función
+  `describe_llm_status(config: LLMConfig) -> tuple[LLMProvider | None, str | None]` en
+  `config.py` (envuelve la misma resolución de `build_provider` y añade el mensaje
+  legible; decisión de implementación exacta — un solo cálculo o dos — para
+  `tasks.md`). El mensaje distingue cinco combinaciones:
+  - `disabled` → "filtro desactivado por configuración".
+  - proveedor de pago sin clave → "`deepseek` configurado pero falta
+    `DEEPSEEK_API_KEY`".
+  - proveedor inalcanzable → "`ollama` configurado pero no responde".
+  - proveedor disponible, con `LLM_PROVIDER` definida explícitamente
+    (`provider_explicit = True`) → mensaje `None`, sin aviso.
+  - `provider_explicit = False` (variable ausente, se usó el default) → mensaje
+    informativo SIEMPRE presente, tanto si `ollama` responde como si no:
+    "`LLM_PROVIDER` no definida, usando `ollama` por defecto" (combinado con el motivo
+    de indisponibilidad si además `ollama` no responde). Es la única combinación en la
+    que el sidebar muestra un mensaje aunque el proveedor SÍ esté disponible —
+    informativo, no de alarma (estilo visual distinto al warning de "no disponible";
+    decisión de UI para `tasks.md`).
 
 ### R4 — Errores y reintentos
 
@@ -208,12 +258,19 @@ cableado en `src/agente_ong/ui/jobs.py` y aviso en `src/agente_ong/ui/app.py`.
     `"no_clasificado"` (R7.5).
 - **Cableado (`ui/jobs.py`):** en `_run_job_inner`, tras `report =
   investigador.run(request, selected_ods)` y antes de persistir el resultado, se resuelve
-  `provider` (construcción condicional de `OllamaProvider` según `is_ollama_available()`)
+  `provider` con `build_provider(LLMConfig.from_env())` (R3, alcance ampliado
+  23-07-2026 — sustituye la construcción condicional `OllamaProvider(model=
+  _OLLAMA_MODEL) if is_ollama_available() else None` hardcodeada hoy en `jobs.py:182`)
   y se llama `enrich_report(report, provider)`. Qué se persiste exactamente
   (`ProjectStore`/`report_to_dict` hoy solo conocen `ResearchReport`, no `EnrichedReport`)
   se decide en T11 — ver "Decisiones pendientes".
-- **Aviso UI (`ui/app.py`):** mismo patrón que `_warn_missing_keys()` (commit `60c820b`):
-  un `st.sidebar.warning(...)` si `is_ollama_available()` es `False` al arrancar `main()`.
+- **Aviso UI (`ui/app.py`):** mismo patrón que `_warn_missing_keys()` (commit `60c820b`),
+  pero resuelto por `describe_llm_status(LLMConfig.from_env())` (R3/R7.7, alcance
+  ampliado 23-07-2026) en vez de `is_ollama_available()` directamente: un
+  `st.sidebar.warning(...)`/mensaje informativo con el texto que devuelva esa función,
+  si no es `None`, al arrancar `main()`. El mensaje ya identifica el proveedor y el
+  motivo (disabled, sin clave, no disponible, o default sin `LLM_PROVIDER` configurada)
+  — `app.py` solo decide el estilo (warning vs. informativo) según el caso.
 
 ## Estrategia de tests con mock
 
