@@ -126,23 +126,170 @@ testeable y especifica los archivos exactos.
 
 ### R3 — Configuración
 
-- [ ] 5. [APLAZADA — pendiente de claves API] LLMConfig + build_provider en llm/config.py
-  - Files: src/agente_ong/llm/config.py, tests/llm/test_config.py
-  - `LLMConfig` (`dataclass`): `provider: Literal["claude", "openai", "ollama"]`, `model:
-    str`, `temperature: float = 0.0`, `anthropic_api_key`/`openai_api_key: str | None`.
-    `LLMConfig.from_env()` lee `LLM_PROVIDER`, `LLM_MODEL`, `LLM_TEMPERATURE`,
-    `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` (mismo patrón que `ResearchConfig.from_env()`).
-    `build_provider(config: LLMConfig) -> LLMProvider`: resuelve el adaptador según
-    `config.provider`
-  - Tests: cambiar `LLM_PROVIDER` en el entorno hace que `build_provider` devuelva un
-    adaptador distinto sin tocar código; claves ausentes no rompen la construcción de
-    `LLMConfig` (solo fallarían al usar el proveedor); `from_env()` con variables no
-    definidas cae en los defaults
-  - Purpose: cambiar de proveedor es solo configuración (R3.4); las claves se leen del
-    entorno, nunca hardcodeadas
-  - _Leverage: src/agente_ong/research/config.py (patrón dataclass + from_env + _env_int),
-    src/agente_ong/llm/adapters/ (los adaptadores de las tareas 3, 4a y 4b)_
-  - _Requirements: 3.1, 3.2, 3.3, 3.4_
+*Reapertura 23-07-2026 (alcance en `requirements.md` R3/R7, commit `58ccd1f`; diseño en
+`design.md`, commit `9e80d6b`). La tarea 5 original (aplazada por falta de claves
+Claude/OpenAI) se divide en seis subtareas atómicas — T5a-T5f — para desbloquear
+`LLMConfig`/`build_provider` con selección multi-proveedor por entorno
+(`ollama`/`deepseek`/`openai`/`disabled`), sin esperar a Claude (T4b sigue aplazada).
+Orden de ejecución: T5a → T5b → T5c → T5d → T5e → T5f (cada una es un commit propio,
+`feat:`/`test:`).*
+
+- [ ] 5a. `LLMConfig` + `from_env()` + presets internos en `llm/config.py`
+  - Files: `src/agente_ong/llm/config.py` (nuevo), `tests/llm/test_config.py` (nuevo)
+  - `LLMConfig` (`dataclass`): `provider: Literal["ollama", "deepseek", "openai",
+    "disabled"]`, `provider_explicit: bool`, `temperature: float = 0.0`,
+    `deepseek_api_key: str | None = None`, `openai_api_key: str | None = None` (Ollama
+    sin campo de clave). `LLMConfig.from_env()`: `load_dotenv(env_path,
+    override=False)` (mismo patrón que `ResearchConfig.from_env()`, ajustando el número
+    de `parents[...]` según la profundidad real del archivo); lee `LLM_PROVIDER` (si
+    ausente: `provider="ollama"`, `provider_explicit=False`; si presente, a cualquier
+    valor: `provider_explicit=True`), `LLM_TEMPERATURE`, `DEEPSEEK_API_KEY`,
+    `OPENAI_API_KEY` — lee TODAS las claves presentes, sin validar cuál hace falta (esa
+    comprobación es de T5b). Dos presets privados: `_PAID_PROVIDER_PRESETS:
+    dict[str, tuple[str, str]]` (`base_url`, `model` para `deepseek`/`openai`; valores
+    exactos a fijar en esta tarea, sin verificación en vivo — ver nota de T5b) y
+    `_OLLAMA_MODEL_PRESET = "qwen2.5:7b"` (mismo valor que hoy `ui/jobs.py::_OLLAMA_MODEL`,
+    verificado en vivo en T3; T5d retira el duplicado de `jobs.py`)
+  - Tests: `from_env()` sin `LLM_PROVIDER` → `provider="ollama"`,
+    `provider_explicit=False`; con `LLM_PROVIDER=deepseek` → `provider="deepseek"`,
+    `provider_explicit=True`; con un valor no reconocido (p.ej. `LLM_PROVIDER=grok`) →
+    se guarda tal cual, `provider_explicit=True` (validar valores reconocidos es de
+    `build_provider`, T5b, no de `from_env`); claves ausentes
+    (`DEEPSEEK_API_KEY`/`OPENAI_API_KEY` no definidas) no rompen la construcción, quedan
+    `None`; `LLM_TEMPERATURE` no definida cae en el default `0.0`; una variable ya
+    presente en `os.environ` gana sobre el `.env` (`override=False`, mismo contrato que
+    `ResearchConfig`)
+  - Purpose: base de configuración multi-proveedor sin tocar código para cambiar de
+    proveedor (R3.1, R3.4); ninguna clave se hardcodea (R3.3); modelo/`base_url` de pago
+    quedan fuera del entorno, como presets internos (R3.5)
+  - _Leverage: `src/agente_ong/research/config.py` (patrón `dataclass` + `from_env()` +
+    `load_dotenv(env_path, override=False)`, líneas 124-169), `src/agente_ong/ui/jobs.py`
+    (`_OLLAMA_MODEL`, línea 44, valor a preservar como preset)_
+  - _Requirements: 3.1, 3.2, 3.3, 3.5, 3.6_
+  - Done: `pytest tests/llm/test_config.py -q` en verde con los casos descritos;
+    `LLMConfig`/`from_env()` no importan ningún adaptador de `llm/adapters/` (solo T5b
+    los conoce)
+
+- [ ] 5b. `build_provider()` en `llm/config.py`
+  - Files: `src/agente_ong/llm/config.py` (continúa de T5a), `tests/llm/test_config.py`
+    (continúa de T5a)
+  - `build_provider(config: LLMConfig) -> LLMProvider | None`: sin excepciones, resuelve
+    las 5 ramas — `"disabled"` → `None`; `"ollama"` → `None` si `is_ollama_available()`
+    es `False`, si no `OllamaProvider(model=_OLLAMA_MODEL_PRESET)`;
+    `"deepseek"`/`"openai"` → `None` si falta la clave correspondiente, si no
+    `OpenAICompatibleProvider` con el preset de `_PAID_PROVIDER_PRESETS[config.provider]`
+    (`base_url`, `model`) y la clave leída, más `temperature=config.temperature`;
+    cualquier valor de `provider` no reconocido → `None`. Es el único punto del código,
+    fuera de los adaptadores, que conoce los cuatro nombres de proveedor (R3, "Dónde")
+  - Tests: las 5 ramas, con `is_ollama_available` mockeado (sin red real) y las clases
+    `OllamaProvider`/`OpenAICompatibleProvider` mockeadas (verificar argumentos de
+    construcción, sin llamar a LangChain real): `disabled` → `None`; `ollama`
+    disponible → `OllamaProvider` con el preset; `ollama` no disponible → `None`;
+    `deepseek` con clave → `OpenAICompatibleProvider` con el preset de `deepseek`;
+    `deepseek` sin clave → `None`; `openai` con/sin clave → análogo; `provider="grok"`
+    (no reconocido) → `None`, sin excepción
+  - Purpose: fábrica única del fallback silencioso completo (R7.3): `disabled`,
+    proveedor sin clave y proveedor no disponible se comportan todos igual para el
+    consumidor — `provider=None`, degradación 100% silenciosa
+  - _Leverage: `src/agente_ong/llm/health.py::is_ollama_available` (T9, sin tocar),
+    `src/agente_ong/llm/adapters/ollama.py::OllamaProvider`,
+    `src/agente_ong/llm/adapters/openai_compatible.py::OpenAICompatibleProvider` (T3,
+    T4a, sin tocar)_
+  - _Requirements: 3.1, 3.4, 7.3_
+  - Done: `pytest tests/llm/test_config.py -q` en verde con las 7 combinaciones (5 ramas
+    + no reconocido + verificación de que ninguna rama propaga una excepción cruda)
+
+- [ ] 5c. `describe_llm_status()` en `llm/config.py`
+  - Files: `src/agente_ong/llm/config.py` (continúa de T5b), `tests/llm/test_config.py`
+    (continúa de T5b)
+  - `describe_llm_status(config: LLMConfig) -> tuple[LLMProvider | None, str | None]`:
+    envuelve `build_provider` (T5b, sin reimplementar la resolución) y añade el mensaje
+    legible. Cinco combinaciones: `disabled` → "filtro desactivado por configuración";
+    proveedor de pago sin clave → nombra proveedor y variable ausente (p.ej. "`deepseek`
+    configurado pero falta `DEEPSEEK_API_KEY`"); proveedor inalcanzable → nombra el
+    proveedor (p.ej. "`ollama` configurado pero no responde"); proveedor disponible con
+    `provider_explicit=True` → mensaje `None` (sin aviso); `provider_explicit=False`
+    (sin `LLM_PROVIDER` en el entorno) → mensaje SIEMPRE presente ("`LLM_PROVIDER` no
+    definida, usando `ollama` por defecto"), combinado con el motivo si además `ollama`
+    no responde — única combinación con mensaje pese a `provider` disponible
+  - Tests: las 5 combinaciones descritas en `design.md` (bullet "Healthcheck del
+    sidebar"), verificando el texto exacto de cada mensaje y que el `LLMProvider`
+    devuelto coincide con el de `build_provider` para el mismo `config` (misma
+    resolución, no una lógica divergente)
+  - Purpose: el sidebar (T5d) necesita el motivo del `None`, no solo el resultado — base
+    de R7.7
+  - _Leverage: `build_provider` (T5b, esta misma tarea la envuelve sin duplicar la
+    resolución)_
+  - _Requirements: 7.6, 7.7_
+  - Done: `pytest tests/llm/test_config.py -q` en verde con los 5 casos; el mensaje de
+    cada combinación coincide literalmente con el descrito en `design.md`
+
+- [ ] 5d. Cableado en `ui/jobs.py` y `ui/app.py`
+  - Files: `src/agente_ong/ui/jobs.py`, `src/agente_ong/ui/app.py`,
+    `tests/ui/test_jobs.py`, `tests/ui/test_app_smoke.py`
+  - `jobs.py`: en `_run_job_inner`, sustituir `OllamaProvider(model=_OLLAMA_MODEL) if
+    is_ollama_available() else None` (línea 182) por `build_provider(LLMConfig.
+    from_env())`; retirar `_OLLAMA_MODEL` (línea 44, duplicado ya cubierto por
+    `_OLLAMA_MODEL_PRESET` de T5a) y el import de `OllamaProvider` si queda huérfano.
+    `app.py`: `_warn_llm_unavailable` (líneas 132-146) pasa a resolver `provider,
+    message = describe_llm_status(LLMConfig.from_env())`; si `message` no es `None`,
+    `st.sidebar.warning(message)` para los casos de alarma (disabled/sin clave/no
+    disponible) — decidir en esta tarea si el caso informativo puro
+    (`provider_explicit=False` con proveedor disponible, T5c) usa el mismo
+    `st.sidebar.warning` o un `st.sidebar.info` distinto; `_cached_ollama_available`
+    (líneas 123-129) se sustituye por una versión cacheada equivalente de
+    `describe_llm_status` (mismo TTL 30s, mismo motivo: no gastar 1s de HTTP en cada
+    rerun)
+  - Tests: con `LLMConfig`/`build_provider` mockeados o con variables de entorno de
+    test: `jobs.py` inyecta el `LLMProvider` esperado según `LLM_PROVIDER` (3 proveedores
+    reales + `disabled`); smoke de `app.py` con cada una de las 5 combinaciones de
+    `describe_llm_status` mockeado, verificando que el sidebar muestra (o no) el mensaje
+    esperado
+  - Purpose: primer punto real donde T5 sustituye el hardcodeo — cierre de R3.4/R7.3/
+    R7.6/R7.7 en producción
+  - _Leverage: `src/agente_ong/llm/config.py` (T5a-T5c), patrón de
+    `_cached_ollama_available`/`_warn_llm_unavailable` ya existente en `app.py:123-146`_
+  - _Requirements: 3.4, 7.3, 7.6, 7.7_
+  - Done: `pytest tests/ui/test_jobs.py tests/ui/test_app_smoke.py -q` en verde; `grep
+    -rn "_OLLAMA_MODEL\b" src/agente_ong/ui/jobs.py` sin resultados (confirma retirada
+    del duplicado)
+
+- [ ] 5e. Verificar sincronización `st.secrets` → `os.environ` para las claves nuevas
+  - Files: `src/agente_ong/ui/app.py` (verificación, sin cambio esperado),
+    `tests/ui/test_app_smoke.py` (o test nuevo si conviene aislarlo)
+  - `_sync_streamlit_secrets_to_env` (`app.py:71-91`) copia CUALQUIER clave presente en
+    `st.secrets` a `os.environ` sin lista blanca (ya verificado por lectura de código en
+    esta sesión) — confirmar con test que `DEEPSEEK_API_KEY`/`OPENAI_API_KEY` entran por
+    el mismo mecanismo que `TAVILY_API_KEY`, sin tocar la función. Si se confirma que no
+    hace falta código nuevo, esta tarea es solo el test que lo prueba
+  - Tests: con `st.secrets` simulado conteniendo `DEEPSEEK_API_KEY`: tras
+    `_sync_streamlit_secrets_to_env()`, `os.environ["DEEPSEEK_API_KEY"]` queda poblada;
+    una variable ya presente en `os.environ` no se sobrescribe (contrato `if key not in
+    os.environ`, línea 88)
+  - Purpose: cerrar R3.6 con evidencia, no solo por lectura de código
+  - _Leverage: `src/agente_ong/ui/app.py::_sync_streamlit_secrets_to_env` (líneas
+    71-91, sin tocar si la verificación confirma que ya cubre el caso)_
+  - _Requirements: 3.6_
+  - Done: test nuevo o extendido en verde; si `_sync_streamlit_secrets_to_env`
+    necesitara un cambio (contra lo esperado), documentarlo en el commit — no se prevé,
+    pero no se fuerza el resultado
+
+- [ ] 5f. Documentar las variables nuevas en `.env.example`
+  - Files: `.env.example`
+  - Añadir, comentadas (mismo estilo que las variables opcionales ya presentes, líneas
+    17-56): `LLM_PROVIDER` (con los 4 valores válidos y el default `ollama` si se
+    omite), `LLM_TEMPERATURE`, `DEEPSEEK_API_KEY`, `OPENAI_API_KEY`. Nota explícita de
+    que NO existe `LLM_BASE_URL`/`LLM_MODEL` — el `base_url` y el modelo de los
+    proveedores de pago son presets internos del código, no configurables aquí
+  - Tests: ninguno — archivo de documentación, no código
+  - Purpose: que quien clone el repo sepa qué variables de LLM existen sin leer
+    `llm/config.py`
+  - _Leverage: `.env.example` (formato ya establecido: comentario explicativo + línea
+    comentada con el nombre y un valor de ejemplo)_
+  - _Requirements: 3.3, 3.5, 3.6_
+  - Done: `.env.example` incluye las 4 variables nuevas comentadas y la nota sobre
+    `LLM_BASE_URL`/`LLM_MODEL`; ningún valor de ejemplo funcional (mismo principio que
+    las entradas existentes, `tvly-tu_clave_aqui`/`fc-tu_clave_aqui`)
 
 ### R6 — Filtro semántico (Opción 1)
 
