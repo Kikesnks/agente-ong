@@ -1,14 +1,12 @@
-"""Tests de `LLMConfig`/`from_env()`/`build_provider` (T5a/T5b de integracion-llm,
-reapertura 23-07-2026).
-
-`describe_llm_status` (T5c) no existe todavía en este módulo.
+"""Tests de `LLMConfig`/`from_env()`/`build_provider`/`describe_llm_status` (T5a-T5c de
+integracion-llm, reapertura 23-07-2026).
 """
 
 from __future__ import annotations
 
 from unittest.mock import patch
 
-from agente_ong.llm.config import LLMConfig, build_provider
+from agente_ong.llm.config import LLMConfig, build_provider, describe_llm_status
 
 
 def test_llm_config_defaults() -> None:
@@ -205,3 +203,102 @@ def test_build_provider_never_raises_for_bogus_provider_values() -> None:
     for bogus in ("", "claude", "OLLAMA", " ollama", "Deepseek"):
         config = LLMConfig(provider=bogus)
         assert build_provider(config) is None
+
+
+# --- describe_llm_status (T5c) ---
+
+
+def test_describe_llm_status_disabled() -> None:
+    config = LLMConfig(provider="disabled")
+
+    provider, message = describe_llm_status(config)
+
+    assert provider is None
+    assert message == "filtro desactivado por configuración"
+
+
+def test_describe_llm_status_deepseek_without_key() -> None:
+    config = LLMConfig(provider="deepseek", deepseek_api_key=None, provider_explicit=True)
+
+    provider, message = describe_llm_status(config)
+
+    assert provider is None
+    assert message == "`deepseek` configurado pero falta `DEEPSEEK_API_KEY`"
+
+
+def test_describe_llm_status_openai_without_key() -> None:
+    config = LLMConfig(provider="openai", openai_api_key=None, provider_explicit=True)
+
+    provider, message = describe_llm_status(config)
+
+    assert provider is None
+    assert message == "`openai` configurado pero falta `OPENAI_API_KEY`"
+
+
+def test_describe_llm_status_ollama_unavailable() -> None:
+    config = LLMConfig(provider="ollama", provider_explicit=True)
+
+    with patch(_IS_OLLAMA_AVAILABLE, return_value=False):
+        provider, message = describe_llm_status(config)
+
+    assert provider is None
+    assert message == "`ollama` configurado pero no responde"
+
+
+def test_describe_llm_status_available_and_explicit_has_no_message() -> None:
+    config = LLMConfig(provider="ollama", provider_explicit=True)
+
+    with patch(_IS_OLLAMA_AVAILABLE, return_value=True), patch(_OLLAMA_PROVIDER):
+        provider, message = describe_llm_status(config)
+
+    assert provider is not None
+    assert message is None
+
+
+def test_describe_llm_status_default_fallback_available() -> None:
+    """`LLM_PROVIDER` ausente pero el proveedor por defecto SÍ responde: mensaje
+    informativo siempre presente (única combinación con mensaje pese a disponible)."""
+    config = LLMConfig(provider="ollama", provider_explicit=False)
+
+    with patch(_IS_OLLAMA_AVAILABLE, return_value=True), patch(_OLLAMA_PROVIDER):
+        provider, message = describe_llm_status(config)
+
+    assert provider is not None
+    assert message == "`LLM_PROVIDER` no definida, usando `ollama` por defecto"
+
+
+def test_describe_llm_status_default_fallback_unavailable_combines_reason() -> None:
+    config = LLMConfig(provider="ollama", provider_explicit=False)
+
+    with patch(_IS_OLLAMA_AVAILABLE, return_value=False):
+        provider, message = describe_llm_status(config)
+
+    assert provider is None
+    assert message == (
+        "`LLM_PROVIDER` no definida, usando `ollama` por defecto "
+        "(`ollama` configurado pero no responde)"
+    )
+
+
+def test_describe_llm_status_unrecognized_provider() -> None:
+    """No es una de las 5 combinaciones de `design.md`, pero tampoco queda en silencio."""
+    config = LLMConfig(provider="grok", provider_explicit=True)
+
+    provider, message = describe_llm_status(config)
+
+    assert provider is None
+    assert message == (
+        "`grok` no es un proveedor reconocido "
+        "(valores válidos: ollama, deepseek, openai, disabled)"
+    )
+
+
+def test_describe_llm_status_provider_matches_build_provider_for_same_config() -> None:
+    config = LLMConfig(provider="deepseek", deepseek_api_key="sk-test")
+
+    with patch(_OPENAI_COMPATIBLE_PROVIDER) as mock_provider:
+        expected = build_provider(config)
+        provider, _ = describe_llm_status(config)
+
+    assert mock_provider.return_value is expected
+    assert provider is expected

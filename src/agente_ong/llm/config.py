@@ -47,6 +47,14 @@ _PAID_PROVIDER_PRESETS: dict[str, tuple[str, str]] = {
     "openai": ("https://api.openai.com/v1", "gpt-4o-mini"),
 }
 
+# Nombre de la variable de entorno que aporta la clave de cada proveedor de pago
+# (T5c, describe_llm_status): permite nombrar la variable exacta que falta en el
+# mensaje del sidebar sin duplicar el mapeo provider -> variable.
+_PAID_PROVIDER_ENV_VARS: dict[str, str] = {
+    "deepseek": "DEEPSEEK_API_KEY",
+    "openai": "OPENAI_API_KEY",
+}
+
 
 def _env_float(name: str, default: float) -> float:
     """Lee un float de una variable de entorno; usa `default` si falta o es inválida."""
@@ -164,3 +172,52 @@ def build_provider(config: LLMConfig) -> LLMProvider | None:
     # Valor de provider no reconocido (ni ollama, ni un preset de pago, ni disabled):
     # nunca excepción, mismo principio de "nunca lanza" que is_ollama_available.
     return None
+
+
+def describe_llm_status(config: LLMConfig) -> tuple[LLMProvider | None, str | None]:
+    """Resuelve `config` (una única vez, vía `build_provider`) y añade el motivo legible.
+
+    `build_provider` por sí solo no distingue, desde fuera, POR QUÉ el resultado es
+    `None` (`disabled`, sin clave, o inalcanzable) — esta función sí, para el aviso del
+    sidebar (R7.7). El `LLMProvider` devuelto es siempre el mismo objeto que devolvería
+    `build_provider(config)`: no hay una segunda lógica de resolución divergente.
+
+    Cinco combinaciones de mensaje (ver `design.md`, bullet "Healthcheck del sidebar"):
+      - `provider == "disabled"` → "filtro desactivado por configuración".
+      - proveedor de pago sin su clave → nombra el proveedor y la variable ausente.
+      - `"ollama"` inalcanzable → nombra el proveedor.
+      - proveedor disponible con `provider_explicit=True` → `None` (sin aviso).
+      - `provider_explicit=False` (sin `LLM_PROVIDER` en el entorno) → mensaje SIEMPRE
+        presente, combinado con el motivo de indisponibilidad si además el proveedor no
+        responde — única combinación con mensaje pese a proveedor disponible.
+
+    Un valor de `provider` no reconocido no está entre las cinco combinaciones de
+    `design.md` (que asume uno de los cuatro nombres válidos), pero tampoco se deja sin
+    diagnóstico: produce un sexto mensaje explícito en vez de silencio ante un typo de
+    configuración.
+    """
+    provider = build_provider(config)
+
+    message: str | None
+    if config.provider == "disabled":
+        message = "filtro desactivado por configuración"
+    elif config.provider in _PAID_PROVIDER_PRESETS and provider is None:
+        env_var = _PAID_PROVIDER_ENV_VARS[config.provider]
+        message = f"`{config.provider}` configurado pero falta `{env_var}`"
+    elif config.provider == "ollama" and provider is None:
+        message = "`ollama` configurado pero no responde"
+    elif provider is None:
+        message = (
+            f"`{config.provider}` no es un proveedor reconocido "
+            "(valores válidos: ollama, deepseek, openai, disabled)"
+        )
+    else:
+        message = None
+
+    if not config.provider_explicit:
+        default_notice = (
+            f"`LLM_PROVIDER` no definida, usando `{config.provider}` por defecto"
+        )
+        message = f"{default_notice} ({message})" if message else default_notice
+
+    return provider, message

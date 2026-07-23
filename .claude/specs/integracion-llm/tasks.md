@@ -199,7 +199,7 @@ Orden de ejecución: T5a → T5b → T5c → T5d → T5e → T5f (cada una es un
   - Done: `pytest tests/llm/test_config.py -q` en verde con las 7 combinaciones (5 ramas
     + no reconocido + verificación de que ninguna rama propaga una excepción cruda)
 
-- [ ] 5c. `describe_llm_status()` en `llm/config.py`
+- [x] 5c. `describe_llm_status()` en `llm/config.py`
   - Files: `src/agente_ong/llm/config.py` (continúa de T5b), `tests/llm/test_config.py`
     (continúa de T5b)
   - `describe_llm_status(config: LLMConfig) -> tuple[LLMProvider | None, str | None]`:
